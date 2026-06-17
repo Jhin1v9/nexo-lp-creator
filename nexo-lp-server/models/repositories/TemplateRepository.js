@@ -16,19 +16,20 @@ class TemplateRepository {
 
     await run(
       `INSERT INTO templates (
-        id, name, description, category, stack, thumbnail_url,
+        id, name, description, category, subcategory, stack, thumbnail_url,
         html, css, js, config, tags, source, usage_count, rating,
         is_public, created_by, created_at, updated_at,
         status, original_html, sanitized_html, sanitization_log,
         public_preview_token, prompt_hash, prompt_censored,
         price_stars, price_suns, price_moons,
-        session_id, kimi_chat_url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        session_id, kimi_chat_url, metadata_json
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         data.name,
         data.description || null,
         data.category || 'landing',
+        data.subcategory || data.category || 'landing',
         data.stack || 'static-html-tailwind',
         data.thumbnail_url || data.thumbnailUrl || null,
         data.html || null,
@@ -55,6 +56,7 @@ class TemplateRepository {
         data.price_moons || data.priceMoons || 0,
         data.session_id || data.sessionId || null,
         data.kimi_chat_url || data.kimiChatUrl || null,
+        data.metadata_json || (data.metadata ? JSON.stringify(data.metadata) : null),
       ]
     );
     return this.findById(id);
@@ -212,6 +214,18 @@ class TemplateRepository {
       'SELECT DISTINCT category FROM templates WHERE is_public = 1 ORDER BY category'
     );
     return rows.map(r => r.category);
+  }
+
+  async getSubcategories(category) {
+    let sql = 'SELECT DISTINCT subcategory FROM templates WHERE is_public = 1 AND subcategory IS NOT NULL';
+    const params = [];
+    if (category) {
+      sql += ' AND category = ?';
+      params.push(category);
+    }
+    sql += ' ORDER BY subcategory';
+    const rows = await query(sql, params);
+    return rows.map(r => r.subcategory).filter(Boolean);
   }
 
   async getPopular(limit = 10) {
