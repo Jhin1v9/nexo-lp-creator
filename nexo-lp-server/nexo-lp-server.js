@@ -27,6 +27,7 @@ const ensureDirectories = () => {
   const dirs = [
     path.resolve(__dirname, '../data'),
     path.resolve(__dirname, '../data/previews'),
+    path.resolve(__dirname, '../data/previews/thumbnails'),
     path.resolve(__dirname, '../data/templates'),
     path.resolve(__dirname, '../data/mined-templates'),
     path.resolve(__dirname, '../data/zips'),
