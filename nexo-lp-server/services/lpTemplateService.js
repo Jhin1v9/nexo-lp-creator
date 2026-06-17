@@ -15,7 +15,7 @@ const TemplatePurchaseRepository = require('../models/repositories/TemplatePurch
 const SessionRepository = require('../models/repositories/SessionRepository');
 const CurrencyRepository = require('../models/repositories/CurrencyRepository');
 const PreviewService = require('./lpPreviewService');
-const SanitizationService = require('./lpSanitizationService');
+const SanitizationOrchestrator = require('./lpSanitizationOrchestrator');
 const config = require('../config/nexo-lp-config');
 
 class TemplateService {
@@ -119,7 +119,6 @@ class TemplateService {
     const prompt = session.initial_prompt || '';
     const token = PreviewService.generatePublicToken();
 
-    // Support both the dedicated column and legacy JSON metadata fallback.
     let metadataKimiChatUrl = null;
     if (session.metadata_json) {
       try {
@@ -139,8 +138,8 @@ class TemplateService {
       original_html: html,
       status: 'sanitizing',
       public_preview_token: token,
-      prompt_hash: SanitizationService.hashPrompt(prompt),
-      prompt_censored: SanitizationService.makeCensoredPrompt(),
+      prompt_hash: this._hashPrompt(prompt),
+      prompt_censored: '[PROMPT BLOCKED — purchase this template in the LOJA to unlock the original prompt]',
       price_stars: config.loja.defaultPrices.stars,
       price_suns: config.loja.defaultPrices.suns,
       price_moons: config.loja.defaultPrices.moons,
@@ -148,12 +147,13 @@ class TemplateService {
       created_by: userId,
       session_id: sessionId,
       kimi_chat_url: chatUrl,
+      is_public: 0,
     });
 
-    await PreviewService.publishPublicPreview(sessionId, html, token);
+    await PreviewService.publishPublicPreview(sessionId, this._blockedPreviewHtml(template.name), token);
 
-    SanitizationService.startSanitization(sessionId, html, prompt, chatUrl, userId)
-      .catch(err => console.error('[LOJA] Sanitization failed:', err));
+    SanitizationOrchestrator.startSanitization(sessionId, html, prompt, chatUrl, userId)
+      .catch((err) => console.error('[LOJA] Sanitization orchestrator failed:', err.message));
 
     return template;
   }
@@ -402,6 +402,38 @@ class TemplateService {
     }
 
     return created;
+  }
+
+  _hashPrompt(prompt) {
+    return crypto.createHash('sha256').update(prompt || '').digest('hex');
+  }
+
+  _blockedPreviewHtml(name) {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${this._escapeHtml(name)} - Sanitizing</title>
+  <script src="https://cdn.tailwindcss.com"><\/script>
+</head>
+<body class="min-h-screen flex items-center justify-center bg-slate-50 text-slate-700">
+  <div class="text-center p-8">
+    <div class="w-12 h-12 border-4 border-indigo-200 border-t-indigo-500 rounded-full animate-spin mx-auto mb-4"></div>
+    <h1 class="text-xl font-semibold mb-2">Sanitizing template...</h1>
+    <p class="text-sm text-slate-500">This landing page is being reviewed and prepared for the NEXO LOJA.</p>
+  </div>
+</body>
+</html>`;
+  }
+
+  _escapeHtml(text) {
+    return (text || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
   }
 
   _generateName(session) {

@@ -22,9 +22,7 @@ jest.mock('../../services/lpBridgeAdapter.cjs', () => ({
   cancelStream: jest.fn(),
 }));
 
-jest.mock('../../services/lpSanitizationService', () => ({
-  hashPrompt: jest.fn((prompt) => `hash-${prompt}`),
-  makeCensoredPrompt: jest.fn(() => '[CENSORED PROMPT]'),
+jest.mock('../../services/lpSanitizationOrchestrator', () => ({
   startSanitization: jest.fn().mockResolvedValue({ success: true }),
 }));
 

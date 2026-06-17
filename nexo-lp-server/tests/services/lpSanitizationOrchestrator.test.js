@@ -1,11 +1,11 @@
 /**
- * NEXO Landing Page Creator v3.0 - Sanitization Service Tests
+ * NEXO Landing Page Creator v3.0 - Sanitization Orchestrator Tests
  */
 
 const fs = require('fs');
 const path = require('path');
 
-const testDbPath = path.join(__dirname, '../../../data/nexo-lp-test-sanitization.db');
+const testDbPath = path.join(__dirname, '../../../data/nexo-lp-test-sanitization-orchestrator.db');
 process.env.NEXO_LP_DB_PATH = testDbPath;
 process.env.NODE_ENV = 'test';
 
@@ -21,9 +21,9 @@ const { initializeDatabase, closeDatabase } = require('../../models/sqlite');
 const TemplateRepository = require('../../models/repositories/TemplateRepository');
 const BridgeAdapter = require('../../services/lpBridgeAdapter.cjs');
 const PreviewService = require('../../services/lpPreviewService');
-const SanitizationService = require('../../services/lpSanitizationService');
+const SanitizationOrchestrator = require('../../services/lpSanitizationOrchestrator');
 
-describe('lpSanitizationService', () => {
+describe('lpSanitizationOrchestrator', () => {
   beforeAll(async () => {
     if (fs.existsSync(testDbPath)) {
       fs.unlinkSync(testDbPath);
@@ -61,13 +61,32 @@ describe('lpSanitizationService', () => {
     const sessionId = 'sess-ok-001';
     const template = await createTemplate(sessionId);
     const originalHtml = '<h1>Acme Corp</h1>';
-    const sanitizedHtml = '<h1>Empresa NEXO Digital</h1>';
+    const sanitizedHtml = '<h1>NEXO Digital</h1>';
+    const metadata = {
+      category: 'saas',
+      subcategory: 'b2b-saas',
+      tags: ['modern'],
+      niche: 'B2B SaaS',
+      audience: 'Startups',
+      difficulty: 'beginner',
+      features: ['Hero'],
+      colors: ['#6366F1'],
+      style: 'modern',
+      seoKeywords: ['saas'],
+      badges: ['Trending'],
+      whyBuy: 'Great template',
+      useCases: ['Launch'],
+    };
 
     BridgeAdapter.sendMessage
       .mockResolvedValueOnce({ success: true, content: sanitizedHtml, mode: 'instant' })
-      .mockResolvedValueOnce({ success: true, content: 'OK', mode: 'thinking' });
+      .mockResolvedValueOnce({
+        success: true,
+        content: JSON.stringify({ ok: true, corrections: [], metadata }),
+        mode: 'thinking',
+      });
 
-    const result = await SanitizationService.startSanitization(
+    const result = await SanitizationOrchestrator.startSanitization(
       sessionId,
       originalHtml,
       '',
@@ -77,19 +96,16 @@ describe('lpSanitizationService', () => {
 
     expect(result.success).toBe(true);
     expect(result.templateId).toBe(template.id);
+    expect(result.metadata.category).toBe('saas');
 
     const updated = await TemplateRepository.findById(template.id);
     expect(updated.status).toBe('available');
     expect(updated.is_public).toBe(1);
     expect(updated.sanitized_html).toBe(sanitizedHtml);
     expect(updated.html).toBe(sanitizedHtml);
-
-    const log = JSON.parse(updated.sanitization_log);
-    expect(log.attempts).toHaveLength(2);
-    expect(log.attempts[0].step).toBe('sanitize');
-    expect(log.attempts[0].mode).toBe('instant');
-    expect(log.attempts[1].step).toBe('review');
-    expect(log.attempts[1].mode).toBe('thinking');
+    expect(updated.category).toBe('saas');
+    expect(updated.subcategory).toBe('b2b-saas');
+    expect(updated.metadata_json).toContain('"category":"saas"');
 
     expect(BridgeAdapter.sendMessage).toHaveBeenCalledTimes(2);
     expect(PreviewService.updatePublicPreview).toHaveBeenCalledWith(
@@ -98,27 +114,24 @@ describe('lpSanitizationService', () => {
     );
   });
 
-  test('retries and marks failed when review never OK', async () => {
-    const sessionId = 'sess-fail-002';
+  test('applies corrections and marks template available', async () => {
+    const sessionId = 'sess-correct-002';
     const template = await createTemplate(sessionId);
     const originalHtml = '<h1>Acme Corp</h1>';
-    const sanitizedHtml = '<h1>Empresa NEXO Digital</h1>';
+    const sanitizedHtml = '<h1>NEXO Digital</h1>';
+    const refinedHtml = '<h1>NEXO Digital</h1><p>Refined</p>';
+    const metadata = { category: 'landing' };
 
-    // First sanitize + review, then 3 retry sanitize/review pairs
-    for (let i = 0; i < 4; i++) {
-      BridgeAdapter.sendMessage.mockResolvedValueOnce({
+    BridgeAdapter.sendMessage
+      .mockResolvedValueOnce({ success: true, content: sanitizedHtml, mode: 'instant' })
+      .mockResolvedValueOnce({
         success: true,
-        content: sanitizedHtml,
-        mode: 'instant',
-      });
-      BridgeAdapter.sendMessage.mockResolvedValueOnce({
-        success: true,
-        content: 'Ainda contém dados reais. Remova telefones e endereços.',
+        content: JSON.stringify({ ok: false, corrections: ['Add a tagline'], metadata }),
         mode: 'thinking',
-      });
-    }
+      })
+      .mockResolvedValueOnce({ success: true, content: refinedHtml, mode: 'thinking' });
 
-    const result = await SanitizationService.startSanitization(
+    const result = await SanitizationOrchestrator.startSanitization(
       sessionId,
       originalHtml,
       '',
@@ -126,20 +139,31 @@ describe('lpSanitizationService', () => {
       'user-2'
     );
 
+    expect(result.success).toBe(true);
+
+    const updated = await TemplateRepository.findById(template.id);
+    expect(updated.status).toBe('available');
+    expect(updated.html).toBe(refinedHtml);
+    expect(BridgeAdapter.sendMessage).toHaveBeenCalledTimes(3);
+  });
+
+  test('marks template failed when bridge throws', async () => {
+    const sessionId = 'sess-fail-003';
+    const template = await createTemplate(sessionId);
+
+    BridgeAdapter.sendMessage.mockRejectedValue(new Error('Bridge disconnected'));
+
+    const result = await SanitizationOrchestrator.startSanitization(
+      sessionId,
+      '<h1>Acme Corp</h1>',
+      '',
+      'http://kimi.example.com/chat/3',
+      'user-3'
+    );
+
     expect(result.success).toBe(false);
-    expect(result.templateId).toBe(template.id);
 
     const updated = await TemplateRepository.findById(template.id);
     expect(updated.status).toBe('failed');
-    expect(updated.is_public).toBe(0);
-    expect(updated.html).toBe('<h1>Original HTML</h1>');
-    expect(updated.sanitized_html).toBe(sanitizedHtml);
-
-    const log = JSON.parse(updated.sanitization_log);
-    expect(log.attempts).toHaveLength(8);
-    expect(log.attempts.filter((a) => /^retry-\d+$/.test(a.step))).toHaveLength(3);
-    expect(log.attempts.filter((a) => /^retry-review-\d+$/.test(a.step))).toHaveLength(3);
-
-    expect(PreviewService.updatePublicPreview).not.toHaveBeenCalled();
   });
 });

@@ -9,9 +9,7 @@ const testDbPath = path.join(__dirname, '../../../data/nexo-lp-test-template.db'
 process.env.NEXO_LP_DB_PATH = testDbPath;
 process.env.NODE_ENV = 'test';
 
-jest.mock('../../services/lpSanitizationService', () => ({
-  hashPrompt: jest.fn((prompt) => `hash-${prompt}`),
-  makeCensoredPrompt: jest.fn(() => '[CENSORED PROMPT]'),
+jest.mock('../../services/lpSanitizationOrchestrator', () => ({
   startSanitization: jest.fn().mockResolvedValue({ success: true }),
 }));
 
@@ -20,7 +18,7 @@ const SessionRepository = require('../../models/repositories/SessionRepository')
 const TemplateRepository = require('../../models/repositories/TemplateRepository');
 const CurrencyRepository = require('../../models/repositories/CurrencyRepository');
 const PreviewService = require('../../services/lpPreviewService');
-const SanitizationService = require('../../services/lpSanitizationService');
+const SanitizationOrchestrator = require('../../services/lpSanitizationOrchestrator');
 const TemplateService = require('../../services/lpTemplateService');
 
 describe('lpTemplateService', () => {
@@ -48,9 +46,7 @@ describe('lpTemplateService', () => {
       }
     }
     createdTokens.length = 0;
-    SanitizationService.hashPrompt.mockClear();
-    SanitizationService.makeCensoredPrompt.mockClear();
-    SanitizationService.startSanitization.mockClear();
+    SanitizationOrchestrator.startSanitization.mockClear();
   });
 
   async function createSession(userId, overrides = {}) {
@@ -96,6 +92,7 @@ describe('lpTemplateService', () => {
     expect(template.price_stars).toBe(5);
     expect(template.session_id).toBe(session.id);
     expect(template.public_preview_token).toMatch(/^pub-/);
+    expect(template.is_public).toBe(0);
 
     createdTokens.push(template.public_preview_token);
 
@@ -103,15 +100,13 @@ describe('lpTemplateService', () => {
     expect(fs.existsSync(filePath)).toBe(true);
 
     const content = fs.readFileSync(filePath, 'utf-8');
-    expect(content).toContain('<h1>My Startup</h1>');
+    expect(content).toContain('Sanitizing template...');
 
-    expect(SanitizationService.hashPrompt).toHaveBeenCalledWith(session.initial_prompt);
-    expect(SanitizationService.makeCensoredPrompt).toHaveBeenCalled();
-    expect(SanitizationService.startSanitization).toHaveBeenCalledWith(
+    expect(SanitizationOrchestrator.startSanitization).toHaveBeenCalledWith(
       session.id,
       session.current_html,
       session.initial_prompt,
-      null,
+      session.kimi_chat_url,
       userId
     );
   });
@@ -173,13 +168,13 @@ describe('lpTemplateService', () => {
   test('getTemplatePrompt returns censored if not purchased', async () => {
     const userId = 'user-curious';
     const template = await createAvailableTemplate({
-      prompt_censored: '[PROMPT BLOQUEADO]',
+      prompt_censored: '[PROMPT BLOCKED]',
     });
 
     const result = await TemplateService.getTemplatePrompt(template.id, userId);
 
     expect(result.unlocked).toBe(false);
     expect(result.censored).toBe(true);
-    expect(result.prompt).toBe('[PROMPT BLOQUEADO]');
+    expect(result.prompt).toBe('[PROMPT BLOCKED]');
   });
 });
