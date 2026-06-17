@@ -25,9 +25,6 @@ const API_BASE_URL = `${BACKEND_URL}/api/nexo-lp`;
 const PROMPT = 'Crie um site lindo para um restaurante italiano chamado Sapore Di Nonna';
 const SESSION_STORAGE_KEY = 'nexo-lp-current-session';
 
-const { initializeDatabase, closeDatabase } = require('../nexo-lp-server/models/sqlite');
-const TemplateRepository = require('../nexo-lp-server/models/repositories/TemplateRepository');
-
 function log(message) {
   const timestamp = new Date().toISOString();
   console.log(`[${timestamp}] [e2e-restaurant] ${message}`);
@@ -63,11 +60,13 @@ async function waitForGenerationComplete(page, timeoutMs = 300_000) {
 }
 
 async function pollTemplateAvailable(sessionId, timeoutMs = 300_000, intervalMs = 2000) {
-  log(`Polling database for template with status='available' (sessionId=${sessionId})...`);
+  log(`Polling API for template with status='available' (sessionId=${sessionId})...`);
   const start = Date.now();
 
   while (Date.now() - start < timeoutMs) {
-    const template = await TemplateRepository.findBySessionId(sessionId);
+    const templatesResponse = await fetchTemplates();
+    const templates = templatesResponse?.templates || [];
+    const template = templates.find((t) => t.session_id === sessionId);
     if (template) {
       log(`Template found: id=${template.id}, status=${template.status}, is_public=${template.is_public}`);
       if (template.status === 'available') {
@@ -81,7 +80,7 @@ async function pollTemplateAvailable(sessionId, timeoutMs = 300_000, intervalMs 
 }
 
 async function fetchTemplates() {
-  const url = `${API_BASE_URL}/templates`;
+  const url = `${API_BASE_URL}/templates?limit=100`;
   log(`Fetching templates from ${url}...`);
   const response = await fetch(url);
   if (!response.ok) {
@@ -151,9 +150,6 @@ async function run() {
     log(`Navigating to frontend: ${FRONTEND_URL}`);
     page = await browser.newPage();
     await page.goto(FRONTEND_URL, { waitUntil: 'networkidle', timeout: 30_000 });
-
-    log('Initializing database connection...');
-    await initializeDatabase();
 
     log('Locating generation input...');
     const input = page.locator('textarea[placeholder*="landing page"]').first();
@@ -254,12 +250,6 @@ async function run() {
       } catch {
         // ignore cleanup errors
       }
-    }
-    try {
-      log('Closing database connection...');
-      closeDatabase();
-    } catch {
-      // ignore
     }
   }
 }
