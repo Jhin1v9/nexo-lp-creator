@@ -44,8 +44,8 @@ describe('lpSanitizationOrchestrator', () => {
   });
 
   beforeEach(() => {
-    BridgeAdapter.sendMessage.mockReset();
-    PreviewService.updatePublicPreview.mockReset();
+    BridgeAdapter.sendMessage.mockClear();
+    PreviewService.updatePublicPreview.mockClear();
     TemplateScreenshotService.captureTemplateScreenshot.mockClear();
   });
 
@@ -66,8 +66,8 @@ describe('lpSanitizationOrchestrator', () => {
   test('sanitizes and marks template available when review is OK', async () => {
     const sessionId = 'sess-ok-001';
     const template = await createTemplate(sessionId);
-    const originalHtml = '<h1>Acme Corp</h1>';
-    const sanitizedHtml = '<h1>NEXO Digital</h1>';
+    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Welcome to our site.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
+    const sanitizedHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>NEXO Digital</title></head><body><h1>NEXO Digital</h1><p>We create digital experiences that convert.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
     const metadata = {
       category: 'saas',
       subcategory: 'b2b-saas',
@@ -127,9 +127,9 @@ describe('lpSanitizationOrchestrator', () => {
   test('applies corrections and marks template available', async () => {
     const sessionId = 'sess-correct-002';
     const template = await createTemplate(sessionId);
-    const originalHtml = '<h1>Acme Corp</h1>';
-    const sanitizedHtml = '<h1>NEXO Digital</h1>';
-    const refinedHtml = '<h1>NEXO Digital</h1><p>Refined</p>';
+    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Welcome to our site.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
+    const sanitizedHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>NEXO Digital</title></head><body><h1>NEXO Digital</h1><p>We create digital experiences that convert.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
+    const refinedHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>NEXO Digital Refined</title></head><body><h1>NEXO Digital</h1><p>Refined landing page content with improved copy and spacing for better conversion.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li><li>Refined</li></ul></section></body></html>';
     const metadata = { category: 'landing' };
 
     BridgeAdapter.sendMessage
@@ -163,17 +163,23 @@ describe('lpSanitizationOrchestrator', () => {
 
     BridgeAdapter.sendMessage.mockRejectedValue(new Error('Bridge disconnected'));
 
+    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Contact us at hello@acme.com</p></body></html>';
+
     const result = await SanitizationOrchestrator.startSanitization(
       sessionId,
-      '<h1>Acme Corp</h1>',
+      originalHtml,
       '',
       'http://kimi.example.com/chat/3',
       'user-3'
     );
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
+    expect(result.fallback).toBe(true);
 
     const updated = await TemplateRepository.findById(template.id);
-    expect(updated.status).toBe('failed');
+    expect(updated.status).toBe('available');
+    expect(updated.is_public).toBe(1);
+    expect(updated.html).not.toContain('acme.com');
+    expect(updated.html).toContain('NEXO Digital');
   });
 });
