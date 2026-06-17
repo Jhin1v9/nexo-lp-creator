@@ -368,7 +368,7 @@ async function main() {
       cdpUrl: CDP_URL,
       totalFound: allLinks.length,
       processed: linksToImport.length,
-      skipped: skipped.map((l) => ({ url: toAbsoluteUrl(l.url), title: l.title })),
+      skipped: skipped.map((l) => ({ url: toAbsoluteUrl(l.href), title: l.title })),
       results,
     };
 
