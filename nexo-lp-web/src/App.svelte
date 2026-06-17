@@ -31,6 +31,9 @@
   let recentSessions = [];
   let loadingSessions = false;
   let openMenuSessionId = null;
+  let menuTriggerRect = null;
+
+  $: menuSession = recentSessions.find((s) => s.id === openMenuSessionId);
 
   const SESSION_STORAGE_KEY = 'nexo-lp-current-session';
 
@@ -149,11 +152,18 @@
 
   function toggleSessionMenu(e, sessionId) {
     e.stopPropagation();
-    openMenuSessionId = openMenuSessionId === sessionId ? null : sessionId;
+    if (openMenuSessionId === sessionId) {
+      openMenuSessionId = null;
+      menuTriggerRect = null;
+    } else {
+      openMenuSessionId = sessionId;
+      menuTriggerRect = e.currentTarget.getBoundingClientRect();
+    }
   }
 
   function closeSessionMenu() {
     openMenuSessionId = null;
+    menuTriggerRect = null;
   }
 
   async function handleRenameSession(e, s) {
@@ -383,7 +393,7 @@
         <div class="px-3 pb-2">
           <span class="text-xs font-semibold text-luna-text-muted uppercase tracking-wider">Recent Projects</span>
         </div>
-        <div class="space-y-1 px-3 overflow-y-auto max-h-[60vh]">
+        <div class="space-y-1 px-3 overflow-y-auto max-h-[60vh]" on:scroll={closeSessionMenu}>
           {#if loadingSessions}
             <div class="px-3 py-2 text-xs text-luna-text-muted">Loading...</div>
           {:else if recentSessions.length === 0}
@@ -412,41 +422,42 @@
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="6" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="18" r="1.5"/></svg>
                 </button>
-                {#if openMenuSessionId === s.id}
-                  <div
-                    class="absolute top-full right-0 mt-1 bottom-auto w-32 bg-white border border-luna-border rounded-lg shadow-lg py-1 z-50"
-                    role="menu"
-                    tabindex="-1"
-                    on:click|stopPropagation={() => {}}
-                    on:keydown|stopPropagation={() => {}}
-                  >
-                    <button
-                      class="w-full text-left px-3 py-1.5 text-xs text-luna-text-secondary hover:bg-luna-surface hover:text-luna-text flex items-center gap-2"
-                      on:click|stopPropagation={(e) => handleRenameSession(e, s)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-                      Rename
-                    </button>
-                    <button
-                      class="w-full text-left px-3 py-1.5 text-xs text-luna-text-secondary hover:bg-luna-surface hover:text-luna-text flex items-center gap-2"
-                      on:click|stopPropagation={(e) => handleDownloadSession(e, s)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                      Download
-                    </button>
-                    <button
-                      class="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
-                      on:click|stopPropagation={(e) => handleDeleteSession(e, s)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                      Delete
-                    </button>
-                  </div>
-                {/if}
               </div>
             {/each}
           {/if}
         </div>
+        {#if menuSession && menuTriggerRect}
+          <div
+            class="fixed w-32 bg-white border border-luna-border rounded-lg shadow-lg py-1 z-50"
+            style="top: {menuTriggerRect.bottom + 4}px; left: {menuTriggerRect.right}px; transform: translateX(-100%);"
+            role="menu"
+            tabindex="-1"
+            on:click|stopPropagation={() => {}}
+            on:keydown|stopPropagation={() => {}}
+          >
+            <button
+              class="w-full text-left px-3 py-1.5 text-xs text-luna-text-secondary hover:bg-luna-surface hover:text-luna-text flex items-center gap-2"
+              on:click|stopPropagation={(e) => handleRenameSession(e, menuSession)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+              Rename
+            </button>
+            <button
+              class="w-full text-left px-3 py-1.5 text-xs text-luna-text-secondary hover:bg-luna-surface hover:text-luna-text flex items-center gap-2"
+              on:click|stopPropagation={(e) => handleDownloadSession(e, menuSession)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
+              Download
+            </button>
+            <button
+              class="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 flex items-center gap-2"
+              on:click|stopPropagation={(e) => handleDeleteSession(e, menuSession)}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              Delete
+            </button>
+          </div>
+        {/if}
       {/if}
     </nav>
 
