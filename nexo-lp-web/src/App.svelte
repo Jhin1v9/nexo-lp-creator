@@ -21,6 +21,7 @@
   } from './stores.js';
   import { lpClient } from './lib/lpClient.js';
   import { createBlobUrl } from './lib/previewBuilder.js';
+  import { projectNameFromPrompt } from './lib/projectName.js';
   import { getSession, renameSession, deleteSession, getSessionDownloadUrl } from './api.js';
   import LandingPageCreator from './components/LandingPageCreator.svelte';
   import LPTemplateStore from './components/LPTemplateStore.svelte';
@@ -83,7 +84,7 @@
       const result = await lpClient.listSessions(1, 50);
       recentSessions = (result.sessions || []).map((s) => ({
         id: s.id,
-        projectName: s.project_name || s.initial_prompt || s.initialPrompt || 'Untitled Project',
+        projectName: projectNameFromPrompt(s.initial_prompt || s.initialPrompt, s.name || 'Untitled Project'),
         status: s.status,
         updatedAt: s.updated_at,
         createdAt: s.created_at,
@@ -382,7 +383,7 @@
         <div class="px-3 pb-2">
           <span class="text-xs font-semibold text-luna-text-muted uppercase tracking-wider">Recent Projects</span>
         </div>
-        <div class="space-y-1 px-3 max-h-64 overflow-y-auto">
+        <div class="space-y-1 px-3 overflow-y-auto max-h-[60vh]">
           {#if loadingSessions}
             <div class="px-3 py-2 text-xs text-luna-text-muted">Loading...</div>
           {:else if recentSessions.length === 0}
@@ -413,7 +414,7 @@
                 </button>
                 {#if openMenuSessionId === s.id}
                   <div
-                    class="absolute right-0 top-full mt-1 w-32 bg-white border border-luna-border rounded-lg shadow-lg py-1 z-50"
+                    class="absolute top-full right-0 mt-1 bottom-auto w-32 bg-white border border-luna-border rounded-lg shadow-lg py-1 z-50"
                     role="menu"
                     tabindex="-1"
                     on:click|stopPropagation={() => {}}
