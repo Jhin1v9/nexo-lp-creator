@@ -602,8 +602,12 @@ export function updateCursorFollowers(followers, mouse, w, h, mouseActive, reent
       s.currentX = s.x;
       s.currentY = s.y;
       if (s.trail) {
-        s.trail.forEach(p => { p.life -= CURSOR_INACTIVE_TRAIL_DECAY; });
-        s.trail = s.trail.filter(p => p.life > 0);
+        for (let k = 0; k < s.trail.length; k++) {
+          s.trail[k].life -= CURSOR_INACTIVE_TRAIL_DECAY;
+        }
+        while (s.trail.length > 0 && s.trail[0].life <= 0) {
+          s.trail.shift();
+        }
       }
     });
     return;
@@ -650,8 +654,12 @@ export function updateCursorFollowers(followers, mouse, w, h, mouseActive, reent
     if (!s.trail) s.trail = [];
     s.trail.push({ x: s.x, y: s.y, life: 1 });
     if (s.trail.length > CURSOR_TRAIL_LENGTH) s.trail.shift();
-    s.trail.forEach(p => { p.life -= CURSOR_TRAIL_DECAY; });
-    s.trail = s.trail.filter(p => p.life > 0);
+    for (let k = 0; k < s.trail.length; k++) {
+      s.trail[k].life -= CURSOR_TRAIL_DECAY;
+    }
+    while (s.trail.length > 0 && s.trail[0].life <= 0) {
+      s.trail.shift();
+    }
   });
 }
 

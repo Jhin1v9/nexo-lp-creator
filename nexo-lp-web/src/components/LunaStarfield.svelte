@@ -75,12 +75,18 @@
   const MAX_DYN_PER_STAR = 3;
 
   function handleMove(e) {
+    if (!active) return;
     mouseActive = true;
+    mouse.vx = e.clientX - mouse.lastX;
+    mouse.vy = e.clientY - mouse.lastY;
+    mouse.lastX = e.clientX;
+    mouse.lastY = e.clientY;
     mouse.x = e.clientX;
     mouse.y = e.clientY;
   }
-  function handleLeave() { mouseActive = false; }
+  function handleLeave() { if (!active) return; mouseActive = false; }
   function handleEnter(e) {
+    if (!active) return;
     mouseActive = true;
     reentrySmooth = 1;
     mouse.x = e.clientX;
@@ -91,6 +97,7 @@
     mouse.vy = 0;
   }
   function handleClick(e) {
+    if (!active) return;
     mouseActive = true;
     boomAt(cursorFollowers, e.clientX, e.clientY, w, h);
   }
@@ -236,6 +243,7 @@
 
     for (const layer of layers) {
       for (const s of layer.stars) {
+        if (s.isCursorFollower === true) continue;
         if (behavior.drift) {
           s.nx += s.driftVx * behavior.speed * layer.speedMult * 0.008;
           s.ny += s.driftVy * behavior.speed * layer.speedMult * 0.008;
@@ -453,6 +461,11 @@
       canvas.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
+
+    mouse.x = w / 2;
+    mouse.y = h / 2;
+    mouse.lastX = mouse.x;
+    mouse.lastY = mouse.y;
 
     stars.forEach(s => projectStar(s, w, h));
     allBgStars.forEach(s => projectBgStar(s, w, h));
