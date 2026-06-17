@@ -81,7 +81,7 @@
 </script>
 
 <div bind:this={stageEl} class="relative w-full max-w-md mx-auto min-h-[260px]">
-  {#each visiblePhases as { phase, event } (event.timestamp)}
+  {#each visiblePhases as { phase, event } (phase)}
     <div
       class="phase-card absolute left-0 right-0 rounded-2xl border border-white/[0.12] p-4 opacity-0"
       style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 16px 50px rgba(0,0,0,0.35);"

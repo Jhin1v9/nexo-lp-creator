@@ -428,6 +428,8 @@
   }
 
   function loop(now) {
+    if (!active) return;
+
     dt = Math.min(now - lastTime, 50);
     lastTime = now;
     time = now;
@@ -448,6 +450,24 @@
     draw();
 
     animId = requestAnimationFrame(loop);
+  }
+
+  function startLoop() {
+    if (animId) return;
+    animId = requestAnimationFrame(loop);
+  }
+
+  function stopLoop() {
+    if (animId) {
+      cancelAnimationFrame(animId);
+      animId = null;
+    }
+  }
+
+  $: if (active) {
+    startLoop();
+  } else {
+    stopLoop();
   }
 
   function resize() {
@@ -483,8 +503,6 @@
     resize();
     initStars();
     window.addEventListener('resize', resize);
-
-    animId = requestAnimationFrame(loop);
 
     window.addEventListener('mousemove', handleMove);
     window.addEventListener('mouseleave', handleLeave);

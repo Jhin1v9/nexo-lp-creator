@@ -6,7 +6,6 @@
 
   let contentEl;
   let titleEl;
-  let subtitleEl;
   let progressEl;
   let timeline;
 
@@ -54,7 +53,7 @@
 </script>
 
 {#if $isGenerating}
-  <div class="fixed inset-0 z-[60] flex flex-col items-center justify-center font-sans text-white overflow-hidden pointer-events-none">
+  <div aria-busy="true" class="fixed inset-0 z-[60] flex flex-col items-center justify-center font-sans text-white overflow-hidden pointer-events-none">
     <!-- Center stage -->
     <div bind:this={contentEl} class="relative z-10 text-center w-full max-w-xl px-6 -mt-12">
       <div class="relative mb-8">
@@ -74,7 +73,7 @@
         Generating your landing page
       </h2>
 
-      <p bind:this={subtitleEl} class="text-sm sm:text-base text-white/70 mb-8 min-h-[1.5rem]">
+      <p role="status" aria-live="polite" class="text-sm sm:text-base text-white/70 mb-8 min-h-[1.5rem]">
         {activeMessage}
       </p>
 
