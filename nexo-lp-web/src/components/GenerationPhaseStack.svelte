@@ -21,17 +21,17 @@
 
   $: visiblePhases = orderedPhases
     .map((phase) => (latestByPhase[phase] ? { phase, event: latestByPhase[phase] } : null))
-    .filter(Boolean);
+    .filter(Boolean)
+    .slice(-4);
 
-  function markCompleted(cardEl) {
-    if (!cardEl) return;
-    const status = cardEl.querySelector('.phase-status');
-    if (status && status.dataset.status === 'loading') {
-      status.innerHTML = '<span class="text-emerald-300">✓</span> <span>concluído</span>';
-      status.dataset.status = 'success';
-      status.classList.remove('text-amber-300');
-      status.classList.add('text-emerald-300');
-    }
+  $: latestPhaseIndex = visiblePhases.length > 0
+    ? orderedPhases.indexOf(visiblePhases[visiblePhases.length - 1].phase)
+    : -1;
+
+  function displayStatusFor(phase, eventStatus) {
+    const idx = orderedPhases.indexOf(phase);
+    if (idx < latestPhaseIndex) return 'success';
+    return eventStatus || 'loading';
   }
 
   function positionCards() {
@@ -51,16 +51,17 @@
     });
   }
 
+  function idsEqual(a, b) {
+    return a.length === b.length && a.every((v, i) => v === b[i]);
+  }
+
   afterUpdate(() => {
     const currentIds = visiblePhases.map((p) => p.event.timestamp);
-    if (currentIds.join(',') === lastRenderedIds.join(',')) return;
+    if (idsEqual(currentIds, lastRenderedIds)) return;
     lastRenderedIds = currentIds;
 
     const cards = Array.from(stageEl.children);
     const newCards = cards.filter((c) => !c.dataset.animated);
-    const oldCards = cards.filter((c) => c.dataset.animated);
-
-    oldCards.forEach(markCompleted);
 
     newCards.forEach((card) => {
       card.dataset.animated = 'true';
@@ -72,21 +73,6 @@
     });
 
     positionCards();
-
-    if (cards.length > 4) {
-      const first = cards[0];
-      gsap.to(first, {
-        opacity: 0,
-        x: -70,
-        scale: 0.88,
-        duration: 0.5,
-        ease: 'power2.in',
-        onComplete: () => {
-          first.remove();
-          positionCards();
-        },
-      });
-    }
   });
 
   onDestroy(() => {
@@ -95,12 +81,12 @@
 </script>
 
 <div bind:this={stageEl} class="relative w-full max-w-md mx-auto min-h-[260px]">
-  {#each visiblePhases as { event } (event.timestamp)}
+  {#each visiblePhases as { phase, event } (event.timestamp)}
     <div
       class="phase-card absolute left-0 right-0 rounded-2xl border border-white/[0.12] p-4 opacity-0"
       style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 16px 50px rgba(0,0,0,0.35);"
     >
-      <GenerationPhaseCard {event} />
+      <GenerationPhaseCard event={{ ...event, status: displayStatusFor(phase, event.status) }} />
     </div>
   {/each}
 </div>
