@@ -14,6 +14,8 @@
 
 require('dotenv').config({ path: require('path').resolve(__dirname, '../.env') });
 
+const fs = require('fs');
+const path = require('path');
 const { chromium } = require('playwright');
 
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
@@ -42,13 +44,13 @@ async function waitForGenerationComplete(page, timeoutMs = 300_000) {
   const completeIndicator = page.locator('text=/Generation complete|View generated page/i').first();
 
   while (Date.now() - start < timeoutMs) {
-    const iframeVisible = await iframe.isVisible({ timeout: 500 }).catch(() => false);
+    const iframeVisible = await iframe.waitFor({ state: 'visible', timeout: 500 }).then(() => true).catch(() => false);
     if (iframeVisible) {
       log('Preview iframe is visible.');
       return;
     }
 
-    const indicatorVisible = await completeIndicator.isVisible({ timeout: 500 }).catch(() => false);
+    const indicatorVisible = await completeIndicator.waitFor({ state: 'visible', timeout: 500 }).then(() => true).catch(() => false);
     if (indicatorVisible) {
       log('Generation complete indicator is visible.');
       return;
@@ -89,6 +91,47 @@ async function fetchTemplates() {
   return payload?.data || payload;
 }
 
+async function extractSessionId(page, timeoutMs = 10_000) {
+  log('Extracting sessionId from localStorage...');
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    const sessionRaw = await page.evaluate((key) => localStorage.getItem(key), SESSION_STORAGE_KEY);
+    if (sessionRaw) {
+      let session;
+      try {
+        session = JSON.parse(sessionRaw);
+      } catch (error) {
+        throw new Error(`Failed to parse session from localStorage: ${error.message}`);
+      }
+      const sessionId = session?.id;
+      if (sessionId) {
+        log(`sessionId=${sessionId}`);
+        return sessionId;
+      }
+    }
+    await sleep(500);
+  }
+
+  throw new Error(`No session found in localStorage under key "${SESSION_STORAGE_KEY}"`);
+}
+
+async function saveFailureScreenshot(page) {
+  if (!page) return;
+  try {
+    const dir = path.resolve(__dirname, '../data');
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filePath = path.join(dir, `e2e-restaurant-failure-${timestamp}.png`);
+    await page.screenshot({ path: filePath, fullPage: true });
+    log(`Failure screenshot saved to ${filePath}`);
+  } catch (err) {
+    log(`Failed to save failure screenshot: ${err.message}`);
+  }
+}
+
 async function run() {
   let browser = null;
   let page = null;
@@ -109,6 +152,9 @@ async function run() {
     page = await browser.newPage();
     await page.goto(FRONTEND_URL, { waitUntil: 'networkidle', timeout: 30_000 });
 
+    log('Initializing database connection...');
+    await initializeDatabase();
+
     log('Locating generation input...');
     const input = page.locator('textarea[placeholder*="landing page"]').first();
     await input.waitFor({ state: 'visible', timeout: 15_000 });
@@ -116,31 +162,22 @@ async function run() {
     log(`Filling prompt: "${PROMPT}"`);
     await input.fill(PROMPT);
     await input.press('Enter');
-    log('Prompt submitted.');
 
-    await waitForGenerationComplete(page);
-
-    log('Extracting sessionId from localStorage...');
-    const sessionRaw = await page.evaluate((key) => localStorage.getItem(key), SESSION_STORAGE_KEY);
-    if (!sessionRaw) {
-      throw new Error(`No session found in localStorage under key "${SESSION_STORAGE_KEY}"`);
-    }
-    let session;
+    const sentIndicator = page.locator('.message-user, [class*="user-message"], [class*="message-user"]').filter({ hasText: /Sapore Di Nonna/ }).first();
     try {
-      session = JSON.parse(sessionRaw);
-    } catch (error) {
-      throw new Error(`Failed to parse session from localStorage: ${error.message}`);
+      await sentIndicator.waitFor({ state: 'visible', timeout: 5000 });
+      log('Prompt submission confirmed (user message bubble visible).');
+    } catch {
+      log('Could not confirm user message bubble; continuing.');
     }
-    const sessionId = session?.id;
-    if (!sessionId) {
-      throw new Error('sessionId is missing from the stored session object');
-    }
-    log(`sessionId=${sessionId}`);
 
-    log('Initializing database connection...');
-    await initializeDatabase();
+    const sessionId = await extractSessionId(page);
 
-    const template = await pollTemplateAvailable(sessionId);
+    const [template] = await Promise.all([
+      pollTemplateAvailable(sessionId),
+      waitForGenerationComplete(page),
+    ]);
+
     log(`Template is available: id=${template.id}`);
 
     if (template.is_public !== 1) {
@@ -169,21 +206,30 @@ async function run() {
     const publicPreviewUrl = `${BACKEND_URL}/preview/public/${template.public_preview_token}.html`;
     log(`Opening public preview: ${publicPreviewUrl}`);
 
-    const previewPage = await browser.newPage();
-    await previewPage.goto(publicPreviewUrl, { waitUntil: 'networkidle', timeout: 30_000 });
+    let previewPage = null;
+    try {
+      previewPage = await browser.newPage();
+      await previewPage.goto(publicPreviewUrl, { waitUntil: 'networkidle', timeout: 30_000 });
 
-    const title = await previewPage.title();
-    log(`Public preview title: "${title}"`);
+      const title = await previewPage.title();
+      log(`Public preview title: "${title}"`);
 
-    const titleTrimmed = (title || '').trim();
-    if (titleTrimmed.length === 0) {
-      throw new Error('Public preview title is empty');
+      const titleTrimmed = (title || '').trim();
+      if (titleTrimmed.length === 0) {
+        throw new Error('Public preview title is empty');
+      }
+      if (!titleTrimmed.includes('Sapore') && !titleTrimmed.includes('Nonna')) {
+        log('Note: title does not contain "Sapore" or "Nonna", but it is non-empty.');
+      }
+    } finally {
+      if (previewPage) {
+        try {
+          await previewPage.close();
+        } catch {
+          // ignore cleanup errors
+        }
+      }
     }
-    if (!titleTrimmed.includes('Sapore') && !titleTrimmed.includes('Nonna')) {
-      log('Note: title does not contain "Sapore" or "Nonna", but it is non-empty.');
-    }
-
-    await previewPage.close();
 
     log('============================================================');
     log('Restaurant auto-publish E2E verification PASSED');
@@ -192,6 +238,7 @@ async function run() {
     log('============================================================');
     log(`FAILED: ${error.message}`);
     log('============================================================');
+    await saveFailureScreenshot(page);
     throw error;
   } finally {
     if (page) {
@@ -203,7 +250,7 @@ async function run() {
     }
     if (browser) {
       try {
-        await browser.close();
+        await browser.disconnect();
       } catch {
         // ignore cleanup errors
       }
