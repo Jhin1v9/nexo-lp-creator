@@ -32,7 +32,7 @@ echo -e "${BLUE}Running tests...${NC}"
 echo ""
 
 if [ -d "$PROJECT_DIR/__tests__" ] || [ -d "$PROJECT_DIR/tests" ]; then
-    npx jest \
+    NODE_OPTIONS=--experimental-vm-modules npx jest \
         --verbose \
         --coverage \
         --coverageDirectory="$PROJECT_DIR/coverage" \
@@ -40,7 +40,7 @@ if [ -d "$PROJECT_DIR/__tests__" ] || [ -d "$PROJECT_DIR/tests" ]; then
         "$@"
 else
     echo -e "${BLUE}No test directory found. Running with --passWithNoTests${NC}"
-    npx jest \
+    NODE_OPTIONS=--experimental-vm-modules npx jest \
         --verbose \
         --passWithNoTests \
         "$@"
