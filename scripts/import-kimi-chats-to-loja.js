@@ -14,11 +14,13 @@
 const path = require('path');
 require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
+process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+
 const fs = require('fs');
 const os = require('os');
 const { chromium } = require('playwright');
 
-const { initializeDatabase } = require('../nexo-lp-server/models/sqlite');
+const { initializeDatabase, closeDatabase } = require('../nexo-lp-server/models/sqlite');
 const SessionRepository = require('../nexo-lp-server/models/repositories/SessionRepository');
 const lpTemplateService = require('../nexo-lp-server/services/lpTemplateService');
 
@@ -26,6 +28,7 @@ const CDP_URL = process.env.KIMI_CDP_URL || 'http://127.0.0.1:9226';
 const IMPORTER_USER_ID = 'import-batch';
 const LOG_PATH = path.resolve(__dirname, '../data/imported-chats.json');
 const KIMI_ORIGIN = 'https://www.kimi.com';
+const SKIP_LAST_N = parseInt(process.env.SKIP_LAST_N || '2', 10);
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -40,9 +43,9 @@ function toAbsoluteUrl(href) {
 
 function validateHtml(html) {
   if (!html || typeof html !== 'string') return false;
-  const h = html.trim();
+  const h = html.trim().toLowerCase();
   return (
-    h.includes('<!DOCTYPE html>') &&
+    h.includes('<!doctype html>') &&
     h.includes('<html') &&
     h.includes('</html>') &&
     (h.includes('<body') || h.includes('<main') || h.includes('<section'))
@@ -57,16 +60,22 @@ async function collectSidebarChatLinks(page, maxScrolls = 20) {
   const links = [];
 
   for (let i = 0; i < maxScrolls; i++) {
-    const batch = await page.evaluate(() => {
-      const out = [];
-      document.querySelectorAll('a[href*="/chat/"]').forEach((a) => {
-        const href = a.getAttribute('href');
-        if (!href) return;
-        const title = (a.innerText || a.textContent || '').trim().replace(/\s+/g, ' ');
-        out.push({ href, title: title.slice(0, 200) });
+    let batch = [];
+    try {
+      batch = await page.evaluate(() => {
+        const out = [];
+        document.querySelectorAll('a[href*="/chat/"]').forEach((a) => {
+          const href = a.getAttribute('href');
+          if (!href) return;
+          const title = (a.innerText || a.textContent || '').trim().replace(/\s+/g, ' ');
+          out.push({ href, title: title.slice(0, 200) });
+        });
+        return out;
       });
-      return out;
-    });
+    } catch (err) {
+      console.warn(`[sidebar] evaluation failed: ${err.message}`);
+      return [];
+    }
 
     let newFound = false;
     for (const item of batch) {
@@ -234,7 +243,6 @@ async function extractFromDeployTab(page) {
     });
 
     if (!clicked) {
-      downloadPromise.catch(() => {});
       return null;
     }
 
@@ -319,10 +327,26 @@ async function importChat(page, link, index, total) {
   return result;
 }
 
+function writeLog(log) {
+  fs.writeFileSync(LOG_PATH, JSON.stringify(log, null, 2));
+}
+
+function backupExistingLog() {
+  if (!fs.existsSync(LOG_PATH)) return;
+  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupPath = path.resolve(
+    path.dirname(LOG_PATH),
+    `imported-chats.backup-${timestamp}.json`
+  );
+  fs.renameSync(LOG_PATH, backupPath);
+  console.log(`[IMPORT] Backed up previous log to ${backupPath}`);
+}
+
 async function main() {
   console.log(`[IMPORT] Connecting to Chrome at ${CDP_URL}`);
 
   await initializeDatabase();
+  backupExistingLog();
 
   const browser = await chromium.connectOverCDP(CDP_URL);
   const contexts = browser.contexts();
@@ -347,35 +371,37 @@ async function main() {
     const allLinks = await collectSidebarChatLinks(page);
     console.log(`[IMPORT] Found ${allLinks.length} sidebar chat links`);
 
-    if (allLinks.length <= 2) {
-      throw new Error('Not enough chats to skip the last 2');
+    if (allLinks.length <= SKIP_LAST_N) {
+      throw new Error(`Not enough chats to skip the last ${SKIP_LAST_N}`);
     }
 
-    const linksToImport = allLinks.slice(0, -2);
-    const skipped = allLinks.slice(-2);
+    const linksToImport = allLinks.slice(0, -SKIP_LAST_N);
+    const skipped = allLinks.slice(-SKIP_LAST_N);
 
     console.log(`[IMPORT] Processing ${linksToImport.length} chats (skipped ${skipped.length})`);
-
-    const results = [];
-    for (let i = 0; i < linksToImport.length; i++) {
-      const result = await importChat(page, linksToImport[i], i, linksToImport.length);
-      results.push(result);
-      await sleep(500);
-    }
 
     const log = {
       importedAt: new Date().toISOString(),
       cdpUrl: CDP_URL,
       totalFound: allLinks.length,
-      processed: linksToImport.length,
+      processed: 0,
       skipped: skipped.map((l) => ({ url: toAbsoluteUrl(l.href), title: l.title })),
-      results,
+      results: [],
     };
 
-    fs.writeFileSync(LOG_PATH, JSON.stringify(log, null, 2));
+    writeLog(log);
+
+    for (let i = 0; i < linksToImport.length; i++) {
+      const result = await importChat(page, linksToImport[i], i, linksToImport.length);
+      log.results.push(result);
+      log.processed = log.results.length;
+      writeLog(log);
+      await sleep(500);
+    }
+
     console.log(`[IMPORT] Log written to ${LOG_PATH}`);
 
-    const okCount = results.filter((r) => r.success).length;
+    const okCount = log.results.filter((r) => r.success).length;
     console.log(`[IMPORT] Done: ${okCount}/${linksToImport.length} imported successfully`);
   } finally {
     if (pageCreated && page) {
@@ -388,6 +414,7 @@ async function main() {
     if (browser && typeof browser.disconnect === 'function') {
       await browser.disconnect();
     }
+    closeDatabase();
   }
 }
 
