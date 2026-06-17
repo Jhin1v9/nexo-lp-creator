@@ -1,0 +1,227 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: NEXO
+      - button "Collapse sidebar" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - button "Editor" [ref=e15] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e19]: Editor
+      - button "Templates" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e24]: Templates
+      - button "Settings" [ref=e25] [cursor=pointer]:
+        - img [ref=e27]
+        - generic [ref=e30]: Settings
+      - button "New Project" [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e36]: New Project
+      - generic [ref=e39]: Recent Projects
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - button "Untitled Project" [ref=e42] [cursor=pointer]:
+            - img [ref=e44]
+            - generic [ref=e47]: Untitled Project
+          - button "Project options" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+        - generic [ref=e53]:
+          - button "Untitled Project" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - generic [ref=e59]: Untitled Project
+          - button "Project options" [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+        - generic [ref=e65]:
+          - button "Untitled Project" [ref=e66] [cursor=pointer]:
+            - img [ref=e68]
+            - generic [ref=e71]: Untitled Project
+          - button "Project options" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+        - generic [ref=e77]:
+          - button "Untitled Project" [ref=e78] [cursor=pointer]:
+            - img [ref=e80]
+            - generic [ref=e83]: Untitled Project
+          - button "Project options" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+        - generic [ref=e89]:
+          - button "Untitled Project" [ref=e90] [cursor=pointer]:
+            - img [ref=e92]
+            - generic [ref=e95]: Untitled Project
+          - button "Project options" [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+        - generic [ref=e101]:
+          - button "Untitled Project" [ref=e102] [cursor=pointer]:
+            - img [ref=e104]
+            - generic [ref=e107]: Untitled Project
+          - button "Project options" [ref=e108] [cursor=pointer]:
+            - img [ref=e109]
+        - generic [ref=e113]:
+          - button "test padaria 3" [ref=e114] [cursor=pointer]:
+            - img [ref=e116]
+            - generic [ref=e119]: test padaria 3
+          - button "Project options" [ref=e120] [cursor=pointer]:
+            - img [ref=e121]
+        - generic [ref=e125]:
+          - button "test padaria 2" [ref=e126] [cursor=pointer]:
+            - img [ref=e128]
+            - generic [ref=e131]: test padaria 2
+          - button "Project options" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+        - generic [ref=e137]:
+          - button "Untitled Project" [ref=e138] [cursor=pointer]:
+            - img [ref=e140]
+            - generic [ref=e143]: Untitled Project
+          - button "Project options" [ref=e144] [cursor=pointer]:
+            - img [ref=e145]
+        - generic [ref=e149]:
+          - button "Untitled Project" [ref=e150] [cursor=pointer]:
+            - img [ref=e152]
+            - generic [ref=e155]: Untitled Project
+          - button "Project options" [ref=e156] [cursor=pointer]:
+            - img [ref=e157]
+        - generic [ref=e161]:
+          - button "Untitled Project" [ref=e162] [cursor=pointer]:
+            - img [ref=e164]
+            - generic [ref=e167]: Untitled Project
+          - button "Project options" [ref=e168] [cursor=pointer]:
+            - img [ref=e169]
+        - generic [ref=e173]:
+          - button "test padaria" [ref=e174] [cursor=pointer]:
+            - img [ref=e176]
+            - generic [ref=e179]: test padaria
+          - button "Project options" [ref=e180] [cursor=pointer]:
+            - img [ref=e181]
+        - generic [ref=e185]:
+          - button "Untitled Project" [ref=e186] [cursor=pointer]:
+            - img [ref=e188]
+            - generic [ref=e191]: Untitled Project
+          - button "Project options" [ref=e192] [cursor=pointer]:
+            - img [ref=e193]
+        - generic [ref=e197]:
+          - button "Untitled Project" [ref=e198] [cursor=pointer]:
+            - img [ref=e200]
+            - generic [ref=e203]: Untitled Project
+          - button "Project options" [ref=e204] [cursor=pointer]:
+            - img [ref=e205]
+        - generic [ref=e209]:
+          - button "Untitled Project" [ref=e210] [cursor=pointer]:
+            - img [ref=e212]
+            - generic [ref=e215]: Untitled Project
+          - button "Project options" [ref=e216] [cursor=pointer]:
+            - img [ref=e217]
+    - generic [ref=e222]:
+      - generic [ref=e225]: Luna Ready
+      - generic [ref=e226]:
+        - generic [ref=e227]: 5.000 tokens
+        - generic [ref=e228]: 0 used
+  - main [ref=e231]:
+    - generic [ref=e232]:
+      - heading "Untitled Project" [level=1] [ref=e234]
+      - link "GitHub" [ref=e236] [cursor=pointer]:
+        - /url: https://github.com
+        - img [ref=e237]
+        - generic [ref=e239]: GitHub
+    - generic [ref=e241]:
+      - generic [ref=e243]:
+        - button "Chat" [ref=e244] [cursor=pointer]:
+          - img [ref=e246]
+          - generic [ref=e248]: Chat
+        - button "Preview" [ref=e249] [cursor=pointer]:
+          - img [ref=e251]
+          - generic [ref=e254]: Preview
+        - button "Code" [ref=e255] [cursor=pointer]:
+          - img [ref=e257]
+          - generic [ref=e260]: Code
+        - button "Deploy" [ref=e261] [cursor=pointer]:
+          - img [ref=e263]
+          - generic [ref=e266]: Deploy
+        - button "History" [ref=e267] [cursor=pointer]:
+          - img [ref=e269]
+          - generic [ref=e273]: History
+        - button "Bugs 3" [ref=e274] [cursor=pointer]:
+          - img [ref=e276]
+          - generic [ref=e285]: Bugs
+          - generic [ref=e286]: "3"
+      - generic [ref=e289]:
+        - generic [ref=e291]:
+          - generic [ref=e292]:
+            - img [ref=e297]
+            - heading "NEXO Landing Page Creator" [level=1] [ref=e299]
+            - paragraph [ref=e300]:
+              - text: Hi! I'm Luna, your AI landing page designer.
+              - text: Describe what you want, and I'll build it for you.
+          - generic [ref=e301]:
+            - paragraph [ref=e302]: Start with a template
+            - generic [ref=e303]:
+              - button "🚀 SaaS Landing Page Create a modern SaaS landing page with hero section, pricing, and features" [ref=e304] [cursor=pointer]:
+                - generic [ref=e305]:
+                  - generic [ref=e306]: 🚀
+                  - generic [ref=e307]:
+                    - heading "SaaS Landing Page" [level=3] [ref=e308]
+                    - paragraph [ref=e309]: Create a modern SaaS landing page with hero section, pricing, and features
+              - button "🏥 Clinic Website Build a professional medical clinic website with booking and services" [ref=e310] [cursor=pointer]:
+                - generic [ref=e311]:
+                  - generic [ref=e312]: 🏥
+                  - generic [ref=e313]:
+                    - heading "Clinic Website" [level=3] [ref=e314]
+                    - paragraph [ref=e315]: Build a professional medical clinic website with booking and services
+              - button "📚 Course Landing Page Design an online course page with curriculum and instructor info" [ref=e316] [cursor=pointer]:
+                - generic [ref=e317]:
+                  - generic [ref=e318]: 📚
+                  - generic [ref=e319]:
+                    - heading "Course Landing Page" [level=3] [ref=e320]
+                    - paragraph [ref=e321]: Design an online course page with curriculum and instructor info
+              - button "📱 App Showcase Create a mobile app landing page with screenshots and download CTA" [ref=e322] [cursor=pointer]:
+                - generic [ref=e323]:
+                  - generic [ref=e324]: 📱
+                  - generic [ref=e325]:
+                    - heading "App Showcase" [level=3] [ref=e326]
+                    - paragraph [ref=e327]: Create a mobile app landing page with screenshots and download CTA
+              - button "🍔 Restaurant Page Build a restaurant landing page with menu and reservation form" [ref=e328] [cursor=pointer]:
+                - generic [ref=e329]:
+                  - generic [ref=e330]: 🍔
+                  - generic [ref=e331]:
+                    - heading "Restaurant Page" [level=3] [ref=e332]
+                    - paragraph [ref=e333]: Build a restaurant landing page with menu and reservation form
+              - button "💼 Portfolio Website Design a creative portfolio for a designer or developer" [ref=e334] [cursor=pointer]:
+                - generic [ref=e335]:
+                  - generic [ref=e336]: 💼
+                  - generic [ref=e337]:
+                    - heading "Portfolio Website" [level=3] [ref=e338]
+                    - paragraph [ref=e339]: Design a creative portfolio for a designer or developer
+          - generic [ref=e341]:
+            - generic [ref=e342]:
+              - img [ref=e343]
+              - generic [ref=e345]: Pro Tips
+            - generic [ref=e346]:
+              - generic [ref=e347]:
+                - generic [ref=e348]: "1"
+                - generic [ref=e349]: Be specific about colors, layout, and sections you want
+              - generic [ref=e350]:
+                - generic [ref=e351]: "2"
+                - generic [ref=e352]: Mention your target audience for better results
+              - generic [ref=e353]:
+                - generic [ref=e354]: "3"
+                - generic [ref=e355]: You can ask for revisions anytime - just describe the changes
+              - generic [ref=e356]:
+                - generic [ref=e357]: "4"
+                - generic [ref=e358]: Add features like contact forms, galleries, or pricing tables
+          - paragraph [ref=e359]: Type your idea below or pick a template above to get started
+        - generic [ref=e360]:
+          - generic [ref=e361]:
+            - textbox "Describe the landing page you want to create..." [ref=e363]
+            - button [disabled] [ref=e364]:
+              - img [ref=e365]
+          - generic [ref=e368]: Press Enter to send, Shift+Enter for new line
+      - generic [ref=e369]:
+        - generic [ref=e373]: Ready
+        - generic [ref=e375]: v3.0.0
+    - generic [ref=e376]:
+      - generic [ref=e379]: Connected
+      - generic [ref=e381]:
+        - img [ref=e382]
+        - generic [ref=e385]: 0 / 5.000
+      - generic [ref=e388]:
+        - img [ref=e389]
+        - generic [ref=e391]: HTML + CSS + JS

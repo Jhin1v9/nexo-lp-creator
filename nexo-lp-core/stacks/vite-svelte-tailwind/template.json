@@ -1,0 +1,16 @@
+{
+  "name": "Vite + Svelte 4 + Tailwind CSS",
+  "description": "Svelte 4 SPA with Vite bundler and Tailwind CSS. Compile-time reactivity with minimal runtime overhead.",
+  "version": "1.0.0",
+  "default": false,
+  "stack": ["Svelte 4", "Vite", "Tailwind CSS"],
+  "buildCommand": "npm run build",
+  "previewCommand": "npm run preview",
+  "outputDir": "dist",
+  "entryPoint": "src/main.js",
+  "buildRequired": true,
+  "deployment": {
+    "platforms": ["Vercel", "Netlify", "Cloudflare Pages"],
+    "buildOutput": "dist"
+  }
+}

@@ -1,0 +1,448 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: NEXO
+      - button "Collapse sidebar" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - button "Editor" [ref=e15] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e19]: Editor
+      - button "Templates" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e24]: Templates
+      - button "Settings" [ref=e25] [cursor=pointer]:
+        - img [ref=e27]
+        - generic [ref=e30]: Settings
+      - button "New Project" [active] [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e36]: New Project
+      - generic [ref=e39]: Recent Projects
+      - generic [ref=e40]:
+        - generic [ref=e213]:
+          - button "Untitled Project" [ref=e214] [cursor=pointer]:
+            - img [ref=e216]
+            - generic [ref=e219]: Untitled Project
+          - button "Project options" [ref=e220] [cursor=pointer]:
+            - img [ref=e221]
+        - generic [ref=e225]:
+          - button "padaria" [ref=e226] [cursor=pointer]:
+            - img [ref=e228]
+            - generic [ref=e231]: padaria
+          - button "Project options" [ref=e232] [cursor=pointer]:
+            - img [ref=e233]
+        - generic [ref=e237]:
+          - button "E2E Test" [ref=e238] [cursor=pointer]:
+            - img [ref=e240]
+            - generic [ref=e243]: E2E Test
+          - button "Project options" [ref=e244] [cursor=pointer]:
+            - img [ref=e245]
+        - generic [ref=e249]:
+          - button "test" [ref=e250] [cursor=pointer]:
+            - img [ref=e252]
+            - generic [ref=e255]: test
+          - button "Project options" [ref=e256] [cursor=pointer]:
+            - img [ref=e257]
+        - generic [ref=e261]:
+          - button "Test project" [ref=e262] [cursor=pointer]:
+            - img [ref=e264]
+            - generic [ref=e267]: Test project
+          - button "Project options" [ref=e268] [cursor=pointer]:
+            - img [ref=e269]
+        - generic [ref=e273]:
+          - button "Untitled Project" [ref=e274] [cursor=pointer]:
+            - img [ref=e276]
+            - generic [ref=e279]: Untitled Project
+          - button "Project options" [ref=e280] [cursor=pointer]:
+            - img [ref=e281]
+        - generic [ref=e285]:
+          - button "site de pao de queijo" [ref=e286] [cursor=pointer]:
+            - img [ref=e288]
+            - generic [ref=e291]: site de pao de queijo
+          - button "Project options" [ref=e292] [cursor=pointer]:
+            - img [ref=e293]
+        - generic [ref=e297]:
+          - button "site de pao de queijo" [ref=e298] [cursor=pointer]:
+            - img [ref=e300]
+            - generic [ref=e303]: site de pao de queijo
+          - button "Project options" [ref=e304] [cursor=pointer]:
+            - img [ref=e305]
+        - generic [ref=e309]:
+          - button "site de pao de queijo" [ref=e310] [cursor=pointer]:
+            - img [ref=e312]
+            - generic [ref=e315]: site de pao de queijo
+          - button "Project options" [ref=e316] [cursor=pointer]:
+            - img [ref=e317]
+        - generic [ref=e321]:
+          - button "Debug Test" [ref=e322] [cursor=pointer]:
+            - img [ref=e324]
+            - generic [ref=e327]: Debug Test
+          - button "Project options" [ref=e328] [cursor=pointer]:
+            - img [ref=e329]
+        - generic [ref=e333]:
+          - button "Meu Projeto Teste" [ref=e334] [cursor=pointer]:
+            - img [ref=e336]
+            - generic [ref=e339]: Meu Projeto Teste
+          - button "Project options" [ref=e340] [cursor=pointer]:
+            - img [ref=e341]
+        - generic [ref=e345]:
+          - button "Untitled Project" [ref=e346] [cursor=pointer]:
+            - img [ref=e348]
+            - generic [ref=e351]: Untitled Project
+          - button "Project options" [ref=e352] [cursor=pointer]:
+            - img [ref=e353]
+        - generic [ref=e357]:
+          - button "Untitled Project" [ref=e358] [cursor=pointer]:
+            - img [ref=e360]
+            - generic [ref=e363]: Untitled Project
+          - button "Project options" [ref=e364] [cursor=pointer]:
+            - img [ref=e365]
+        - generic [ref=e369]:
+          - button "Untitled Project" [ref=e370] [cursor=pointer]:
+            - img [ref=e372]
+            - generic [ref=e375]: Untitled Project
+          - button "Project options" [ref=e376] [cursor=pointer]:
+            - img [ref=e377]
+        - generic [ref=e381]:
+          - button "Untitled Project" [ref=e382] [cursor=pointer]:
+            - img [ref=e384]
+            - generic [ref=e387]: Untitled Project
+          - button "Project options" [ref=e388] [cursor=pointer]:
+            - img [ref=e389]
+        - generic [ref=e393]:
+          - button "Untitled Project" [ref=e394] [cursor=pointer]:
+            - img [ref=e396]
+            - generic [ref=e399]: Untitled Project
+          - button "Project options" [ref=e400] [cursor=pointer]:
+            - img [ref=e401]
+        - generic [ref=e405]:
+          - button "Untitled Project" [ref=e406] [cursor=pointer]:
+            - img [ref=e408]
+            - generic [ref=e411]: Untitled Project
+          - button "Project options" [ref=e412] [cursor=pointer]:
+            - img [ref=e413]
+        - generic [ref=e417]:
+          - button "Untitled Project" [ref=e418] [cursor=pointer]:
+            - img [ref=e420]
+            - generic [ref=e423]: Untitled Project
+          - button "Project options" [ref=e424] [cursor=pointer]:
+            - img [ref=e425]
+        - generic [ref=e429]:
+          - button "Untitled Project" [ref=e430] [cursor=pointer]:
+            - img [ref=e432]
+            - generic [ref=e435]: Untitled Project
+          - button "Project options" [ref=e436] [cursor=pointer]:
+            - img [ref=e437]
+        - generic [ref=e441]:
+          - button "Untitled Project" [ref=e442] [cursor=pointer]:
+            - img [ref=e444]
+            - generic [ref=e447]: Untitled Project
+          - button "Project options" [ref=e448] [cursor=pointer]:
+            - img [ref=e449]
+        - generic [ref=e453]:
+          - button "Untitled Project" [ref=e454] [cursor=pointer]:
+            - img [ref=e456]
+            - generic [ref=e459]: Untitled Project
+          - button "Project options" [ref=e460] [cursor=pointer]:
+            - img [ref=e461]
+        - generic [ref=e465]:
+          - button "Untitled Project" [ref=e466] [cursor=pointer]:
+            - img [ref=e468]
+            - generic [ref=e471]: Untitled Project
+          - button "Project options" [ref=e472] [cursor=pointer]:
+            - img [ref=e473]
+        - generic [ref=e477]:
+          - button "Untitled Project" [ref=e478] [cursor=pointer]:
+            - img [ref=e480]
+            - generic [ref=e483]: Untitled Project
+          - button "Project options" [ref=e484] [cursor=pointer]:
+            - img [ref=e485]
+        - generic [ref=e489]:
+          - button "Untitled Project" [ref=e490] [cursor=pointer]:
+            - img [ref=e492]
+            - generic [ref=e495]: Untitled Project
+          - button "Project options" [ref=e496] [cursor=pointer]:
+            - img [ref=e497]
+        - generic [ref=e501]:
+          - button "Untitled Project" [ref=e502] [cursor=pointer]:
+            - img [ref=e504]
+            - generic [ref=e507]: Untitled Project
+          - button "Project options" [ref=e508] [cursor=pointer]:
+            - img [ref=e509]
+        - generic [ref=e513]:
+          - button "Untitled Project" [ref=e514] [cursor=pointer]:
+            - img [ref=e516]
+            - generic [ref=e519]: Untitled Project
+          - button "Project options" [ref=e520] [cursor=pointer]:
+            - img [ref=e521]
+        - generic [ref=e525]:
+          - button "Untitled Project" [ref=e526] [cursor=pointer]:
+            - img [ref=e528]
+            - generic [ref=e531]: Untitled Project
+          - button "Project options" [ref=e532] [cursor=pointer]:
+            - img [ref=e533]
+        - generic [ref=e537]:
+          - button "Untitled Project" [ref=e538] [cursor=pointer]:
+            - img [ref=e540]
+            - generic [ref=e543]: Untitled Project
+          - button "Project options" [ref=e544] [cursor=pointer]:
+            - img [ref=e545]
+        - generic [ref=e549]:
+          - button "Untitled Project" [ref=e550] [cursor=pointer]:
+            - img [ref=e552]
+            - generic [ref=e555]: Untitled Project
+          - button "Project options" [ref=e556] [cursor=pointer]:
+            - img [ref=e557]
+        - generic [ref=e561]:
+          - button "Untitled Project" [ref=e562] [cursor=pointer]:
+            - img [ref=e564]
+            - generic [ref=e567]: Untitled Project
+          - button "Project options" [ref=e568] [cursor=pointer]:
+            - img [ref=e569]
+        - generic [ref=e573]:
+          - button "Untitled Project" [ref=e574] [cursor=pointer]:
+            - img [ref=e576]
+            - generic [ref=e579]: Untitled Project
+          - button "Project options" [ref=e580] [cursor=pointer]:
+            - img [ref=e581]
+        - generic [ref=e585]:
+          - button "Untitled Project" [ref=e586] [cursor=pointer]:
+            - img [ref=e588]
+            - generic [ref=e591]: Untitled Project
+          - button "Project options" [ref=e592] [cursor=pointer]:
+            - img [ref=e593]
+        - generic [ref=e597]:
+          - button "Untitled Project" [ref=e598] [cursor=pointer]:
+            - img [ref=e600]
+            - generic [ref=e603]: Untitled Project
+          - button "Project options" [ref=e604] [cursor=pointer]:
+            - img [ref=e605]
+        - generic [ref=e609]:
+          - button "Untitled Project" [ref=e610] [cursor=pointer]:
+            - img [ref=e612]
+            - generic [ref=e615]: Untitled Project
+          - button "Project options" [ref=e616] [cursor=pointer]:
+            - img [ref=e617]
+        - generic [ref=e621]:
+          - button "Untitled Project" [ref=e622] [cursor=pointer]:
+            - img [ref=e624]
+            - generic [ref=e627]: Untitled Project
+          - button "Project options" [ref=e628] [cursor=pointer]:
+            - img [ref=e629]
+        - generic [ref=e633]:
+          - button "Untitled Project" [ref=e634] [cursor=pointer]:
+            - img [ref=e636]
+            - generic [ref=e639]: Untitled Project
+          - button "Project options" [ref=e640] [cursor=pointer]:
+            - img [ref=e641]
+        - generic [ref=e645]:
+          - button "Untitled Project" [ref=e646] [cursor=pointer]:
+            - img [ref=e648]
+            - generic [ref=e651]: Untitled Project
+          - button "Project options" [ref=e652] [cursor=pointer]:
+            - img [ref=e653]
+        - generic [ref=e657]:
+          - button "Untitled Project" [ref=e658] [cursor=pointer]:
+            - img [ref=e660]
+            - generic [ref=e663]: Untitled Project
+          - button "Project options" [ref=e664] [cursor=pointer]:
+            - img [ref=e665]
+        - generic [ref=e669]:
+          - button "Untitled Project" [ref=e670] [cursor=pointer]:
+            - img [ref=e672]
+            - generic [ref=e675]: Untitled Project
+          - button "Project options" [ref=e676] [cursor=pointer]:
+            - img [ref=e677]
+        - generic [ref=e681]:
+          - button "Untitled Project" [ref=e682] [cursor=pointer]:
+            - img [ref=e684]
+            - generic [ref=e687]: Untitled Project
+          - button "Project options" [ref=e688] [cursor=pointer]:
+            - img [ref=e689]
+        - generic [ref=e693]:
+          - button "Untitled Project" [ref=e694] [cursor=pointer]:
+            - img [ref=e696]
+            - generic [ref=e699]: Untitled Project
+          - button "Project options" [ref=e700] [cursor=pointer]:
+            - img [ref=e701]
+        - generic [ref=e705]:
+          - button "Untitled Project" [ref=e706] [cursor=pointer]:
+            - img [ref=e708]
+            - generic [ref=e711]: Untitled Project
+          - button "Project options" [ref=e712] [cursor=pointer]:
+            - img [ref=e713]
+        - generic [ref=e717]:
+          - button "Untitled Project" [ref=e718] [cursor=pointer]:
+            - img [ref=e720]
+            - generic [ref=e723]: Untitled Project
+          - button "Project options" [ref=e724] [cursor=pointer]:
+            - img [ref=e725]
+        - generic [ref=e729]:
+          - button "Untitled Project" [ref=e730] [cursor=pointer]:
+            - img [ref=e732]
+            - generic [ref=e735]: Untitled Project
+          - button "Project options" [ref=e736] [cursor=pointer]:
+            - img [ref=e737]
+        - generic [ref=e741]:
+          - button "Untitled Project" [ref=e742] [cursor=pointer]:
+            - img [ref=e744]
+            - generic [ref=e747]: Untitled Project
+          - button "Project options" [ref=e748] [cursor=pointer]:
+            - img [ref=e749]
+        - generic [ref=e753]:
+          - button "Untitled Project" [ref=e754] [cursor=pointer]:
+            - img [ref=e756]
+            - generic [ref=e759]: Untitled Project
+          - button "Project options" [ref=e760] [cursor=pointer]:
+            - img [ref=e761]
+        - generic [ref=e765]:
+          - button "Untitled Project" [ref=e766] [cursor=pointer]:
+            - img [ref=e768]
+            - generic [ref=e771]: Untitled Project
+          - button "Project options" [ref=e772] [cursor=pointer]:
+            - img [ref=e773]
+        - generic [ref=e777]:
+          - button "Untitled Project" [ref=e778] [cursor=pointer]:
+            - img [ref=e780]
+            - generic [ref=e783]: Untitled Project
+          - button "Project options" [ref=e784] [cursor=pointer]:
+            - img [ref=e785]
+        - generic [ref=e789]:
+          - button "Untitled Project" [ref=e790] [cursor=pointer]:
+            - img [ref=e792]
+            - generic [ref=e795]: Untitled Project
+          - button "Project options" [ref=e796] [cursor=pointer]:
+            - img [ref=e797]
+        - generic [ref=e801]:
+          - button "Untitled Project" [ref=e802] [cursor=pointer]:
+            - img [ref=e804]
+            - generic [ref=e807]: Untitled Project
+          - button "Project options" [ref=e808] [cursor=pointer]:
+            - img [ref=e809]
+    - generic [ref=e43]:
+      - generic [ref=e46]: Luna Ready
+      - generic [ref=e47]:
+        - generic [ref=e48]: 5.000 tokens
+        - generic [ref=e49]: 0 used
+  - main [ref=e52]:
+    - generic [ref=e53]:
+      - generic [ref=e54]:
+        - heading "Untitled Project" [level=1] [ref=e55]
+        - generic [ref=e910]:
+          - img [ref=e911]
+          - text: Generating...
+      - link "GitHub" [ref=e57] [cursor=pointer]:
+        - /url: https://github.com
+        - img [ref=e58]
+        - generic [ref=e60]: GitHub
+    - generic [ref=e62]:
+      - generic [ref=e64]:
+        - button "Chat" [ref=e65] [cursor=pointer]:
+          - img [ref=e67]
+          - generic [ref=e69]: Chat
+        - button "Preview" [ref=e70] [cursor=pointer]:
+          - img [ref=e72]
+          - generic [ref=e75]: Preview
+        - button "Code" [ref=e76] [cursor=pointer]:
+          - img [ref=e78]
+          - generic [ref=e81]: Code
+        - button "Deploy" [ref=e82] [cursor=pointer]:
+          - img [ref=e84]
+          - generic [ref=e87]: Deploy
+        - button "History" [ref=e88] [cursor=pointer]:
+          - img [ref=e90]
+          - generic [ref=e94]: History
+        - button "Bugs 3" [ref=e95] [cursor=pointer]:
+          - img [ref=e97]
+          - generic [ref=e106]: Bugs
+          - generic [ref=e107]: "3"
+      - generic [ref=e110]:
+        - generic [ref=e951]:
+          - generic [ref=e952]:
+            - img [ref=e957]
+            - heading "NEXO Landing Page Creator" [level=1] [ref=e959]
+            - paragraph [ref=e960]:
+              - text: Hi! I'm Luna, your AI landing page designer.
+              - text: Describe what you want, and I'll build it for you.
+          - generic [ref=e961]:
+            - paragraph [ref=e962]: Start with a template
+            - generic [ref=e963]:
+              - button "🚀 SaaS Landing Page Create a modern SaaS landing page with hero section, pricing, and features" [ref=e964] [cursor=pointer]:
+                - generic [ref=e965]:
+                  - generic [ref=e966]: 🚀
+                  - generic [ref=e967]:
+                    - heading "SaaS Landing Page" [level=3] [ref=e968]
+                    - paragraph [ref=e969]: Create a modern SaaS landing page with hero section, pricing, and features
+              - button "🏥 Clinic Website Build a professional medical clinic website with booking and services" [ref=e970] [cursor=pointer]:
+                - generic [ref=e971]:
+                  - generic [ref=e972]: 🏥
+                  - generic [ref=e973]:
+                    - heading "Clinic Website" [level=3] [ref=e974]
+                    - paragraph [ref=e975]: Build a professional medical clinic website with booking and services
+              - button "📚 Course Landing Page Design an online course page with curriculum and instructor info" [ref=e976] [cursor=pointer]:
+                - generic [ref=e977]:
+                  - generic [ref=e978]: 📚
+                  - generic [ref=e979]:
+                    - heading "Course Landing Page" [level=3] [ref=e980]
+                    - paragraph [ref=e981]: Design an online course page with curriculum and instructor info
+              - button "📱 App Showcase Create a mobile app landing page with screenshots and download CTA" [ref=e982] [cursor=pointer]:
+                - generic [ref=e983]:
+                  - generic [ref=e984]: 📱
+                  - generic [ref=e985]:
+                    - heading "App Showcase" [level=3] [ref=e986]
+                    - paragraph [ref=e987]: Create a mobile app landing page with screenshots and download CTA
+              - button "🍔 Restaurant Page Build a restaurant landing page with menu and reservation form" [ref=e988] [cursor=pointer]:
+                - generic [ref=e989]:
+                  - generic [ref=e990]: 🍔
+                  - generic [ref=e991]:
+                    - heading "Restaurant Page" [level=3] [ref=e992]
+                    - paragraph [ref=e993]: Build a restaurant landing page with menu and reservation form
+              - button "💼 Portfolio Website Design a creative portfolio for a designer or developer" [ref=e994] [cursor=pointer]:
+                - generic [ref=e995]:
+                  - generic [ref=e996]: 💼
+                  - generic [ref=e997]:
+                    - heading "Portfolio Website" [level=3] [ref=e998]
+                    - paragraph [ref=e999]: Design a creative portfolio for a designer or developer
+          - generic [ref=e1001]:
+            - generic [ref=e1002]:
+              - img [ref=e1003]
+              - generic [ref=e1005]: Pro Tips
+            - generic [ref=e1006]:
+              - generic [ref=e1007]:
+                - generic [ref=e1008]: "1"
+                - generic [ref=e1009]: Be specific about colors, layout, and sections you want
+              - generic [ref=e1010]:
+                - generic [ref=e1011]: "2"
+                - generic [ref=e1012]: Mention your target audience for better results
+              - generic [ref=e1013]:
+                - generic [ref=e1014]: "3"
+                - generic [ref=e1015]: You can ask for revisions anytime - just describe the changes
+              - generic [ref=e1016]:
+                - generic [ref=e1017]: "4"
+                - generic [ref=e1018]: Add features like contact forms, galleries, or pricing tables
+          - paragraph [ref=e1019]: Type your idea below or pick a template above to get started
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - textbox "Describe the landing page you want to create..." [disabled] [ref=e184]
+            - button [disabled] [ref=e185]:
+              - img [ref=e936]
+          - generic [ref=e189]: Press Enter to send, Shift+Enter for new line
+      - generic [ref=e190]:
+        - generic [ref=e194]: Ready
+        - generic [ref=e196]: v3.0.0
+    - generic [ref=e197]:
+      - generic [ref=e200]: Connected
+      - generic [ref=e202]:
+        - img [ref=e203]
+        - generic [ref=e206]: 0 / 5.000
+      - generic [ref=e939]:
+        - img [ref=e940]
+        - generic [ref=e943]: Generating...
+      - button "87 Lighthouse" [ref=e901] [cursor=pointer]:
+        - img [ref=e902]
+        - generic [ref=e905]: "87"
+        - generic [ref=e906]: Lighthouse
+      - generic [ref=e209]:
+        - img [ref=e210]
+        - generic [ref=e212]: HTML + CSS + JS

@@ -1,0 +1,1 @@
+{"action":"evaluate","args":{"code":"(() => { const btn = document.querySelector('button[type=submit], .send-btn, [data-testid=send-button]') || Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('svg') && b.closest('form, .chat-input, .input-area')); if (btn) { btn.click(); return 'clicked'; } return 'not found'; })()"},"session":"nexo-lp-test"}

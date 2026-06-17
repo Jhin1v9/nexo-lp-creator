@@ -1,0 +1,137 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: NEXO
+      - button "Collapse sidebar" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - button "Editor" [ref=e15] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e19]: Editor
+      - button "Templates" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e24]: Templates
+      - button "Settings" [ref=e25] [cursor=pointer]:
+        - img [ref=e27]
+        - generic [ref=e30]: Settings
+      - button "New Project" [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e36]: New Project
+      - generic [ref=e39]: Recent Projects
+      - generic [ref=e41]: Loading...
+    - generic [ref=e43]:
+      - generic [ref=e46]: Luna Ready
+      - generic [ref=e47]:
+        - generic [ref=e48]: 5.000 tokens
+        - generic [ref=e49]: 0 used
+  - main [ref=e52]:
+    - generic [ref=e53]:
+      - heading "Untitled Project" [level=1] [ref=e55]
+      - link "GitHub" [ref=e57] [cursor=pointer]:
+        - /url: https://github.com
+        - img [ref=e58]
+        - generic [ref=e60]: GitHub
+    - generic [ref=e62]:
+      - generic [ref=e64]:
+        - button "Chat" [ref=e65] [cursor=pointer]:
+          - img [ref=e67]
+          - generic [ref=e69]: Chat
+        - button "Preview" [ref=e70] [cursor=pointer]:
+          - img [ref=e72]
+          - generic [ref=e75]: Preview
+        - button "Code" [ref=e76] [cursor=pointer]:
+          - img [ref=e78]
+          - generic [ref=e81]: Code
+        - button "Deploy" [ref=e82] [cursor=pointer]:
+          - img [ref=e84]
+          - generic [ref=e87]: Deploy
+        - button "History" [ref=e88] [cursor=pointer]:
+          - img [ref=e90]
+          - generic [ref=e94]: History
+        - button "Bugs 3" [ref=e95] [cursor=pointer]:
+          - img [ref=e97]
+          - generic [ref=e106]: Bugs
+          - generic [ref=e107]: "3"
+      - generic [ref=e110]:
+        - generic [ref=e112]:
+          - generic [ref=e113]:
+            - img [ref=e118]
+            - heading "NEXO Landing Page Creator" [level=1] [ref=e120]
+            - paragraph [ref=e121]:
+              - text: Hi! I'm Luna, your AI landing page designer.
+              - text: Describe what you want, and I'll build it for you.
+          - generic [ref=e122]:
+            - paragraph [ref=e123]: Start with a template
+            - generic [ref=e124]:
+              - button "🚀 SaaS Landing Page Create a modern SaaS landing page with hero section, pricing, and features" [ref=e125] [cursor=pointer]:
+                - generic [ref=e126]:
+                  - generic [ref=e127]: 🚀
+                  - generic [ref=e128]:
+                    - heading "SaaS Landing Page" [level=3] [ref=e129]
+                    - paragraph [ref=e130]: Create a modern SaaS landing page with hero section, pricing, and features
+              - button "🏥 Clinic Website Build a professional medical clinic website with booking and services" [ref=e131] [cursor=pointer]:
+                - generic [ref=e132]:
+                  - generic [ref=e133]: 🏥
+                  - generic [ref=e134]:
+                    - heading "Clinic Website" [level=3] [ref=e135]
+                    - paragraph [ref=e136]: Build a professional medical clinic website with booking and services
+              - button "📚 Course Landing Page Design an online course page with curriculum and instructor info" [ref=e137] [cursor=pointer]:
+                - generic [ref=e138]:
+                  - generic [ref=e139]: 📚
+                  - generic [ref=e140]:
+                    - heading "Course Landing Page" [level=3] [ref=e141]
+                    - paragraph [ref=e142]: Design an online course page with curriculum and instructor info
+              - button "📱 App Showcase Create a mobile app landing page with screenshots and download CTA" [ref=e143] [cursor=pointer]:
+                - generic [ref=e144]:
+                  - generic [ref=e145]: 📱
+                  - generic [ref=e146]:
+                    - heading "App Showcase" [level=3] [ref=e147]
+                    - paragraph [ref=e148]: Create a mobile app landing page with screenshots and download CTA
+              - button "🍔 Restaurant Page Build a restaurant landing page with menu and reservation form" [ref=e149] [cursor=pointer]:
+                - generic [ref=e150]:
+                  - generic [ref=e151]: 🍔
+                  - generic [ref=e152]:
+                    - heading "Restaurant Page" [level=3] [ref=e153]
+                    - paragraph [ref=e154]: Build a restaurant landing page with menu and reservation form
+              - button "💼 Portfolio Website Design a creative portfolio for a designer or developer" [ref=e155] [cursor=pointer]:
+                - generic [ref=e156]:
+                  - generic [ref=e157]: 💼
+                  - generic [ref=e158]:
+                    - heading "Portfolio Website" [level=3] [ref=e159]
+                    - paragraph [ref=e160]: Design a creative portfolio for a designer or developer
+          - generic [ref=e162]:
+            - generic [ref=e163]:
+              - img [ref=e164]
+              - generic [ref=e166]: Pro Tips
+            - generic [ref=e167]:
+              - generic [ref=e168]:
+                - generic [ref=e169]: "1"
+                - generic [ref=e170]: Be specific about colors, layout, and sections you want
+              - generic [ref=e171]:
+                - generic [ref=e172]: "2"
+                - generic [ref=e173]: Mention your target audience for better results
+              - generic [ref=e174]:
+                - generic [ref=e175]: "3"
+                - generic [ref=e176]: You can ask for revisions anytime - just describe the changes
+              - generic [ref=e177]:
+                - generic [ref=e178]: "4"
+                - generic [ref=e179]: Add features like contact forms, galleries, or pricing tables
+          - paragraph [ref=e180]: Type your idea below or pick a template above to get started
+        - generic [ref=e181]:
+          - generic [ref=e182]:
+            - textbox "Describe the landing page you want to create..." [ref=e184]
+            - button [disabled] [ref=e185]:
+              - img [ref=e186]
+          - generic [ref=e189]: Press Enter to send, Shift+Enter for new line
+      - generic [ref=e190]:
+        - generic [ref=e194]: Ready
+        - generic [ref=e196]: v3.0.0
+    - generic [ref=e197]:
+      - generic [ref=e200]: Connected
+      - generic [ref=e202]:
+        - img [ref=e203]
+        - generic [ref=e206]: 0 / 5.000
+      - generic [ref=e209]:
+        - img [ref=e210]
+        - generic [ref=e212]: HTML + CSS + JS

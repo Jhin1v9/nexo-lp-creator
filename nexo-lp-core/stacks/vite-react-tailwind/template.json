@@ -1,0 +1,32 @@
+{
+  "name": "Vite + React + Tailwind CSS",
+  "description": "Modern React SPA with Vite bundler and Tailwind CSS. Component-based architecture with Hot Module Replacement.",
+  "version": "1.0.0",
+  "default": false,
+  "stack": ["React", "Vite", "Tailwind CSS"],
+  "buildCommand": "npm run build",
+  "previewCommand": "npm run preview",
+  "outputDir": "dist",
+  "entryPoint": "src/main.jsx",
+  "buildRequired": true,
+  "files": [
+    "index.html",
+    "vite.config.js",
+    "tailwind.config.js",
+    "package.json",
+    "src/main.jsx",
+    "src/App.jsx",
+    "src/index.css"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .js,.jsx"
+  },
+  "deployment": {
+    "platforms": ["Vercel", "Netlify", "Cloudflare Pages", "AWS Amplify"],
+    "buildOutput": "dist",
+    "instructions": "Set build command to 'npm run build' and output directory to 'dist'"
+  }
+}

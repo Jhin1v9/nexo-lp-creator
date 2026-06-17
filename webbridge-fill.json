@@ -1,0 +1,1 @@
+{"action":"evaluate","args":{"code":"(() => { const input = document.querySelector('textarea, [contenteditable=true]'); if (input) { input.focus(); input.innerText = 'site de pao de queijo artesanal'; input.dispatchEvent(new InputEvent('input', { bubbles: true, data: 'site de pao de queijo artesanal' })); return 'filled'; } return 'no input'; })()"},"session":"nexo-lp-test"}

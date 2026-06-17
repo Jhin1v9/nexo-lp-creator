@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="NovaChat — The secure messaging app built for privacy. End-to-end encryption, zero data collection, and a beautiful dark interface designed for modern communication.">
+  <meta name="theme-color" content="#020617">
+  <title>NovaChat — Private Messaging Reimagined</title>
+  <link rel="canonical" href="https://novachat.example.com">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="NovaChat — Private Messaging Reimagined">
+  <meta property="og:description" content="The secure messaging app built for privacy. End-to-end encryption, zero data collection.">
+  <meta property="og:image" content="https://via.placeholder.com/1200x630/0f172a/38bdf8?text=NovaChat">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="NovaChat — Private Messaging Reimagined">
+  <meta name="twitter:description" content="The secure messaging app built for privacy.">
+  <meta name="twitter:image" content="https://via.placeholder.com/1200x630/0f172a/38bdf8?text=NovaChat">
+  <meta name="robots" content="index, follow">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter','system-ui','sans-serif'] },
+          colors: {
+            neon: { 50:'#f0f9ff',100:'#e0f2fe',200:'#bae6fd',300:'#7dd3fc',400:'#38bdf8',500:'#0ea5e9',600:'#0284c7',700:'#0369a1',800:'#075985',900:'#0c4a6e',950:'#082f49' },
+          },
+          animation: {
+            'fade-in-up': 'fadeInUp 0.6s ease-out forwards',
+            'glow': 'glow 2s ease-in-out infinite alternate',
+            'float': 'float 6s ease-in-out infinite',
+            'pulse-slow': 'pulse 3s infinite',
+          },
+          keyframes: {
+            fadeInUp: { '0%':{opacity:'0',transform:'translateY(30px)'}, '100%':{opacity:'1',transform:'translateY(0)'} },
+            glow: { '0%':{boxShadow:'0 0 20px rgba(56,189,248,0.1)'}, '100%':{boxShadow:'0 0 40px rgba(56,189,248,0.3)'} },
+            float: { '0%,100%':{transform:'translateY(0)'}, '50%':{transform:'translateY(-20px)'} },
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    html { scroll-behavior: smooth; }
+    .animate-on-scroll { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease-out, transform 0.6s ease-out; }
+    .animate-on-scroll.visible { opacity: 1; transform: translateY(0); }
+    .gradient-text { background: linear-gradient(135deg, #38bdf8, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .glow-border { box-shadow: 0 0 30px rgba(56,189,248,0.15), inset 0 0 30px rgba(56,189,248,0.05); }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .animate-on-scroll { opacity: 1; transform: none; } }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
+  </style>
+  <script type="application/ld+json">
+  {"@context":"https://schema.org","@type":"SoftwareApplication","name":"NovaChat","applicationCategory":"CommunicationApplication","operatingSystem":"iOS, Android","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"aggregateRating":{"@type":"AggregateRating","ratingValue":"4.8","ratingCount":"125000"}}
+  </script>
+</head>
+<body class="font-sans antialiased text-slate-300 bg-slate-950">
+
+  <!-- Navigation -->
+  <nav class="fixed top-0 left-0 right-0 z-50 bg-slate-950/80 backdrop-blur-xl border-b border-slate-800/60">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="#" class="flex items-center gap-2 text-xl font-bold text-white">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-violet-500 flex items-center justify-center">
+            <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+          </div>
+          NovaChat
+        </a>
+        <div class="hidden lg:flex items-center gap-8">
+          <a href="#features" class="text-sm font-medium text-slate-400 hover:text-white transition-colors">Features</a>
+          <a href="#reviews" class="text-sm font-medium text-slate-400 hover:text-white transition-colors">Reviews</a>
+          <a href="#security" class="text-sm font-medium text-slate-400 hover:text-white transition-colors">Security</a>
+          <a href="#newsletter" class="text-sm font-medium text-slate-400 hover:text-white transition-colors">Updates</a>
+        </div>
+        <div class="flex items-center gap-4">
+          <a href="#" class="hidden sm:inline-flex text-sm font-medium text-slate-400 hover:text-white transition-colors">Sign In</a>
+          <a href="#download" class="text-sm font-semibold text-slate-950 bg-white hover:bg-slate-200 px-5 py-2.5 rounded-xl transition-all">Download</a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <header class="relative pt-32 pb-20 lg:pt-44 lg:pb-32 overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-b from-slate-900/50 to-slate-950 -z-10"></div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[600px] bg-sky-500/5 rounded-full blur-3xl -z-10"></div>
+    <div class="absolute bottom-0 right-0 w-[500px] h-[400px] bg-violet-500/5 rounded-full blur-3xl -z-10"></div>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <div class="text-center lg:text-left animate-on-scroll visible">
+          <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/80 border border-slate-700 text-sky-400 text-sm font-medium mb-6">
+            <span class="relative flex h-2 w-2"><span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span><span class="relative inline-flex rounded-full h-2 w-2 bg-sky-400"></span></span>
+            Now available on iOS & Android
+          </div>
+          <h1 class="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-[1.1] mb-6">
+            Private Messaging <span class="gradient-text">Reimagined</span>
+          </h1>
+          <p class="text-lg sm:text-xl text-slate-400 mb-8 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+            End-to-end encrypted. Zero data collection. No phone number required. Your conversations, truly private.
+          </p>
+          <div id="download" class="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start mb-10">
+            <a href="#" class="flex items-center justify-center gap-3 px-6 py-4 bg-white text-slate-900 rounded-2xl font-semibold hover:bg-slate-200 transition-all hover:-translate-y-0.5">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.21-1.96 1.07-3.11-1.05.05-2.31.71-3.06 1.64-.68.84-1.27 2.18-1.11 3.28 1.18.09 2.38-.6 3.1-1.81z"/></svg>
+              <div class="text-left"><div class="text-[10px] uppercase tracking-wider opacity-70 leading-none mb-0.5">Download on the</div><div class="text-base font-bold leading-tight">App Store</div></div>
+            </a>
+            <a href="#" class="flex items-center justify-center gap-3 px-6 py-4 bg-slate-800 text-white border border-slate-700 rounded-2xl font-semibold hover:bg-slate-700 hover:border-slate-600 transition-all hover:-translate-y-0.5">
+              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M3,20.5V3.5C3,2.91 3.34,2.39 3.84,2.15L13.69,12L3.84,21.85C3.34,21.6 3,21.09 3,20.5M16.81,15.12L6.05,21.34L14.54,12.85L16.81,15.12M20.16,10.81C20.5,11.08 20.75,11.5 20.75,12C20.75,12.5 20.53,12.9 20.18,13.18L17.89,14.5L15.39,12L17.89,9.5L20.16,10.81M6.05,2.66L16.81,8.88L14.54,11.15L6.05,2.66Z"/></svg>
+              <div class="text-left"><div class="text-[10px] uppercase tracking-wider opacity-70 leading-none mb-0.5">Get it on</div><div class="text-base font-bold leading-tight">Google Play</div></div>
+            </a>
+          </div>
+          <div class="flex items-center gap-6 justify-center lg:justify-start text-sm text-slate-500">
+            <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>Free to use</span>
+            <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>No ads</span>
+            <span class="flex items-center gap-1.5"><svg class="w-4 h-4 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>Open source</span>
+          </div>
+        </div>
+        <div class="relative animate-on-scroll hidden lg:block">
+          <div class="relative mx-auto w-[320px]">
+            <!-- Phone frame -->
+            <div class="bg-slate-800 rounded-[3rem] p-3 border border-slate-700 shadow-2xl shadow-sky-500/10 animate-glow">
+              <div class="bg-slate-900 rounded-[2.5rem] overflow-hidden">
+                <!-- Status bar -->
+                <div class="flex items-center justify-between px-6 py-2 bg-slate-800/50">
+                  <span class="text-[10px] text-slate-400 font-medium">9:41</span>
+                  <div class="w-20 h-5 bg-slate-800 rounded-full mx-auto absolute left-1/2 -translate-x-1/2 top-3"></div>
+                  <div class="flex items-center gap-1"><div class="w-3 h-3 rounded-full bg-slate-600"></div><div class="w-3 h-3 rounded-full bg-slate-600"></div></div>
+                </div>
+                <!-- Chat UI -->
+                <div class="p-4 space-y-3">
+                  <div class="flex items-center gap-2 pb-3 border-b border-slate-800">
+                    <div class="w-8 h-8 rounded-full bg-gradient-to-br from-sky-400 to-violet-500"></div>
+                    <div><div class="text-xs font-semibold text-white">Sarah</div><div class="text-[10px] text-emerald-400">Online</div></div>
+                  </div>
+                  <div class="flex justify-start"><div class="bg-slate-800 text-slate-300 text-xs py-2 px-3 rounded-2xl rounded-tl-sm max-w-[80%]">Hey! Have you tried NovaChat yet?</div></div>
+                  <div class="flex justify-end"><div class="bg-sky-600 text-white text-xs py-2 px-3 rounded-2xl rounded-tr-sm max-w-[80%]">Yes! The encryption is amazing. Love the dark mode too.</div></div>
+                  <div class="flex justify-start"><div class="bg-slate-800 text-slate-300 text-xs py-2 px-3 rounded-2xl rounded-tl-sm max-w-[80%]">And no ads at all! Finally a chat app that respects privacy.</div></div>
+                  <div class="flex justify-end"><div class="bg-sky-600 text-white text-xs py-2 px-3 rounded-2xl rounded-tr-sm max-w-[80%]">Totally. Switched all my group chats over.</div></div>
+                  <div class="flex items-center gap-2 pt-3 border-t border-slate-800">
+                    <div class="flex-1 h-8 bg-slate-800 rounded-full flex items-center px-3"><span class="text-[10px] text-slate-500">Type a message...</span></div>
+                    <div class="w-8 h-8 rounded-full bg-sky-600 flex items-center justify-center"><svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M10.894 2.553a1 1 0 00-1.788 0l-7 14a1 1 0 001.169 1.409l5-1.429A1 1 0 009 15.571V11a1 1 0 112 0v4.571a1 1 0 00.725.962l5 1.428a1 1 0 001.17-1.408l-7-14z"/></svg></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <section class="py-12 border-y border-slate-800/60 bg-slate-900/30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
+        <div class="animate-on-scroll"><div class="text-3xl font-extrabold text-white">2M+</div><div class="text-sm text-slate-500 mt-1">Downloads</div></div>
+        <div class="animate-on-scroll"><div class="text-3xl font-extrabold text-white">4.8</div><div class="text-sm text-slate-500 mt-1">App Store Rating</div></div>
+        <div class="animate-on-scroll"><div class="text-3xl font-extrabold text-white">50M+</div><div class="text-sm text-slate-500 mt-1">Messages Daily</div></div>
+        <div class="animate-on-scroll"><div class="text-3xl font-extrabold text-white">100%</div><div class="text-sm text-slate-500 mt-1">Open Source</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features" class="py-24 lg:py-32">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-20 animate-on-scroll">
+        <span class="text-sky-400 font-semibold text-sm uppercase tracking-wider">Features</span>
+        <h2 class="mt-3 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white">Built for Privacy, <br>Designed for You</h2>
+        <p class="mt-4 text-lg text-slate-400">Every feature is designed with your privacy and experience in mind.</p>
+      </div>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="group p-8 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-sky-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/5 hover:-translate-y-1 animate-on-scroll">
+          <div class="w-12 h-12 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>
+          <h3 class="text-lg font-bold text-white mb-2">End-to-End Encryption</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Your messages are encrypted on your device and can only be read by the intended recipient. Not even we can read them.</p>
+        </div>
+        <div class="group p-8 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-sky-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/5 hover:-translate-y-1 animate-on-scroll">
+          <div class="w-12 h-12 rounded-xl bg-violet-500/10 text-violet-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg></div>
+          <h3 class="text-lg font-bold text-white mb-2">Zero Data Collection</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">We do not collect, store, or sell your personal data. No phone number required. No email needed. Just create a username.</p>
+        </div>
+        <div class="group p-8 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-sky-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/5 hover:-translate-y-1 animate-on-scroll">
+          <div class="w-12 h-12 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg></div>
+          <h3 class="text-lg font-bold text-white mb-2">Voice & Video Calls</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Crystal-clear encrypted voice and video calls. Group calls up to 40 participants. Works on any connection.</p>
+        </div>
+        <div class="group p-8 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-sky-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/5 hover:-translate-y-1 animate-on-scroll">
+          <div class="w-12 h-12 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg></div>
+          <h3 class="text-lg font-bold text-white mb-2">Self-Destructing Messages</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Set timers for messages to disappear after being read. From 5 seconds to 1 week. You control the conversation.</p>
+        </div>
+        <div class="group p-8 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-sky-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/5 hover:-translate-y-1 animate-on-scroll">
+          <div class="w-12 h-12 rounded-xl bg-rose-500/10 text-rose-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+          <h3 class="text-lg font-bold text-white mb-2">Group Chats & Communities</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Create groups up to 1,000 members. Channels, threads, file sharing, and moderation tools included.</p>
+        </div>
+        <div class="group p-8 rounded-2xl bg-slate-900/50 border border-slate-800 hover:border-sky-500/30 transition-all duration-300 hover:shadow-lg hover:shadow-sky-500/5 hover:-translate-y-1 animate-on-scroll">
+          <div class="w-12 h-12 rounded-xl bg-fuchsia-500/10 text-fuchsia-400 flex items-center justify-center mb-5 group-hover:scale-110 transition-transform"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 00-1-1H4a2 2 0 110-4h1a1 1 0 001-1V7a1 1 0 011-1h3a1 1 0 001-1V4z"/></svg></div>
+          <h3 class="text-lg font-bold text-white mb-2">Cross-Platform Sync</h3>
+          <p class="text-slate-400 text-sm leading-relaxed">Seamlessly switch between phone, tablet, and desktop. All your messages sync in real-time across devices.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Security -->
+  <section id="security" class="py-24 lg:py-32 bg-slate-900/30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <div class="animate-on-scroll">
+          <span class="text-sky-400 font-semibold text-sm uppercase tracking-wider">Security</span>
+          <h2 class="mt-3 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white mb-6">Security You Can <span class="gradient-text">Verify</span></h2>
+          <p class="text-lg text-slate-400 mb-8 leading-relaxed">Our code is 100% open source. Anyone can audit our encryption implementation. We believe transparency is the foundation of trust.</p>
+          <div class="space-y-4">
+            <div class="flex items-start gap-4">
+              <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+              <div><h4 class="font-semibold text-white">Open Source Code</h4><p class="text-sm text-slate-400">Fully auditable on GitHub. 15,000+ stars from the security community.</p></div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+              <div><h4 class="font-semibold text-white">Signal Protocol Encryption</h4><p class="text-sm text-slate-400">Industry-standard end-to-end encryption used by millions worldwide.</p></div>
+            </div>
+            <div class="flex items-start gap-4">
+              <div class="w-6 h-6 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg></div>
+              <div><h4 class="font-semibold text-white">Independently Audited</h4><p class="text-sm text-slate-400">Security audit completed by Cure53 in 2024. Zero critical vulnerabilities found.</p></div>
+            </div>
+          </div>
+        </div>
+        <div class="animate-on-scroll">
+          <div class="bg-slate-800/50 rounded-3xl p-8 border border-slate-700/50 glow-border">
+            <div class="flex items-center gap-3 mb-6 pb-6 border-b border-slate-700/50">
+              <div class="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center"><svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg></div>
+              <div><div class="text-sm font-semibold text-white">Security Status</div><div class="text-xs text-emerald-400">All systems secure</div></div>
+            </div>
+            <div class="space-y-4">
+              <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl"><span class="text-sm text-slate-400">Encryption Protocol</span><span class="text-sm font-semibold text-emerald-400">Signal v3.0</span></div>
+              <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl"><span class="text-sm text-slate-400">Key Exchange</span><span class="text-sm font-semibold text-emerald-400">X3DH + Double Ratchet</span></div>
+              <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl"><span class="text-sm text-slate-400">Message Forward Secrecy</span><span class="text-sm font-semibold text-emerald-400">Enabled</span></div>
+              <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl"><span class="text-sm text-slate-400">Server Location</span><span class="text-sm font-semibold text-emerald-400">Switzerland</span></div>
+              <div class="flex items-center justify-between p-4 bg-slate-900/50 rounded-xl"><span class="text-sm text-slate-400">Last Audit</span><span class="text-sm font-semibold text-emerald-400">Dec 2024 — Passed</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- User Reviews -->
+  <section id="reviews" class="py-24 lg:py-32">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="text-center max-w-3xl mx-auto mb-16 animate-on-scroll">
+        <span class="text-sky-400 font-semibold text-sm uppercase tracking-wider">Reviews</span>
+        <h2 class="mt-3 text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white">Loved by Millions</h2>
+      </div>
+      <div class="grid md:grid-cols-3 gap-6">
+        <div class="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 animate-on-scroll">
+          <div class="flex items-center gap-1 mb-4">
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          </div>
+          <p class="text-slate-300 mb-6 leading-relaxed">"Finally a messaging app that takes privacy seriously. The dark UI is gorgeous and the encryption gives me real peace of mind. Switched my entire family over."</p>
+          <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-sky-500/20"></div><div><div class="font-semibold text-white">Thomas Weber</div><div class="text-sm text-slate-500">Cybersecurity Analyst</div></div></div>
+        </div>
+        <div class="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 animate-on-scroll">
+          <div class="flex items-center gap-1 mb-4">
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          </div>
+          <p class="text-slate-300 mb-6 leading-relaxed">"The no-phone-number signup is a game changer. Group chats are smooth, file sharing is fast, and I love the self-destructing messages feature."</p>
+          <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-violet-500/20"></div><div><div class="font-semibold text-white">Ana Martinez</div><div class="text-sm text-slate-500">Privacy Advocate</div></div></div>
+        </div>
+        <div class="p-8 rounded-2xl bg-slate-900/50 border border-slate-800 animate-on-scroll">
+          <div class="flex items-center gap-1 mb-4">
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            <svg class="w-5 h-5 text-amber-400" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+          </div>
+          <p class="text-slate-300 mb-6 leading-relaxed">"Open source, audited, no ads, and free. This is what messaging should have been all along. Our whole team at the NGO uses it for secure communications."</p>
+          <div class="flex items-center gap-3"><div class="w-10 h-10 rounded-full bg-emerald-500/20"></div><div><div class="font-semibold text-white">James Okafor</div><div class="text-sm text-slate-500">NGO Director</div></div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Newsletter -->
+  <section id="newsletter" class="py-24 lg:py-32 bg-slate-900/30">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center animate-on-scroll">
+      <h2 class="text-3xl sm:text-4xl font-extrabold text-white mb-4">Stay in the Loop</h2>
+      <p class="text-lg text-slate-400 mb-8 max-w-xl mx-auto">Get updates on new features, security improvements, and tips for staying private online. No spam, ever.</p>
+      <form class="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+        <input type="email" placeholder="Enter your email" class="flex-1 px-5 py-4 bg-slate-800 border border-slate-700 rounded-2xl text-white placeholder-slate-500 focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20 outline-none transition-all" required>
+        <button type="submit" class="px-8 py-4 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold rounded-2xl transition-all hover:shadow-lg hover:shadow-sky-500/20">Subscribe</button>
+      </form>
+      <p class="mt-4 text-xs text-slate-600">Unsubscribe anytime. We respect your privacy.</p>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="bg-slate-950 border-t border-slate-800/60 py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="grid md:grid-cols-5 gap-8 mb-12">
+        <div class="md:col-span-2">
+          <a href="#" class="flex items-center gap-2 text-xl font-bold text-white mb-4">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-sky-400 to-violet-500 flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+            </div>
+            NovaChat
+          </a>
+          <p class="text-sm text-slate-500 max-w-xs leading-relaxed">Private messaging for everyone. Open source, end-to-end encrypted, and completely free. Because privacy is a human right.</p>
+        </div>
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Product</h4>
+          <ul class="space-y-2 text-sm"><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Download</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Changelog</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Roadmap</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Status</a></li></ul>
+        </div>
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Community</h4>
+          <ul class="space-y-2 text-sm"><li><a href="#" class="text-slate-500 hover:text-white transition-colors">GitHub</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Discord</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Twitter</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Blog</a></li></ul>
+        </div>
+        <div>
+          <h4 class="text-sm font-semibold text-white mb-4">Legal</h4>
+          <ul class="space-y-2 text-sm"><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Privacy</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Terms</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Security</a></li><li><a href="#" class="text-slate-500 hover:text-white transition-colors">Contact</a></li></ul>
+        </div>
+      </div>
+      <div class="border-t border-slate-800/60 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <p class="text-sm text-slate-600">&copy; 2025 NovaChat. Open source under MIT license.</p>
+        <div class="flex items-center gap-4">
+          <a href="#" class="text-slate-600 hover:text-white transition-colors"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg></a>
+          <a href="#" class="text-slate-600 hover:text-white transition-colors"><svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z"/></svg></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const observer = new IntersectionObserver((entries) => { entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('visible'); }); }, { threshold: 0.1 });
+    document.querySelectorAll('.animate-on-scroll').forEach(el => observer.observe(el));
+  </script>
+</body>
+</html>

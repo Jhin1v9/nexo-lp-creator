@@ -1,0 +1,16 @@
+{
+  "name": "Next.js (Pages Router)",
+  "description": "Next.js 14 with classic Pages Router and Tailwind CSS. Battle-tested, mature ecosystem.",
+  "version": "1.0.0",
+  "default": false,
+  "stack": ["Next.js 14", "React", "Tailwind CSS", "Pages Router"],
+  "buildCommand": "next build",
+  "previewCommand": "next start",
+  "outputDir": "dist",
+  "entryPoint": "pages/index.tsx",
+  "buildRequired": true,
+  "deployment": {
+    "platforms": ["Vercel", "Netlify", "AWS Amplify"],
+    "buildOutput": "dist"
+  }
+}

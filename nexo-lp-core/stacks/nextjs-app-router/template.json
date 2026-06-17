@@ -1,0 +1,17 @@
+{
+  "name": "Next.js (App Router)",
+  "description": "Next.js 14 with App Router, Server Components, and Tailwind CSS. Full-stack React with SSR/SSG support.",
+  "version": "1.0.0",
+  "default": false,
+  "stack": ["Next.js 14", "React", "Tailwind CSS", "App Router"],
+  "buildCommand": "next build",
+  "previewCommand": "next start",
+  "outputDir": "dist",
+  "entryPoint": "app/page.tsx",
+  "buildRequired": true,
+  "deployment": {
+    "platforms": ["Vercel", "Netlify", "AWS Amplify"],
+    "buildOutput": "dist",
+    "instructions": "Vercel is the optimal platform. Set framework preset to Next.js."
+  }
+}

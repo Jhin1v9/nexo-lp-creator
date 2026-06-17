@@ -1,0 +1,197 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: NEXO
+      - button "Collapse sidebar" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - button "Editor" [ref=e15] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e19]: Editor
+      - button "Templates" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e24]: Templates
+      - button "Settings" [ref=e25] [cursor=pointer]:
+        - img [ref=e27]
+        - generic [ref=e30]: Settings
+      - button "New Project" [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e36]: New Project
+      - generic [ref=e39]: Recent Projects
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - button "Untitled Project" [ref=e42] [cursor=pointer]:
+            - img [ref=e44]
+            - generic [ref=e47]: Untitled Project
+          - button "Project options" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+        - generic [ref=e53]:
+          - button "test padaria 3" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - generic [ref=e59]: test padaria 3
+          - button "Project options" [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+        - generic [ref=e65]:
+          - button "test padaria 2" [ref=e66] [cursor=pointer]:
+            - img [ref=e68]
+            - generic [ref=e71]: test padaria 2
+          - button "Project options" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+        - generic [ref=e77]:
+          - button "Untitled Project" [ref=e78] [cursor=pointer]:
+            - img [ref=e80]
+            - generic [ref=e83]: Untitled Project
+          - button "Project options" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+        - generic [ref=e89]:
+          - button "Untitled Project" [ref=e90] [cursor=pointer]:
+            - img [ref=e92]
+            - generic [ref=e95]: Untitled Project
+          - button "Project options" [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+        - generic [ref=e101]:
+          - button "Untitled Project" [ref=e102] [cursor=pointer]:
+            - img [ref=e104]
+            - generic [ref=e107]: Untitled Project
+          - button "Project options" [ref=e108] [cursor=pointer]:
+            - img [ref=e109]
+        - generic [ref=e113]:
+          - button "test padaria" [ref=e114] [cursor=pointer]:
+            - img [ref=e116]
+            - generic [ref=e119]: test padaria
+          - button "Project options" [ref=e120] [cursor=pointer]:
+            - img [ref=e121]
+        - generic [ref=e125]:
+          - button "Untitled Project" [ref=e126] [cursor=pointer]:
+            - img [ref=e128]
+            - generic [ref=e131]: Untitled Project
+          - button "Project options" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+        - generic [ref=e137]:
+          - button "Untitled Project" [ref=e138] [cursor=pointer]:
+            - img [ref=e140]
+            - generic [ref=e143]: Untitled Project
+          - button "Project options" [ref=e144] [cursor=pointer]:
+            - img [ref=e145]
+        - generic [ref=e149]:
+          - button "Untitled Project" [ref=e150] [cursor=pointer]:
+            - img [ref=e152]
+            - generic [ref=e155]: Untitled Project
+          - button "Project options" [ref=e156] [cursor=pointer]:
+            - img [ref=e157]
+    - generic [ref=e162]:
+      - generic [ref=e165]: Luna Ready
+      - generic [ref=e166]:
+        - generic [ref=e167]: 5.000 tokens
+        - generic [ref=e168]: 0 used
+  - main [ref=e171]:
+    - generic [ref=e172]:
+      - heading "Untitled Project" [level=1] [ref=e174]
+      - link "GitHub" [ref=e176] [cursor=pointer]:
+        - /url: https://github.com
+        - img [ref=e177]
+        - generic [ref=e179]: GitHub
+    - generic [ref=e181]:
+      - generic [ref=e183]:
+        - button "Chat" [ref=e184] [cursor=pointer]:
+          - img [ref=e186]
+          - generic [ref=e188]: Chat
+        - button "Preview" [ref=e189] [cursor=pointer]:
+          - img [ref=e191]
+          - generic [ref=e194]: Preview
+        - button "Code" [ref=e195] [cursor=pointer]:
+          - img [ref=e197]
+          - generic [ref=e200]: Code
+        - button "Deploy" [ref=e201] [cursor=pointer]:
+          - img [ref=e203]
+          - generic [ref=e206]: Deploy
+        - button "History" [ref=e207] [cursor=pointer]:
+          - img [ref=e209]
+          - generic [ref=e213]: History
+        - button "Bugs 3" [ref=e214] [cursor=pointer]:
+          - img [ref=e216]
+          - generic [ref=e225]: Bugs
+          - generic [ref=e226]: "3"
+      - generic [ref=e229]:
+        - generic [ref=e231]:
+          - generic [ref=e232]:
+            - img [ref=e237]
+            - heading "NEXO Landing Page Creator" [level=1] [ref=e239]
+            - paragraph [ref=e240]:
+              - text: Hi! I'm Luna, your AI landing page designer.
+              - text: Describe what you want, and I'll build it for you.
+          - generic [ref=e241]:
+            - paragraph [ref=e242]: Start with a template
+            - generic [ref=e243]:
+              - button "🚀 SaaS Landing Page Create a modern SaaS landing page with hero section, pricing, and features" [ref=e244] [cursor=pointer]:
+                - generic [ref=e245]:
+                  - generic [ref=e246]: 🚀
+                  - generic [ref=e247]:
+                    - heading "SaaS Landing Page" [level=3] [ref=e248]
+                    - paragraph [ref=e249]: Create a modern SaaS landing page with hero section, pricing, and features
+              - button "🏥 Clinic Website Build a professional medical clinic website with booking and services" [ref=e250] [cursor=pointer]:
+                - generic [ref=e251]:
+                  - generic [ref=e252]: 🏥
+                  - generic [ref=e253]:
+                    - heading "Clinic Website" [level=3] [ref=e254]
+                    - paragraph [ref=e255]: Build a professional medical clinic website with booking and services
+              - button "📚 Course Landing Page Design an online course page with curriculum and instructor info" [ref=e256] [cursor=pointer]:
+                - generic [ref=e257]:
+                  - generic [ref=e258]: 📚
+                  - generic [ref=e259]:
+                    - heading "Course Landing Page" [level=3] [ref=e260]
+                    - paragraph [ref=e261]: Design an online course page with curriculum and instructor info
+              - button "📱 App Showcase Create a mobile app landing page with screenshots and download CTA" [ref=e262] [cursor=pointer]:
+                - generic [ref=e263]:
+                  - generic [ref=e264]: 📱
+                  - generic [ref=e265]:
+                    - heading "App Showcase" [level=3] [ref=e266]
+                    - paragraph [ref=e267]: Create a mobile app landing page with screenshots and download CTA
+              - button "🍔 Restaurant Page Build a restaurant landing page with menu and reservation form" [ref=e268] [cursor=pointer]:
+                - generic [ref=e269]:
+                  - generic [ref=e270]: 🍔
+                  - generic [ref=e271]:
+                    - heading "Restaurant Page" [level=3] [ref=e272]
+                    - paragraph [ref=e273]: Build a restaurant landing page with menu and reservation form
+              - button "💼 Portfolio Website Design a creative portfolio for a designer or developer" [ref=e274] [cursor=pointer]:
+                - generic [ref=e275]:
+                  - generic [ref=e276]: 💼
+                  - generic [ref=e277]:
+                    - heading "Portfolio Website" [level=3] [ref=e278]
+                    - paragraph [ref=e279]: Design a creative portfolio for a designer or developer
+          - generic [ref=e281]:
+            - generic [ref=e282]:
+              - img [ref=e283]
+              - generic [ref=e285]: Pro Tips
+            - generic [ref=e286]:
+              - generic [ref=e287]:
+                - generic [ref=e288]: "1"
+                - generic [ref=e289]: Be specific about colors, layout, and sections you want
+              - generic [ref=e290]:
+                - generic [ref=e291]: "2"
+                - generic [ref=e292]: Mention your target audience for better results
+              - generic [ref=e293]:
+                - generic [ref=e294]: "3"
+                - generic [ref=e295]: You can ask for revisions anytime - just describe the changes
+              - generic [ref=e296]:
+                - generic [ref=e297]: "4"
+                - generic [ref=e298]: Add features like contact forms, galleries, or pricing tables
+          - paragraph [ref=e299]: Type your idea below or pick a template above to get started
+        - generic [ref=e300]:
+          - generic [ref=e301]:
+            - textbox "Describe the landing page you want to create..." [ref=e303]
+            - button [disabled] [ref=e304]:
+              - img [ref=e305]
+          - generic [ref=e308]: Press Enter to send, Shift+Enter for new line
+      - generic [ref=e309]:
+        - generic [ref=e313]: Ready
+        - generic [ref=e315]: v3.0.0
+    - generic [ref=e316]:
+      - generic [ref=e319]: Connected
+      - generic [ref=e321]:
+        - img [ref=e322]
+        - generic [ref=e325]: 0 / 5.000
+      - generic [ref=e328]:
+        - img [ref=e329]
+        - generic [ref=e331]: HTML + CSS + JS

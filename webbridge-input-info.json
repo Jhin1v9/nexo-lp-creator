@@ -1,0 +1,1 @@
+{"action":"evaluate","args":{"code":"(() => { const input = document.querySelector('textarea, [contenteditable=true]'); return input ? { tag: input.tagName, className: input.className, placeholder: input.placeholder || input.getAttribute('placeholder') } : 'no input'; })()"},"session":"nexo-lp-test"}

@@ -1,0 +1,20 @@
+{
+  "name": "Static HTML + Tailwind CSS",
+  "description": "Zero-build static HTML landing page with Tailwind CSS CDN. No build step required — just edit index.html and deploy.",
+  "version": "1.0.0",
+  "default": true,
+  "stack": ["HTML5", "Tailwind CSS"],
+  "buildCommand": null,
+  "previewCommand": null,
+  "outputDir": ".",
+  "entryPoint": "index.html",
+  "buildRequired": false,
+  "files": [
+    "index.html",
+    "README.md"
+  ],
+  "deployment": {
+    "platforms": ["Vercel", "Netlify", "GitHub Pages", "Cloudflare Pages", "AWS S3", "Any static host"],
+    "instructions": "Upload index.html directly to any static web host. No build step needed."
+  }
+}

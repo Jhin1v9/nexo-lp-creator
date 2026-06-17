@@ -1,0 +1,62 @@
+{
+  "version": "3.0.0",
+  "lastUpdated": "2025-01-01",
+  "templates": [
+    {
+      "id": "saas-modern",
+      "name": "Modern SaaS Landing Page",
+      "file": "saas-modern.html",
+      "description": "A sleek, professional SaaS landing page with hero section, feature grid, pricing table, testimonials, and CTA. Built with modern gradient aesthetics.",
+      "category": "saas",
+      "tags": ["saas", "modern", "gradient", "pricing-table", "testimonials", "responsive", "animated"],
+      "stack": "static-html-tailwind",
+      "difficulty": "intermediate",
+      "colors": ["#0ea5e9", "#6366f1", "#0f172a", "#f8fafc"],
+      "sections": ["hero", "logos", "features", "pricing", "testimonials", "cta", "footer"],
+      "estimatedCustomization": 15,
+      "featured": true
+    },
+    {
+      "id": "clinic-elegant",
+      "name": "Elegant Medical Clinic",
+      "file": "clinic-elegant.html",
+      "description": "A calming, professional medical clinic page with appointment booking form, doctor profiles, services, and testimonials. Soft teal color palette.",
+      "category": "healthcare",
+      "tags": ["healthcare", "clinic", "medical", "appointment-form", "elegant", "calming", "responsive"],
+      "stack": "static-html-tailwind",
+      "difficulty": "intermediate",
+      "colors": ["#0d9488", "#f0fdfa", "#134e4a", "#ffffff"],
+      "sections": ["top-bar", "navigation", "hero", "services", "appointment-form", "doctors", "testimonials", "contact", "footer"],
+      "estimatedCustomization": 20,
+      "featured": true
+    },
+    {
+      "id": "course-launch",
+      "name": "Online Course Launch",
+      "file": "course-launch.html",
+      "description": "A bold, high-conversion course launch page with countdown timer, curriculum outline, instructor bio, student reviews, pricing with guarantee, and FAQ accordion.",
+      "category": "education",
+      "tags": ["education", "course", "launch", "countdown", "pricing", "testimonials", "faq", "responsive"],
+      "stack": "static-html-tailwind",
+      "difficulty": "advanced",
+      "colors": ["#7c3aed", "#db2777", "#0f172a", "#f8fafc"],
+      "sections": ["top-banner", "hero", "stats", "modules", "instructor", "reviews", "pricing", "faq", "cta", "footer"],
+      "estimatedCustomization": 18,
+      "featured": true
+    },
+    {
+      "id": "app-tech-dark",
+      "name": "Tech App Dark Theme",
+      "file": "app-tech-dark.html",
+      "description": "A dark-themed tech app landing page with app mockup, feature highlights, security details, user reviews, download buttons, and newsletter signup.",
+      "category": "mobile-app",
+      "tags": ["app", "dark-theme", "tech", "privacy", "download-buttons", "newsletter", "responsive"],
+      "stack": "static-html-tailwind",
+      "difficulty": "advanced",
+      "colors": ["#38bdf8", "#a78bfa", "#020617", "#0f172a"],
+      "sections": ["hero", "stats", "features", "security", "reviews", "newsletter", "footer"],
+      "estimatedCustomization": 15,
+      "featured": true
+    }
+  ]
+}

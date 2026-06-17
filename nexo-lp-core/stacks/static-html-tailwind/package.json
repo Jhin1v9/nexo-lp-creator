@@ -1,0 +1,19 @@
+{
+  "name": "nexo-static-tailwind",
+  "version": "1.0.0",
+  "description": "NEXO Landing Page — Static HTML with Tailwind CSS CDN",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "preview": "npx serve .",
+    "validate": "node scripts/validate.js",
+    "format": "npx prettier --write ."
+  },
+  "devDependencies": {
+    "prettier": "^3.2.0",
+    "serve": "^14.2.0"
+  },
+  "keywords": ["landing-page", "tailwindcss", "static-html"],
+  "author": "",
+  "license": "MIT"
+}

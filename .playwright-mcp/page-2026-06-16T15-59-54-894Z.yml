@@ -1,0 +1,108 @@
+- generic [ref=e4]:
+  - complementary [ref=e5]:
+    - link [ref=e7] [cursor=pointer]:
+      - /url: /?chat_enter_method=new_chat
+    - link "New Chat Ctrl K" [ref=e9] [cursor=pointer]:
+      - /url: /?chat_enter_method=new_chat
+      - generic [ref=e10]:
+        - img [ref=e11]
+        - text: New Chat
+      - generic [ref=e14]:
+        - generic [ref=e15]: Ctrl
+        - generic [ref=e16]: K
+    - generic [ref=e17]:
+      - generic [ref=e18]:
+        - list [ref=e19]:
+          - listitem [ref=e20]:
+            - link "Slides" [ref=e21] [cursor=pointer]:
+              - /url: /slides
+              - generic [ref=e22]:
+                - img [ref=e23]
+                - generic [ref=e25]: Slides
+          - listitem [ref=e26]:
+            - link "Websites" [ref=e27] [cursor=pointer]:
+              - /url: /websites
+              - generic [ref=e28]:
+                - img [ref=e29]
+                - generic [ref=e32]: Websites
+          - listitem [ref=e33]:
+            - link "Docs" [ref=e34] [cursor=pointer]:
+              - /url: /docs
+              - generic [ref=e35]:
+                - img [ref=e36]
+                - generic [ref=e39]: Docs
+          - listitem [ref=e40]:
+            - link "Deep Research" [ref=e41] [cursor=pointer]:
+              - /url: /deep-research
+              - generic [ref=e42]:
+                - img [ref=e43]
+                - generic [ref=e45]: Deep Research
+          - listitem [ref=e46]:
+            - link "Sheets" [ref=e47] [cursor=pointer]:
+              - /url: /sheets
+              - generic [ref=e48]:
+                - img [ref=e49]
+                - generic [ref=e51]: Sheets
+          - listitem [ref=e52]:
+            - link "Agent Swarm" [ref=e53] [cursor=pointer]:
+              - /url: /agent-swarm
+              - generic [ref=e54]:
+                - img [ref=e55]
+                - generic [ref=e57]: Agent Swarm
+        - link "Kimi Code" [ref=e58] [cursor=pointer]:
+          - /url: /code?from=kimi_homepage_sidebar
+          - img [ref=e59]
+          - generic [ref=e62]: Kimi Code
+        - generic [ref=e63]:
+          - generic [ref=e64] [cursor=pointer]:
+            - img [ref=e65]
+            - generic [ref=e67]:
+              - text: Kimi Claw
+              - generic [ref=e68]: Beta
+            - button [ref=e72]:
+              - img [ref=e74]
+          - generic:
+            - generic:
+              - generic:
+                - generic:
+                  - list
+      - generic [ref=e77]:
+        - img [ref=e78]
+        - generic [ref=e80]: Chat History
+      - generic [ref=e83] [cursor=pointer]: Log in to sync chat history
+    - generic [ref=e84]:
+      - generic [ref=e85] [cursor=pointer]:
+        - img [ref=e86]
+        - generic [ref=e89]: Get App
+      - generic [ref=e93] [cursor=pointer]:
+        - img "default user avatar" [ref=e95]
+        - generic [ref=e96]: Log In
+  - generic [ref=e99]:
+    - generic [ref=e103] [cursor=pointer]:
+      - img [ref=e104]
+      - generic: Lock Sidebar
+    - generic [ref=e107]:
+      - img "Kimi Doodle" [ref=e111]
+      - generic [ref=e113]:
+        - generic [ref=e115]:
+          - textbox [active] [ref=e116]:
+            - paragraph [ref=e117]
+          - generic: Ask Anything...
+        - generic [ref=e118]:
+          - generic [ref=e119]:
+            - img [ref=e122] [cursor=pointer]
+            - generic [ref=e126] [cursor=pointer]:
+              - img [ref=e127]
+              - generic [ref=e129]: Agent
+          - generic [ref=e130]:
+            - generic [ref=e133] [cursor=pointer]:
+              - generic [ref=e134]: K2.6 Instant
+              - img [ref=e135]
+            - img [ref=e138]
+      - generic [ref=e149]:
+        - generic [ref=e152] [cursor=pointer]:
+          - img "activity image" [ref=e154]
+          - generic [ref=e155]:
+            - generic [ref=e156]: One-click Install Kimi WebBridge
+            - generic [ref=e157]: Let AI use the browser like a human
+        - img [ref=e159] [cursor=pointer]

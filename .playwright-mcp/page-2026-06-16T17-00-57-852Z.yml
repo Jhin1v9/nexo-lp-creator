@@ -1,0 +1,161 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: NEXO
+      - button "Collapse sidebar" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - button "Editor" [ref=e15] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e19]: Editor
+      - button "Templates" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e24]: Templates
+      - button "Settings" [ref=e25] [cursor=pointer]:
+        - img [ref=e27]
+        - generic [ref=e30]: Settings
+      - button "New Project" [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e36]: New Project
+      - generic [ref=e39]: Recent Projects
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - button "test padaria" [ref=e42] [cursor=pointer]:
+            - img [ref=e44]
+            - generic [ref=e47]: test padaria
+          - button "Project options" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+        - generic [ref=e53]:
+          - button "Untitled Project" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - generic [ref=e59]: Untitled Project
+          - button "Project options" [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+        - generic [ref=e65]:
+          - button "Untitled Project" [ref=e66] [cursor=pointer]:
+            - img [ref=e68]
+            - generic [ref=e71]: Untitled Project
+          - button "Project options" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+        - generic [ref=e77]:
+          - button "Untitled Project" [ref=e78] [cursor=pointer]:
+            - img [ref=e80]
+            - generic [ref=e83]: Untitled Project
+          - button "Project options" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+    - generic [ref=e90]:
+      - generic [ref=e93]: Luna Ready
+      - generic [ref=e94]:
+        - generic [ref=e95]: 5.000 tokens
+        - generic [ref=e96]: 0 used
+  - main [ref=e99]:
+    - generic [ref=e100]:
+      - heading "Untitled Project" [level=1] [ref=e102]
+      - link "GitHub" [ref=e104] [cursor=pointer]:
+        - /url: https://github.com
+        - img [ref=e105]
+        - generic [ref=e107]: GitHub
+    - generic [ref=e109]:
+      - generic [ref=e111]:
+        - button "Chat" [ref=e112] [cursor=pointer]:
+          - img [ref=e114]
+          - generic [ref=e116]: Chat
+        - button "Preview" [ref=e117] [cursor=pointer]:
+          - img [ref=e119]
+          - generic [ref=e122]: Preview
+        - button "Code" [ref=e123] [cursor=pointer]:
+          - img [ref=e125]
+          - generic [ref=e128]: Code
+        - button "Deploy" [ref=e129] [cursor=pointer]:
+          - img [ref=e131]
+          - generic [ref=e134]: Deploy
+        - button "History" [ref=e135] [cursor=pointer]:
+          - img [ref=e137]
+          - generic [ref=e141]: History
+        - button "Bugs 3" [ref=e142] [cursor=pointer]:
+          - img [ref=e144]
+          - generic [ref=e153]: Bugs
+          - generic [ref=e154]: "3"
+      - generic [ref=e157]:
+        - generic [ref=e159]:
+          - generic [ref=e160]:
+            - img [ref=e165]
+            - heading "NEXO Landing Page Creator" [level=1] [ref=e167]
+            - paragraph [ref=e168]:
+              - text: Hi! I'm Luna, your AI landing page designer.
+              - text: Describe what you want, and I'll build it for you.
+          - generic [ref=e169]:
+            - paragraph [ref=e170]: Start with a template
+            - generic [ref=e171]:
+              - button "🚀 SaaS Landing Page Create a modern SaaS landing page with hero section, pricing, and features" [ref=e172] [cursor=pointer]:
+                - generic [ref=e173]:
+                  - generic [ref=e174]: 🚀
+                  - generic [ref=e175]:
+                    - heading "SaaS Landing Page" [level=3] [ref=e176]
+                    - paragraph [ref=e177]: Create a modern SaaS landing page with hero section, pricing, and features
+              - button "🏥 Clinic Website Build a professional medical clinic website with booking and services" [ref=e178] [cursor=pointer]:
+                - generic [ref=e179]:
+                  - generic [ref=e180]: 🏥
+                  - generic [ref=e181]:
+                    - heading "Clinic Website" [level=3] [ref=e182]
+                    - paragraph [ref=e183]: Build a professional medical clinic website with booking and services
+              - button "📚 Course Landing Page Design an online course page with curriculum and instructor info" [ref=e184] [cursor=pointer]:
+                - generic [ref=e185]:
+                  - generic [ref=e186]: 📚
+                  - generic [ref=e187]:
+                    - heading "Course Landing Page" [level=3] [ref=e188]
+                    - paragraph [ref=e189]: Design an online course page with curriculum and instructor info
+              - button "📱 App Showcase Create a mobile app landing page with screenshots and download CTA" [ref=e190] [cursor=pointer]:
+                - generic [ref=e191]:
+                  - generic [ref=e192]: 📱
+                  - generic [ref=e193]:
+                    - heading "App Showcase" [level=3] [ref=e194]
+                    - paragraph [ref=e195]: Create a mobile app landing page with screenshots and download CTA
+              - button "🍔 Restaurant Page Build a restaurant landing page with menu and reservation form" [ref=e196] [cursor=pointer]:
+                - generic [ref=e197]:
+                  - generic [ref=e198]: 🍔
+                  - generic [ref=e199]:
+                    - heading "Restaurant Page" [level=3] [ref=e200]
+                    - paragraph [ref=e201]: Build a restaurant landing page with menu and reservation form
+              - button "💼 Portfolio Website Design a creative portfolio for a designer or developer" [ref=e202] [cursor=pointer]:
+                - generic [ref=e203]:
+                  - generic [ref=e204]: 💼
+                  - generic [ref=e205]:
+                    - heading "Portfolio Website" [level=3] [ref=e206]
+                    - paragraph [ref=e207]: Design a creative portfolio for a designer or developer
+          - generic [ref=e209]:
+            - generic [ref=e210]:
+              - img [ref=e211]
+              - generic [ref=e213]: Pro Tips
+            - generic [ref=e214]:
+              - generic [ref=e215]:
+                - generic [ref=e216]: "1"
+                - generic [ref=e217]: Be specific about colors, layout, and sections you want
+              - generic [ref=e218]:
+                - generic [ref=e219]: "2"
+                - generic [ref=e220]: Mention your target audience for better results
+              - generic [ref=e221]:
+                - generic [ref=e222]: "3"
+                - generic [ref=e223]: You can ask for revisions anytime - just describe the changes
+              - generic [ref=e224]:
+                - generic [ref=e225]: "4"
+                - generic [ref=e226]: Add features like contact forms, galleries, or pricing tables
+          - paragraph [ref=e227]: Type your idea below or pick a template above to get started
+        - generic [ref=e228]:
+          - generic [ref=e229]:
+            - textbox "Describe the landing page you want to create..." [ref=e231]
+            - button [disabled] [ref=e232]:
+              - img [ref=e233]
+          - generic [ref=e236]: Press Enter to send, Shift+Enter for new line
+      - generic [ref=e237]:
+        - generic [ref=e241]: Ready
+        - generic [ref=e243]: v3.0.0
+    - generic [ref=e244]:
+      - generic [ref=e247]: Connected
+      - generic [ref=e249]:
+        - img [ref=e250]
+        - generic [ref=e253]: 0 / 5.000
+      - generic [ref=e256]:
+        - img [ref=e257]
+        - generic [ref=e259]: HTML + CSS + JS

@@ -1,0 +1,81 @@
+{
+  "users": {
+    "nlp-1781560469259-d7670f96": {
+      "chatUrl": "https://www.kimi.com/chat/19ecd47a-7552-8068-8000-092f95d975fb?chat_enter_method=change_model",
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T21:55:50.432Z"
+    },
+    "nlp-1781560633561-f72d16d4": {
+      "chatUrl": "https://www.kimi.com/chat/19ecd48b-a962-82e1-8000-092f0bbc6a89?chat_enter_method=new_chat",
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T21:57:22.293Z"
+    },
+    "nlp-1781560696217-48f17e6b": {
+      "chatUrl": "https://www.kimi.com/chat/19ecd4b7-3ec2-807b-8000-092fd70eee4e?chat_enter_method=new_chat",
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T21:59:18.034Z"
+    },
+    "nlp-1781560809347-5256f1fd": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T22:05:25.167Z",
+      "chatUrl": "https://www.kimi.com/chat/19ecd4ff-ebd2-8f9d-8000-092fe2db1332?chat_enter_method=new_chat"
+    },
+    "nlp-1781563477615-4eba3378": {
+      "chatUrl": "https://www.kimi.com/chat/19ecd76a-eb42-8bfc-8000-092f0992923f?chat_enter_method=new_chat",
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T22:48:08.496Z"
+    },
+    "nlp-1781563477646-865ee5fc": {
+      "chatUrl": "https://www.kimi.com/chat/19ecd79a-6502-8def-8000-092f814163e0?chat_enter_method=new_chat",
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T22:49:48.098Z"
+    },
+    "nlp-1781563825569-8ccfcc4f": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T22:50:45.998Z"
+    },
+    "nlp-1781563825553-64cb13f1": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T22:50:51.085Z"
+    },
+    "nlp-1781564110824-d6ed110e": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T22:55:54.428Z"
+    },
+    "nlp-1781564110804-696129dd": {
+      "chatUrl": "https://www.kimi.com/chat/19ecd7f6-95c2-83ff-8000-092f2ab3900f?chat_enter_method=new_chat",
+      "updatedAt": "2026-06-15T22:56:16.285Z",
+      "mode": "thinking"
+    },
+    "nlp-1781564165339-c1520f52": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T22:56:23.732Z"
+    },
+    "nlp-1781564510352-12fbfed5": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T23:14:58.010Z",
+      "chatUrl": "https://www.kimi.com/chat/19ecd8e5-ce72-883e-8000-092fc7281eab?chat_enter_method=new_chat"
+    },
+    "nlp-1781564510338-459729e6": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T23:07:28.259Z",
+      "chatUrl": "https://www.kimi.com/chat/19ecd87d-eac2-8a58-8000-092f058644c6?chat_enter_method=new_chat"
+    },
+    "nlp-1781567084411-994a9a29": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T23:48:49.689Z",
+      "chatUrl": "https://www.kimi.com/chat/19ecdafc-d402-87c0-8000-092fdbf604f1?chat_enter_method=new_chat"
+    },
+    "nlp-1781567084388-aae3ad04": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T23:48:44.389Z",
+      "chatUrl": "https://www.kimi.com/chat/19ecdafa-5442-8816-8000-092f1d1019f5?chat_enter_method=new_chat"
+    },
+    "nexo-lp-e2e": {
+      "mode": "thinking",
+      "updatedAt": "2026-06-15T23:59:10.864Z",
+      "chatUrl": "https://www.kimi.com/chat/19ecdb7b-3782-8c8c-8000-092ffdffb5d8?chat_enter_method=change_model"
+    }
+  },
+  "lastCleanup": null
+}

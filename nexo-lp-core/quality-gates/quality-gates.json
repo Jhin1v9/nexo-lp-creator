@@ -1,0 +1,52 @@
+{
+  "version": "3.0.0",
+  "global": {
+    "minOverallScore": 75,
+    "maxCriticalIssues": 0,
+    "maxTotalIssues": 15,
+    "minDimensionsPassed": 4
+  },
+  "dimensions": {
+    "code": {
+      "minScore": 70,
+      "weight": 1.0,
+      "validators": ["htmlValidator"],
+      "checks": ["semanticStructure", "headingHierarchy", "altText", "validDoctype", "noBrokenTags"]
+    },
+    "seo": {
+      "minScore": 70,
+      "weight": 1.0,
+      "validators": ["seoValidator"],
+      "checks": ["titleTag", "metaDescription", "openGraph", "twitterCards", "jsonLd", "canonical", "robots"]
+    },
+    "cro": {
+      "minScore": 60,
+      "weight": 0.8,
+      "validators": ["croValidator"],
+      "checks": ["ctaAboveFold", "primaryCtaVisible", "socialProof", "trustSignals", "minimalForms", "valueProposition"]
+    },
+    "security": {
+      "minScore": 75,
+      "weight": 1.2,
+      "validators": ["securityValidator"],
+      "checks": ["noInlineHandlers", "noEval", "noInnerHtml", "noScriptInjection", "httpsOnly", "cspFriendly"]
+    },
+    "build": {
+      "minScore": 80,
+      "weight": 1.0,
+      "validators": ["buildValidator"],
+      "checks": ["requiredFilesExist", "buildCommandSuccess", "outputDirectory", "noSyntaxErrors"]
+    },
+    "performance": {
+      "minScore": 65,
+      "weight": 0.8,
+      "validators": ["performanceValidator"],
+      "checks": ["lazyLoading", "criticalCss", "noRenderBlocking", "fontDisplaySwap", "minimalExternalRequests"]
+    }
+  },
+  "scoring": {
+    "formula": "weighted_average",
+    "passThreshold": 75,
+    "dimensionPassThreshold": 60
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "watch": ["nexo-lp-server"],
+  "ext": "js,mjs,cjs,json",
+  "ignore": ["nexo-lp-server/services/luna/ARTIFACTS/**", "nexo-lp-server/services/luna/cookies/**", "nexo-lp-server/services/luna/data/**", "data/**", "logs/**", "node_modules/**", "nexo-lp-web/**"],
+  "delay": 1000
+}

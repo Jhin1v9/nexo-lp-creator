@@ -1,0 +1,26 @@
+{
+  "name": "Vite + Vue 3 + Tailwind CSS",
+  "description": "Vue 3 SPA with Composition API, Vite bundler, and Tailwind CSS. Reactive and performant landing pages.",
+  "version": "1.0.0",
+  "default": false,
+  "stack": ["Vue 3", "Vite", "Tailwind CSS", "Composition API"],
+  "buildCommand": "npm run build",
+  "previewCommand": "npm run preview",
+  "outputDir": "dist",
+  "entryPoint": "src/main.js",
+  "buildRequired": true,
+  "files": [
+    "index.html",
+    "vite.config.js",
+    "tailwind.config.js",
+    "package.json",
+    "src/main.js",
+    "src/App.vue",
+    "src/style.css"
+  ],
+  "deployment": {
+    "platforms": ["Vercel", "Netlify", "Cloudflare Pages", "AWS Amplify"],
+    "buildOutput": "dist",
+    "instructions": "Set build command to 'npm run build' and output directory to 'dist'"
+  }
+}

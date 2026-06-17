@@ -1,0 +1,216 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: NEXO
+      - button "Collapse sidebar" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - button "Editor" [ref=e15] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e19]: Editor
+      - button "Templates" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e24]: Templates
+      - button "Settings" [ref=e25] [cursor=pointer]:
+        - img [ref=e27]
+        - generic [ref=e30]: Settings
+      - button "New Project" [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e36]: New Project
+      - generic [ref=e39]: Recent Projects
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - button "Untitled Project" [ref=e42] [cursor=pointer]:
+            - img [ref=e44]
+            - generic [ref=e47]: Untitled Project
+          - button "Project options" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+        - generic [ref=e53]:
+          - button "Untitled Project" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - generic [ref=e59]: Untitled Project
+          - button "Project options" [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+        - generic [ref=e65]:
+          - button "Untitled Project" [ref=e66] [cursor=pointer]:
+            - img [ref=e68]
+            - generic [ref=e71]: Untitled Project
+          - button "Project options" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+        - generic [ref=e77]:
+          - button "Untitled Project" [ref=e78] [cursor=pointer]:
+            - img [ref=e80]
+            - generic [ref=e83]: Untitled Project
+          - button "Project options" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+        - generic [ref=e89]:
+          - button "Untitled Project" [ref=e90] [cursor=pointer]:
+            - img [ref=e92]
+            - generic [ref=e95]: Untitled Project
+          - button "Project options" [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+        - generic [ref=e101]:
+          - button "Untitled Project" [ref=e102] [cursor=pointer]:
+            - img [ref=e104]
+            - generic [ref=e107]: Untitled Project
+          - button "Project options" [ref=e108] [cursor=pointer]:
+            - img [ref=e109]
+        - generic [ref=e113]:
+          - button "Untitled Project" [ref=e114] [cursor=pointer]:
+            - img [ref=e116]
+            - generic [ref=e119]: Untitled Project
+          - button "Project options" [ref=e120] [cursor=pointer]:
+            - img [ref=e121]
+        - generic [ref=e125]:
+          - button "Untitled Project" [ref=e126] [cursor=pointer]:
+            - img [ref=e128]
+            - generic [ref=e131]: Untitled Project
+          - button "Project options" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+        - generic [ref=e137]:
+          - button "test padaria 3" [ref=e138] [cursor=pointer]:
+            - img [ref=e140]
+            - generic [ref=e143]: test padaria 3
+          - button "Project options" [ref=e144] [cursor=pointer]:
+            - img [ref=e145]
+        - generic [ref=e149]:
+          - button "test padaria 2" [ref=e150] [cursor=pointer]:
+            - img [ref=e152]
+            - generic [ref=e155]: test padaria 2
+          - button "Project options" [ref=e156] [cursor=pointer]:
+            - img [ref=e157]
+        - generic [ref=e161]:
+          - button "Untitled Project" [ref=e162] [cursor=pointer]:
+            - img [ref=e164]
+            - generic [ref=e167]: Untitled Project
+          - button "Project options" [ref=e168] [cursor=pointer]:
+            - img [ref=e169]
+        - generic [ref=e173]:
+          - button "Untitled Project" [ref=e174] [cursor=pointer]:
+            - img [ref=e176]
+            - generic [ref=e179]: Untitled Project
+          - button "Project options" [ref=e180] [cursor=pointer]:
+            - img [ref=e181]
+        - generic [ref=e185]:
+          - button "Untitled Project" [ref=e186] [cursor=pointer]:
+            - img [ref=e188]
+            - generic [ref=e191]: Untitled Project
+          - button "Project options" [ref=e192] [cursor=pointer]:
+            - img [ref=e193]
+        - generic [ref=e197]:
+          - button "test padaria" [ref=e198] [cursor=pointer]:
+            - img [ref=e200]
+            - generic [ref=e203]: test padaria
+          - button "Project options" [ref=e204] [cursor=pointer]:
+            - img [ref=e205]
+        - generic [ref=e209]:
+          - button "Untitled Project" [ref=e210] [cursor=pointer]:
+            - img [ref=e212]
+            - generic [ref=e215]: Untitled Project
+          - button "Project options" [ref=e216] [cursor=pointer]:
+            - img [ref=e217]
+        - generic [ref=e221]:
+          - button "Untitled Project" [ref=e222] [cursor=pointer]:
+            - img [ref=e224]
+            - generic [ref=e227]: Untitled Project
+          - button "Project options" [ref=e228] [cursor=pointer]:
+            - img [ref=e229]
+        - generic [ref=e233]:
+          - button "Untitled Project" [ref=e234] [cursor=pointer]:
+            - img [ref=e236]
+            - generic [ref=e239]: Untitled Project
+          - button "Project options" [ref=e240] [cursor=pointer]:
+            - img [ref=e241]
+    - generic [ref=e246]:
+      - generic [ref=e249]: Luna Ready
+      - generic [ref=e250]:
+        - generic [ref=e251]: 5.000 tokens
+        - generic [ref=e252]: 0 used
+  - main [ref=e255]:
+    - generic [ref=e256]:
+      - heading "Untitled Project" [level=1] [ref=e258]
+      - generic [ref=e259]:
+        - link "Open in Kimi" [ref=e416] [cursor=pointer]:
+          - /url: https://www.kimi.com/chat/19ed175b-fd22-8611-8000-092f78e38cf1?chat_enter_method=new_chat
+          - img [ref=e417]
+          - text: Open in Kimi
+        - link "GitHub" [ref=e260] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=e261]
+          - generic [ref=e263]: GitHub
+    - generic [ref=e265]:
+      - generic [ref=e267]:
+        - button "Chat" [ref=e268] [cursor=pointer]:
+          - img [ref=e270]
+          - generic [ref=e272]: Chat
+        - button "Preview" [ref=e273] [cursor=pointer]:
+          - img [ref=e275]
+          - generic [ref=e278]: Preview
+        - button "Code" [ref=e279] [cursor=pointer]:
+          - img [ref=e281]
+          - generic [ref=e284]: Code
+        - button "Deploy" [ref=e285] [cursor=pointer]:
+          - img [ref=e287]
+          - generic [ref=e290]: Deploy
+        - button "History" [ref=e291] [cursor=pointer]:
+          - img [ref=e293]
+          - generic [ref=e297]: History
+        - button "Bugs 3" [ref=e298] [cursor=pointer]:
+          - img [ref=e300]
+          - generic [ref=e309]: Bugs
+          - generic [ref=e310]: "3"
+      - generic [ref=e521]:
+        - generic [ref=e522]:
+          - heading "Deploy Your Landing Page" [level=2] [ref=e523]
+          - paragraph [ref=e524]: Choose how you want to publish your landing page.
+        - generic [ref=e525]:
+          - button "GitHub Pages Deploy directly to GitHub Pages for free hosting with custom domain support." [ref=e526] [cursor=pointer]:
+            - img [ref=e528]
+            - generic [ref=e530]:
+              - heading "GitHub Pages" [level=3] [ref=e531]
+              - paragraph [ref=e532]: Deploy directly to GitHub Pages for free hosting with custom domain support.
+            - img [ref=e534]
+          - button "Download HTML Download the generated landing page as a single HTML file." [ref=e536] [cursor=pointer]:
+            - img [ref=e538]
+            - generic [ref=e541]:
+              - heading "Download HTML" [level=3] [ref=e542]
+              - paragraph [ref=e543]: Download the generated landing page as a single HTML file.
+            - img [ref=e545]
+          - button "ZIP Download Download your landing page as a ZIP file with all assets included." [ref=e547] [cursor=pointer]:
+            - img [ref=e549]
+            - generic [ref=e551]:
+              - heading "ZIP Download" [level=3] [ref=e552]
+              - paragraph [ref=e553]: Download your landing page as a ZIP file with all assets included.
+            - img [ref=e555]
+          - button "Copy Code Copy the HTML code to your clipboard for manual deployment anywhere." [ref=e557] [cursor=pointer]:
+            - img [ref=e559]
+            - generic [ref=e562]:
+              - heading "Copy Code" [level=3] [ref=e563]
+              - paragraph [ref=e564]: Copy the HTML code to your clipboard for manual deployment anywhere.
+            - img [ref=e566]
+        - generic [ref=e569]:
+          - img [ref=e570]
+          - generic [ref=e572]:
+            - paragraph [ref=e573]: Pro Tip
+            - paragraph [ref=e574]: For the best results, make sure your landing page looks good in the Preview tab before deploying. You can always go back and make changes!
+      - generic [ref=e393]:
+        - generic [ref=e394]:
+          - generic [ref=e397]: Ready
+          - generic [ref=e467]:
+            - img [ref=e468]
+            - generic [ref=e471]: 45.611 chars
+        - generic [ref=e399]: v3.0.0
+    - generic [ref=e400]:
+      - generic [ref=e403]: Connected
+      - generic [ref=e405]:
+        - img [ref=e406]
+        - generic [ref=e409]: 0 / 5.000
+      - button "89 Lighthouse" [ref=e473] [cursor=pointer]:
+        - img [ref=e474]
+        - generic [ref=e477]: "89"
+        - generic [ref=e478]: Lighthouse
+      - generic [ref=e412]:
+        - img [ref=e413]
+        - generic [ref=e415]: HTML + CSS + JS
+      - generic [ref=e481]: "Session: sess-178..."

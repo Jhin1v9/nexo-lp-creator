@@ -1,0 +1,200 @@
+- generic [ref=e3]:
+  - complementary [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e7]
+      - generic [ref=e10]: NEXO
+      - button "Collapse sidebar" [ref=e11] [cursor=pointer]:
+        - img [ref=e12]
+    - navigation [ref=e14]:
+      - button "Editor" [ref=e15] [cursor=pointer]:
+        - img [ref=e17]
+        - generic [ref=e19]: Editor
+      - button "Templates" [ref=e20] [cursor=pointer]:
+        - img [ref=e22]
+        - generic [ref=e24]: Templates
+      - button "Settings" [ref=e25] [cursor=pointer]:
+        - img [ref=e27]
+        - generic [ref=e30]: Settings
+      - button "New Project" [ref=e33] [cursor=pointer]:
+        - img [ref=e35]
+        - generic [ref=e36]: New Project
+      - generic [ref=e39]: Recent Projects
+      - generic [ref=e40]:
+        - generic [ref=e41]:
+          - button "Untitled Project" [ref=e42] [cursor=pointer]:
+            - img [ref=e44]
+            - generic [ref=e47]: Untitled Project
+          - button "Project options" [ref=e48] [cursor=pointer]:
+            - img [ref=e49]
+        - generic [ref=e53]:
+          - button "Untitled Project" [ref=e54] [cursor=pointer]:
+            - img [ref=e56]
+            - generic [ref=e59]: Untitled Project
+          - button "Project options" [ref=e60] [cursor=pointer]:
+            - img [ref=e61]
+        - generic [ref=e65]:
+          - button "Untitled Project" [ref=e66] [cursor=pointer]:
+            - img [ref=e68]
+            - generic [ref=e71]: Untitled Project
+          - button "Project options" [ref=e72] [cursor=pointer]:
+            - img [ref=e73]
+        - generic [ref=e77]:
+          - button "Untitled Project" [ref=e78] [cursor=pointer]:
+            - img [ref=e80]
+            - generic [ref=e83]: Untitled Project
+          - button "Project options" [ref=e84] [cursor=pointer]:
+            - img [ref=e85]
+        - generic [ref=e89]:
+          - button "Untitled Project" [ref=e90] [cursor=pointer]:
+            - img [ref=e92]
+            - generic [ref=e95]: Untitled Project
+          - button "Project options" [ref=e96] [cursor=pointer]:
+            - img [ref=e97]
+        - generic [ref=e101]:
+          - button "Untitled Project" [ref=e102] [cursor=pointer]:
+            - img [ref=e104]
+            - generic [ref=e107]: Untitled Project
+          - button "Project options" [ref=e108] [cursor=pointer]:
+            - img [ref=e109]
+        - generic [ref=e113]:
+          - button "Untitled Project" [ref=e114] [cursor=pointer]:
+            - img [ref=e116]
+            - generic [ref=e119]: Untitled Project
+          - button "Project options" [ref=e120] [cursor=pointer]:
+            - img [ref=e121]
+        - generic [ref=e125]:
+          - button "test padaria 3" [ref=e126] [cursor=pointer]:
+            - img [ref=e128]
+            - generic [ref=e131]: test padaria 3
+          - button "Project options" [ref=e132] [cursor=pointer]:
+            - img [ref=e133]
+        - generic [ref=e137]:
+          - button "test padaria 2" [ref=e138] [cursor=pointer]:
+            - img [ref=e140]
+            - generic [ref=e143]: test padaria 2
+          - button "Project options" [ref=e144] [cursor=pointer]:
+            - img [ref=e145]
+        - generic [ref=e149]:
+          - button "Untitled Project" [ref=e150] [cursor=pointer]:
+            - img [ref=e152]
+            - generic [ref=e155]: Untitled Project
+          - button "Project options" [ref=e156] [cursor=pointer]:
+            - img [ref=e157]
+        - generic [ref=e161]:
+          - button "Untitled Project" [ref=e162] [cursor=pointer]:
+            - img [ref=e164]
+            - generic [ref=e167]: Untitled Project
+          - button "Project options" [ref=e168] [cursor=pointer]:
+            - img [ref=e169]
+        - generic [ref=e173]:
+          - button "Untitled Project" [ref=e174] [cursor=pointer]:
+            - img [ref=e176]
+            - generic [ref=e179]: Untitled Project
+          - button "Project options" [ref=e180] [cursor=pointer]:
+            - img [ref=e181]
+        - generic [ref=e185]:
+          - button "test padaria" [ref=e186] [cursor=pointer]:
+            - img [ref=e188]
+            - generic [ref=e191]: test padaria
+          - button "Project options" [ref=e192] [cursor=pointer]:
+            - img [ref=e193]
+        - generic [ref=e197]:
+          - button "Untitled Project" [ref=e198] [cursor=pointer]:
+            - img [ref=e200]
+            - generic [ref=e203]: Untitled Project
+          - button "Project options" [ref=e204] [cursor=pointer]:
+            - img [ref=e205]
+        - generic [ref=e209]:
+          - button "Untitled Project" [ref=e210] [cursor=pointer]:
+            - img [ref=e212]
+            - generic [ref=e215]: Untitled Project
+          - button "Project options" [ref=e216] [cursor=pointer]:
+            - img [ref=e217]
+        - generic [ref=e221]:
+          - button "Untitled Project" [ref=e222] [cursor=pointer]:
+            - img [ref=e224]
+            - generic [ref=e227]: Untitled Project
+          - button "Project options" [ref=e228] [cursor=pointer]:
+            - img [ref=e229]
+    - generic [ref=e234]:
+      - generic [ref=e237]: Luna Ready
+      - generic [ref=e238]:
+        - generic [ref=e239]: 5.000 tokens
+        - generic [ref=e240]: 0 used
+  - main [ref=e243]:
+    - generic [ref=e244]:
+      - generic [ref=e245]:
+        - heading "Untitled Project" [level=1] [ref=e246]
+        - generic [ref=e478]:
+          - img [ref=e479]
+          - text: Generating...
+      - link "GitHub" [ref=e248] [cursor=pointer]:
+        - /url: https://github.com
+        - img [ref=e249]
+        - generic [ref=e251]: GitHub
+    - generic [ref=e253]:
+      - generic [ref=e255]:
+        - button "Chat" [ref=e256] [cursor=pointer]:
+          - img [ref=e258]
+          - generic [ref=e260]: Chat
+        - button "Preview" [ref=e261] [cursor=pointer]:
+          - img [ref=e263]
+          - generic [ref=e266]: Preview
+        - button "Code" [ref=e267] [cursor=pointer]:
+          - img [ref=e269]
+          - generic [ref=e272]: Code
+        - button "Deploy" [ref=e273] [cursor=pointer]:
+          - img [ref=e275]
+          - generic [ref=e278]: Deploy
+        - button "History" [ref=e279] [cursor=pointer]:
+          - img [ref=e281]
+          - generic [ref=e285]: History
+        - button "Bugs 3" [ref=e286] [cursor=pointer]:
+          - img [ref=e288]
+          - generic [ref=e297]: Bugs
+          - generic [ref=e298]: "3"
+      - generic [ref=e301]:
+        - generic [ref=e302]:
+          - generic [ref=e483]:
+            - img [ref=e485]
+            - generic [ref=e487]:
+              - generic [ref=e489]: Hi! I'm Luna, your landing page creator. Tell me what you'd like to build, and I'll make the magic happen.
+              - generic [ref=e490]: 19:34
+          - generic [ref=e492]:
+            - img [ref=e494]
+            - generic [ref=e497]:
+              - generic [ref=e499]: cria um site simples de padaria com hero, produtos e contato
+              - generic [ref=e500]: 19:34
+          - generic [ref=e502]:
+            - img [ref=e504]
+            - generic [ref=e512]: 19:34
+          - generic [ref=e514]:
+            - img [ref=e516]
+            - generic [ref=e519]:
+              - img [ref=e521]
+              - generic [ref=e523]:
+                - generic [ref=e524]:
+                  - generic [ref=e525]: Understanding Requirements
+                  - img [ref=e526]
+                - paragraph [ref=e529]: Analyzing your requirements...
+        - generic [ref=e372]:
+          - generic [ref=e373]:
+            - textbox "Describe the landing page you want to create..." [disabled] [ref=e375]
+            - button [disabled] [ref=e376]:
+              - img [ref=e530]
+          - generic [ref=e380]: Press Enter to send, Shift+Enter for new line
+      - generic [ref=e381]:
+        - generic [ref=e385]: Ready
+        - generic [ref=e387]: v3.0.0
+    - generic [ref=e388]:
+      - generic [ref=e391]: Connected
+      - generic [ref=e393]:
+        - img [ref=e394]
+        - generic [ref=e397]: 0 / 5.000
+      - generic [ref=e533]:
+        - img [ref=e534]
+        - generic [ref=e537]: Generating...
+      - generic [ref=e400]:
+        - img [ref=e401]
+        - generic [ref=e403]: HTML + CSS + JS
+      - generic [ref=e540]: "Session: sess-178..."

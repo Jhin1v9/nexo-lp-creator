@@ -1,0 +1,22 @@
+{
+  "name": "nexo-vite-svelte-tailwind",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "NEXO Landing Page — Vite + Svelte 4 + Tailwind CSS",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^3.0.0",
+    "autoprefixer": "^10.4.16",
+    "postcss": "^8.4.32",
+    "svelte": "^4.2.0",
+    "tailwindcss": "^3.4.0",
+    "vite": "^5.0.0"
+  },
+  "keywords": ["landing-page", "svelte", "vite", "tailwindcss"],
+  "license": "MIT"
+}
