@@ -413,3 +413,29 @@ Agent behavior can be configured via environment variables:
 | `REBUILD_MAX_ATTEMPTS` | Max fix iterations | 3 |
 | `MINING_ENABLED` | Enable template mining | true |
 | `MINING_QUEUE_SIZE` | Concurrent mining jobs | 10 |
+
+---
+
+## Visual Debugging
+
+By default the Chrome instance used by the Kimi bridge is launched **visible** (not headless). If the window is minimized or behind other windows, the bridge will now automatically bring it to the foreground and maximize it whenever a page is created or reused.
+
+### Manual controls
+
+- Bring the current Kimi window to the front immediately:
+  ```bash
+  node scripts/bring-kimi-to-front.js
+  ```
+- Set the CDP URL if you run Chrome on a different port:
+  ```bash
+  KIMI_CDP_URL=http://127.0.0.1:9226 node scripts/bring-kimi-to-front.js
+  ```
+- Set the screenshot directory for debug scripts:
+  ```bash
+  NEXO_SCREENSHOT_DIR=/tmp/nexo-screenshots node scripts/debug-kimi-page.js
+  ```
+
+### Notes
+
+- The bridge stores a per-user marker (`page._lunaUserId`) so it never closes tabs belonging to other users when enforcing the tab limit.
+- The Chrome launcher starts Chrome with `--start-maximized --window-position=0,0` to keep the window visible on the primary display.

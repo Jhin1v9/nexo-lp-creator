@@ -180,7 +180,14 @@ class MessageSender {
       throw new Error('Input field not found on Kimi Web');
     }
 
+    // v12.2-fix: Dismiss blocking modals (e.g. "several chats open") before typing.
+    await this.bridge._dismissKimiModals(page);
+
     await page.bringToFront();
+
+    // v12.2-fix: Make sure we are on a real /chat/ page. The new_chat landing
+    // page accepts pasted text but keeps the send button disabled.
+    await this.bridge._ensureRealChat(page);
 
     let initialText = '';
     let preSendSnapshot = [];
@@ -233,24 +240,43 @@ class MessageSender {
       const captureTimeout = options.initialTextCaptureTimeout ?? 0;
       initialText = await page.locator('.markdown-container .markdown').last().innerText({ timeout: captureTimeout }).catch(() => '');
 
+      // v12.2-fix: Focus, clear, and fill the editor like a real user. For large
+      // prompts we use fill() for speed, but we must dispatch input/change events
+      // so Kimi's React state enables the send button.
+      await inputLocator.evaluate((el) => el.focus());
       await inputLocator.fill('');
       await page.waitForTimeout(300);
 
       if (text.length <= MAX_TEXT_TYPE_LENGTH) {
-        await inputLocator.type(text, { delay: 50 });
+        await inputLocator.type(text, { delay: 30 });
       } else {
         this.log.info(`Text too long (${text.length} chars), using fill instead of type`);
         await inputLocator.fill(text);
       }
-      await page.waitForTimeout(500 + Math.floor(Math.random() * 1000));
+      await page.waitForTimeout(300);
+
+      // Dispatch input events to ensure React registers the content
+      await inputLocator.evaluate((el) => {
+        const data = el.value || el.innerText || '';
+        el.dispatchEvent(new InputEvent('input', { bubbles: true, data }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      await page.waitForTimeout(500 + Math.floor(Math.random() * 500));
 
       preSendSnapshot = await this.bridge._capturePreSendSnapshot(page);
       preSendAssistantCount = preSendSnapshot.length;
     }
 
-    // Press Enter to send
-    await inputLocator.press('Enter');
-    this.log.info(`Payload sent for user ${hashUserId(userId)}`);
+    // v12.2-fix: Prefer clicking the enabled send button; fall back to Enter.
+    const sendBtn = page.locator('.send-button-container').first();
+    const isSendEnabled = await sendBtn.evaluate((el) => !el.disabled).catch(() => false);
+    if (isSendEnabled) {
+      await sendBtn.click({ timeout: 3000 });
+      this.log.info(`Payload sent via send button for user ${hashUserId(userId)}`);
+    } else {
+      await inputLocator.press('Enter');
+      this.log.info(`Payload sent via Enter for user ${hashUserId(userId)}`);
+    }
 
     // Detect new assistant (text payloads only — image relies on simpler extraction)
     if (payload.type === 'text') {

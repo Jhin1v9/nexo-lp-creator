@@ -243,6 +243,8 @@ class ChromeLauncher {
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
+        '--start-maximized',
+        '--window-position=0,0',
         ...extensionArgs,
         'https://www.kimi.com/',
       ], {

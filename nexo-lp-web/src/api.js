@@ -10,12 +10,13 @@ class ApiError extends Error {
 
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
+  const { headers: customHeaders, signal, ...restOptions } = options;
   const config = {
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...customHeaders,
     },
-    ...options,
+    ...restOptions,
   };
 
   if (config.body && typeof config.body === 'object') {
@@ -23,7 +24,7 @@ async function request(endpoint, options = {}) {
   }
 
   try {
-    const response = await fetch(url, config);
+    const response = await fetch(url, { ...config, signal });
     const data = await response.json().catch(() => null);
 
     if (!response.ok) {
@@ -161,12 +162,24 @@ export async function getDeployStatus(deploymentId) {
 }
 
 // ===== Templates API =====
-export async function getTemplates(filters = {}) {
+export async function getTemplates(filters = {}, signal = null) {
   const params = new URLSearchParams();
   if (filters.category && filters.category !== 'all') params.set('category', filters.category);
+  if (filters.subcategory && filters.subcategory !== 'all') params.set('subcategory', filters.subcategory);
+  if (filters.stack && filters.stack !== 'all') params.set('stack', filters.stack);
   if (filters.search) params.set('search', filters.search);
+  if (filters.page) params.set('page', String(filters.page));
+  if (filters.limit) params.set('limit', String(filters.limit));
   const query = params.toString();
-  const result = await request(`/templates${query ? '?' + query : ''}`);
+  const result = await request(`/templates${query ? '?' + query : ''}`, { signal });
+  return result.data;
+}
+
+export async function getSubcategories(category) {
+  const params = new URLSearchParams();
+  if (category && category !== 'all') params.set('category', category);
+  const query = params.toString();
+  const result = await request(`/templates/subcategories${query ? '?' + query : ''}`);
   return result.data;
 }
 
@@ -178,7 +191,7 @@ export async function getTemplate(templateId) {
 export async function useTemplate(sessionId, templateId, userId) {
   const result = await request(`/templates/${templateId}/use`, {
     method: 'POST',
-    body: { userId },
+    body: { userId, sessionId },
   });
   return result.data;
 }

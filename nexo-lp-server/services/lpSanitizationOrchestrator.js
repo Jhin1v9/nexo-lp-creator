@@ -18,7 +18,7 @@ RULES:
 3. Fix any obvious HTML/CSS/JS bugs while preserving layout, structure, and Tailwind classes.
 4. Keep images as generic placeholders (Unsplash generic keywords or SVG placeholders).
 5. Lightly improve copy and spacing if it improves conversion, but do NOT add new sections.
-6. Return ONLY the complete, self-contained HTML code. No markdown fences, no explanations, no comments outside the code.
+6. Return ONLY the complete, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanations, no comments outside the code.
 
 HTML to sanitize and improve:`;
 
@@ -26,8 +26,9 @@ const REVIEW_PROMPT = `Review the sanitized landing page HTML below for the NEXO
 
 Your job is to:
 1. Decide if the HTML is technically correct, safe, and ready to publish.
-2. Propose corrections if anything is wrong.
-3. Categorize the template and generate rich marketplace metadata.
+2. Verify the HTML starts with <!DOCTYPE html> and ends with </html> and has no truncated tags.
+3. Propose corrections if anything is wrong.
+4. Categorize the template and generate rich marketplace metadata.
 
 Reply ONLY with a JSON object matching this exact schema (no markdown, no explanations):
 {
@@ -66,7 +67,7 @@ Apply the corrections below to the provided HTML.
 RULES:
 1. Keep the NEXO Digital placeholders already applied.
 2. Fix all listed issues.
-3. Return ONLY the complete, self-contained HTML code. No markdown fences, no explanations, no comments outside the code.
+3. Return ONLY the complete, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanations, no comments outside the code.
 
 Corrections:`;
 
@@ -105,21 +106,37 @@ class SanitizationOrchestrator extends EventEmitter {
     try {
       this.emit('sanitization:step', { sessionId, step: 1, mode: 'instant' });
 
-      const step1Result = await this._sendToKimi(
-        context,
-        `${HYBRID_SANITIZE_PROMPT}\n\n${originalHtml}`,
-        { mode: 'instant', phase: 'sanitize' }
-      );
+      let currentHtml = '';
+      let step1Result = null;
+      for (let attempt = 1; attempt <= 2; attempt += 1) {
+        const prompt = attempt === 1
+          ? `${HYBRID_SANITIZE_PROMPT}\n\n${originalHtml}`
+          : `The HTML you returned previously was incomplete or truncated. Please return the COMPLETE, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanations.\n\nHTML to sanitize and improve:\n\n${originalHtml}`;
 
-      let currentHtml = this._extractHtml(step1Result.content);
-      log.attempts.push({
-        step: 1,
-        mode: 'instant',
-        finishedAt: new Date().toISOString(),
-        responseLength: currentHtml.length,
-      });
+        step1Result = await this._sendToKimi(
+          context,
+          prompt,
+          { mode: 'instant', phase: 'sanitize', newChat: attempt === 1 }
+        );
 
-      this.emit('sanitization:progress', { sessionId, step: 1, htmlLength: currentHtml.length });
+        currentHtml = this._extractHtml(step1Result.content);
+        log.attempts.push({
+          step: 1,
+          mode: 'instant',
+          attempt,
+          finishedAt: new Date().toISOString(),
+          responseLength: currentHtml.length,
+          valid: this._isValidHtml(currentHtml),
+        });
+
+        this.emit('sanitization:progress', { sessionId, step: 1, attempt, htmlLength: currentHtml.length });
+
+        if (this._isValidHtml(currentHtml)) break;
+      }
+
+      if (!this._isValidHtml(currentHtml)) {
+        throw new Error(`Step 1 failed to produce valid HTML after retries (length=${currentHtml.length})`);
+      }
 
       // Step 2: thinking review + metadata
       this.emit('sanitization:step', { sessionId, step: 2, mode: 'thinking' });
@@ -149,13 +166,24 @@ class SanitizationOrchestrator extends EventEmitter {
           { mode: 'thinking', phase: 'refine' }
         );
 
-        currentHtml = this._extractHtml(step3Result.content);
+        const refinedHtml = this._extractHtml(step3Result.content);
         log.attempts.push({
           step: 3,
           mode: 'thinking',
           finishedAt: new Date().toISOString(),
-          responseLength: currentHtml.length,
+          responseLength: refinedHtml.length,
+          valid: this._isValidHtml(refinedHtml),
         });
+
+        if (this._isValidHtml(refinedHtml)) {
+          currentHtml = refinedHtml;
+        } else {
+          log.attempts.push({
+            step: 3,
+            note: 'Refined HTML invalid; keeping previous HTML',
+            previousValid: this._isValidHtml(currentHtml),
+          });
+        }
       }
 
       // Merge metadata with defaults
@@ -187,13 +215,40 @@ class SanitizationOrchestrator extends EventEmitter {
       return { success: true, templateId: template.id, log, metadata };
     } catch (err) {
       log.error = err.message;
-      await TemplateRepository.update(template.id, {
-        status: 'failed',
-        sanitization_log: JSON.stringify(log),
+
+      // Last-resort fallback: apply deterministic regex sanitization so the
+      // template is not left stuck in a failed state.
+      const fallbackHtml = this._basicSanitizeFallback(originalHtml);
+      try {
+        await TemplateRepository.update(template.id, {
+          sanitized_html: fallbackHtml,
+          html: fallbackHtml,
+          status: 'available',
+          is_public: 1,
+          sanitization_log: JSON.stringify(log),
+        });
+        await PreviewService.updatePublicPreview(template.public_preview_token, fallbackHtml);
+      } catch (updateErr) {
+        log.error = `${err.message}; fallback update failed: ${updateErr.message}`;
+        await TemplateRepository.update(template.id, {
+          status: 'failed',
+          sanitization_log: JSON.stringify(log),
+        });
+        this.emit('sanitization:error', { sessionId, error: log.error });
+        return { success: false, error: log.error, log };
+      }
+
+      this.emit('sanitization:complete', {
+        sessionId,
+        templateId: template.id,
+        success: true,
+        htmlLength: fallbackHtml.length,
+        metadata: this._normalizeMetadata(),
+        fallback: true,
+        error: err.message,
       });
 
-      this.emit('sanitization:error', { sessionId, error: err.message });
-      return { success: false, error: err.message, log };
+      return { success: true, templateId: template.id, log, metadata: this._normalizeMetadata(), fallback: true, error: err.message };
     }
   }
 
@@ -208,11 +263,43 @@ class SanitizationOrchestrator extends EventEmitter {
 
   _extractHtml(text) {
     if (!text) return '';
+
+    // Prefer fenced code blocks when present
     const fenceMatch = text.match(/```(?:html)?\s*([\s\S]*?)```/i);
     if (fenceMatch) return fenceMatch[1].trim();
+
     const trimmed = text.trim();
-    if (/<!doctype|<html|<div|<section/i.test(trimmed)) return trimmed;
+
+    // Extract the full HTML document if delimiters exist
+    const docMatch = trimmed.match(/(<!DOCTYPE\s+html[\s\S]*<\/html>)/i);
+    if (docMatch) return docMatch[1].trim();
+
+    const htmlMatch = trimmed.match(/(<html[\s\S]*<\/html>)/i);
+    if (htmlMatch) return htmlMatch[1].trim();
+
+    // Fallback: largest contiguous block that starts with a common tag
+    const blockMatch = trimmed.match(/(<(?:section|div|header|footer|nav|main|body|head)[\s\S]*)/i);
+    if (blockMatch) return blockMatch[1].trim();
+
     return trimmed;
+  }
+
+  _isValidHtml(html) {
+    if (!html || html.length < 200) return false;
+    const lower = html.toLowerCase();
+    const hasDocType = lower.includes('<!doctype html>');
+    const hasHtml = lower.includes('<html') && lower.includes('</html>');
+    const hasBody = lower.includes('<body') || lower.includes('<main') || lower.includes('<section');
+    const endsProperly = lower.trim().endsWith('</html>');
+    return (hasDocType || hasHtml) && hasBody && endsProperly;
+  }
+
+  _basicSanitizeFallback(originalHtml) {
+    return originalHtml
+      .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, 'contato@nexo-digital.app')
+      .replace(/\b(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,5}[-.\s]?\d{3,5}\b/g, '')
+      .replace(/Acme|Acme\s+Corp|Acme\s+Digital/gi, 'NEXO Digital')
+      .replace(/acme-digital\.app|acme\.com|acme\.app/gi, 'nexo-digital.app');
   }
 
   _parseReview(text) {

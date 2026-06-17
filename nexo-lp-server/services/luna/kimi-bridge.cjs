@@ -1127,17 +1127,29 @@ class KimiBridge {
     const previousPageClosed = !existing || !existing.page || existing.page.isClosed();
     if (previousPageClosed) {
       const existingPages = this.defaultContext?.pages() || [];
-      // v12.1-fix: Prefer the LAST kimi.com page (most recently created) and close
-      // any older tabs owned by this user to avoid stale chat reuse / tab leaks.
+      // v12.2-fix: Prefer real /chat/ pages with assistants; avoid empty new_chat
+      // landing pages that cannot receive messages until the first prompt is sent.
       const candidatePages = existingPages
         .filter(p => !p.isClosed() && (!p._lunaUserId || p._lunaUserId === userId))
         .filter(p => {
           try { return p.url().includes('kimi.com'); } catch (e) { return false; }
         });
-      for (let i = candidatePages.length - 1; i >= 0; i--) {
-        const p = candidatePages[i];
+
+      // Score and sort candidates: real chat with assistants > real chat > empty new_chat
+      const scored = [];
+      for (const p of candidatePages) {
         const url = p.url();
-        log.info(`Reusing existing kimi.com page for user ${hashUserId(userId)}: ${url}`);
+        const isRealChat = url.includes('/chat/');
+        const assistantCount = await p.evaluate(() => document.querySelectorAll('.segment-assistant').length).catch(() => 0);
+        const score = (isRealChat ? 100 : 0) + assistantCount * 10;
+        scored.push({ page: p, url, score, assistantCount });
+      }
+      scored.sort((a, b) => b.score - a.score);
+
+      for (const candidate of scored) {
+        const p = candidate.page;
+        const url = candidate.url;
+        log.info(`Reusing existing kimi.com page for user ${hashUserId(userId)}: ${url} (assistants=${candidate.assistantCount})`);
         p._lunaUserId = userId;
         const session = {
           page: p,
@@ -1158,6 +1170,7 @@ class KimiBridge {
             try { await other.close(); log.info(`Closed stale user tab for ${hashUserId(userId)}`); } catch (e) {}
           }
         }
+        await this._ensureWindowVisible(p);
         return p;
       }
     }
@@ -1194,6 +1207,12 @@ class KimiBridge {
 
       await page.goto(chatUrl, { waitUntil: 'domcontentloaded', timeout: DEFAULT_NAVIGATION_TIMEOUT_MS });
       await page.waitForTimeout(2000);
+
+      // v12.2-fix: Dismiss "several chats open" and other blocking modals, and
+      // enforce a tab limit so Kimi does not throttle new message creation.
+      await this._dismissKimiModals(page);
+      await this._enforceTabLimit(userCtx, 5, userId);
+      await this._ensureWindowVisible(page);
 
       // v3.3-fix: Re-inject via evaluate after navigation to ensure observer is active
       // addInitScript only works for future navigations; evaluate ensures current page
@@ -2315,6 +2334,195 @@ class KimiBridge {
   }
 
   /**
+   * Dismiss common Kimi modals that block interaction.
+   * Currently handles the "several chats open" tip modal.
+   */
+  async _dismissKimiModals(page) {
+    try {
+      const modalDismissed = await page.evaluate(() => {
+        const bodyText = document.body?.innerText || '';
+        const severalChatsRegex = /several chats open|muitos chats abertos|demasiados chats|太多对话/i;
+        if (!severalChatsRegex.test(bodyText)) return false;
+
+        // Find the modal container — usually a dialog/portal with the tip text
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          if (severalChatsRegex.test(node.textContent)) {
+            let el = node.parentElement;
+            for (let i = 0; i < 10 && el; i++) {
+              const btns = el.querySelectorAll('button, [role="button"]');
+              for (const btn of btns) {
+                const text = (btn.innerText || btn.textContent || '').trim().toLowerCase();
+                if (text === 'got it' || text === 'entendi' || text === '知道了' || text.includes('got it')) {
+                  btn.click();
+                  return true;
+                }
+              }
+              el = el.parentElement;
+            }
+            break;
+          }
+        }
+        return false;
+      });
+
+      if (modalDismissed) {
+        log.info('[KimiModal] Dismissed "several chats open" tip modal');
+        await page.waitForTimeout(500);
+        return;
+      }
+
+      // Generic cookie/consent fallback
+      const consentBtn = page.locator('button:has-text("Accept"), button:has-text("Agree"), button:has-text("OK"), [class*="consent"] button').first();
+      if (await consentBtn.count() > 0) {
+        await consentBtn.click();
+        await page.waitForTimeout(300);
+      }
+    } catch (e) {
+      log.debug(`[_dismissKimiModals] error: ${e.message}`);
+    }
+  }
+
+  /**
+   * Keep the number of Kimi tabs under control to avoid the
+   * "several chats open" modal and Chrome memory pressure.
+   * Keeps the most recently active tabs and closes empty/new_chat tabs first.
+   * When userId is provided, only pages belonging to that user are considered
+   * for closure, preventing interference with other users' sessions.
+   */
+  async _enforceTabLimit(context, maxTabs = 5, userId = null) {
+    try {
+      let pages = (context?.pages() || []).filter(p => !p.isClosed() && p.url().includes('kimi.com'));
+
+      // If a userId is provided, only manage that user's pages.
+      if (userId) {
+        pages = pages.filter(p => p._lunaUserId === userId);
+      }
+
+      if (pages.length <= maxTabs) return;
+
+      log.warn(`[TabLimit] ${pages.length} Kimi tabs open (max ${maxTabs}) — cleaning up`);
+
+      // Score each page: prefer real chats with assistants, then newer pages
+      const scored = [];
+      for (const p of pages) {
+        const url = p.url();
+        const isRealChat = url.includes('/chat/');
+        const assistantCount = await p.evaluate(() => document.querySelectorAll('.segment-assistant').length).catch(() => 0);
+        scored.push({
+          page: p,
+          score: (isRealChat ? 100 : 0) + assistantCount * 10,
+          isEmptyNewChat: !isRealChat && assistantCount === 0,
+        });
+      }
+
+      // Sort by score ascending; close lowest scored first
+      scored.sort((a, b) => a.score - b.score);
+
+      const toClose = scored.slice(0, Math.max(0, pages.length - maxTabs));
+      for (const item of toClose) {
+        try {
+          await item.page.close();
+          log.info(`[TabLimit] Closed ${item.isEmptyNewChat ? 'empty new_chat' : 'low-value'} tab: ${item.page.url()}`);
+        } catch (e) {
+          log.debug(`[TabLimit] close error: ${e.message}`);
+        }
+      }
+    } catch (e) {
+      log.debug(`[_enforceTabLimit] error: ${e.message}`);
+    }
+  }
+
+  /**
+   * Bring the browser window to the foreground and maximize it so the
+   * automation is visible during debugging. This is a no-op if the page
+   * or CDP session is not available.
+   */
+  async _ensureWindowVisible(page) {
+    if (!page || page.isClosed()) return;
+    try {
+      await page.bringToFront();
+      const cdpSession = await page.context().newCDPSession(page).catch(() => null);
+      if (!cdpSession) return;
+      try {
+        const { windowId } = await cdpSession.send('Browser.getWindowForTarget');
+        if (!windowId) return;
+        await cdpSession.send('Browser.setWindowBounds', {
+          windowId,
+          bounds: { windowState: 'normal' },
+        });
+        await cdpSession.send('Browser.setWindowBounds', {
+          windowId,
+          bounds: { windowState: 'maximized' },
+        });
+      } finally {
+        await cdpSession.detach().catch(() => {});
+      }
+    } catch (e) {
+      log.debug(`[_ensureWindowVisible] error: ${e.message}`);
+    }
+  }
+
+  /**
+   * Ensure the page is a real Kimi chat (/chat/...) before sending a message.
+   * The ?chat_enter_method=new_chat landing page accepts text in the input but
+   * its send button stays disabled until an actual chat is created. We force
+   * creation by clicking the sidebar "New Chat" button and waiting for the URL.
+   */
+  async _ensureRealChat(page) {
+    const url = page.url();
+    if (url.includes('/chat/')) return;
+
+    log.warn(`[_ensureRealChat] Page is not a real chat (${url}) — creating one via sidebar`);
+    try {
+      // Try the sidebar "New Chat" button by text (multi-language)
+      const clicked = await page.evaluate(() => {
+        const newChatTexts = ['New Chat', 'Novo Chat', '新建对话', '新對話', 'New conversation'];
+        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+        let node;
+        while ((node = walker.nextNode())) {
+          const trimmed = node.textContent.trim();
+          if (newChatTexts.some(t => trimmed === t || trimmed.includes(t))) {
+            let el = node.parentElement;
+            for (let i = 0; i < 6 && el; i++) {
+              if (el.tagName === 'BUTTON' || el.getAttribute('role') === 'button' || el.onclick || window.getComputedStyle(el).cursor === 'pointer') {
+                el.click();
+                return true;
+              }
+              el = el.parentElement;
+            }
+          }
+        }
+        return false;
+      });
+
+      if (clicked) {
+        log.info('[_ensureRealChat] Clicked sidebar New Chat button');
+      } else {
+        // Fallback: keyboard shortcut Ctrl+K (Kimi's new-chat shortcut)
+        await page.keyboard.press('Control+k');
+        log.info('[_ensureRealChat] Sent Ctrl+K shortcut for new chat');
+      }
+
+      // Wait for URL to become a real chat
+      const deadline = Date.now() + 8000;
+      while (Date.now() < deadline) {
+        const currentUrl = page.url();
+        if (currentUrl.includes('/chat/')) {
+          log.info(`[_ensureRealChat] Real chat URL ready: ${currentUrl}`);
+          await page.waitForTimeout(1000);
+          return;
+        }
+        await new Promise(r => setTimeout(r, 500));
+      }
+      log.warn(`[_ensureRealChat] Timed out waiting for /chat/ URL, current: ${page.url()}`);
+    } catch (e) {
+      log.warn(`[_ensureRealChat] error: ${e.message}`);
+    }
+  }
+
+  /**
    * Create a new chat for a user (does NOT use sendMessage)
    */
   async newChat(userId) {
@@ -2347,6 +2555,11 @@ class KimiBridge {
     // We detect the new page and migrate the session to it, closing the stale tab.
     await page.goto('https://www.kimi.com/?chat_enter_method=new_chat&lang=en', { waitUntil: 'domcontentloaded', timeout: DEFAULT_NAVIGATION_TIMEOUT_MS });
     await page.waitForTimeout(2500);
+
+    // v12.2-fix: Dismiss "several chats open" modal and keep tab count sane.
+    await this._dismissKimiModals(page);
+    await this._enforceTabLimit(context, 5, userId);
+    await this._ensureWindowVisible(page);
 
     // Find any new page that opened in the same context
     let newPage = null;
@@ -2386,6 +2599,7 @@ class KimiBridge {
           }
         }
       }
+      await this._ensureWindowVisible(newPage);
     }
 
     let newUrl = session.page.url();
@@ -4791,7 +5005,8 @@ class KimiBridge {
 
   /**
    * v7.0: Check for completion candidate based on DOM state.
-   * Uses signal voting for robustness.
+   * Uses signal voting for robustness. Tracks response and thinking separately
+   * so that a stable response can complete even if Kimi keeps appending thinking.
    */
   _checkCompletionCandidate(userId, poll) {
     const session = this.userSessions.get(userId);
@@ -4799,20 +5014,25 @@ class KimiBridge {
 
     const now = Date.now();
     const text = (poll.thinking || '') + (poll.response || '');
+    const responseLen = (poll.response || '').length;
+    const thinkingLen = (poll.thinking || '').length;
 
     // Initialize tracking
     if (!session._completionState) {
       session._completionState = {
         lastText: '',
+        lastResponseLen: 0,
+        lastThinkingLen: 0,
         textStableSince: 0,
+        responseStableSince: 0,
         lastIsGenerating: false,
         generatingStoppedAt: 0,
-        signals: { buttonSend: 0, noGeneratingFlag: 0, textStable: 0, networkIdle: 0 },
+        signals: { buttonSend: 0, noGeneratingFlag: 0, textStable: 0, networkIdle: 0, responseStable: 0 },
       };
     }
     const cs = session._completionState;
 
-    // Signal 1: Text stability
+    // Signal 1: Text stability (thinking + response)
     if (text !== cs.lastText) {
       cs.textStableSince = 0;
       cs.signals.textStable = 0;
@@ -4822,6 +5042,18 @@ class KimiBridge {
     const textStableFor = cs.textStableSince ? now - cs.textStableSince : 0;
     if (textStableFor > 1500) cs.signals.textStable = 2;
     else if (textStableFor > 500) cs.signals.textStable = 1;
+
+    // Signal 1b: Response stability separately.
+    // This helps when Kimi streams thinking after the response is already done.
+    if (responseLen !== cs.lastResponseLen) {
+      cs.responseStableSince = 0;
+      cs.signals.responseStable = 0;
+    } else if (cs.responseStableSince === 0) {
+      cs.responseStableSince = now;
+    }
+    const responseStableFor = cs.responseStableSince ? now - cs.responseStableSince : 0;
+    if (responseStableFor > 2000) cs.signals.responseStable = 2;
+    else if (responseStableFor > 500) cs.signals.responseStable = 1;
 
     // Signal 2: Generation stopped
     if (!poll.isGenerating && cs.lastIsGenerating) {
@@ -4846,11 +5078,15 @@ class KimiBridge {
     }
 
     cs.lastText = text;
+    cs.lastResponseLen = responseLen;
+    cs.lastThinkingLen = thinkingLen;
     cs.lastIsGenerating = poll.isGenerating;
 
-    // Vote: require sum >= 4 for completion, sustained for 800ms
-    const totalSignal = cs.signals.textStable + cs.signals.noGeneratingFlag + cs.signals.buttonSend + cs.signals.networkIdle;
-    if (totalSignal >= 4) {
+    // Vote: require sum >= 5 for completion, sustained for 800ms.
+    // responseStable counts as a strong signal so a finished response completes
+    // even if thinking keeps growing.
+    const totalSignal = cs.signals.textStable + cs.signals.noGeneratingFlag + cs.signals.buttonSend + cs.signals.networkIdle + cs.signals.responseStable;
+    if (totalSignal >= 5) {
       if (!cs.candidateSince) cs.candidateSince = now;
       else if (now - cs.candidateSince > 800) {
         // Emit completion candidate
@@ -6263,12 +6499,18 @@ class KimiBridge {
 
     const page = await this._getOrCreateUserPage(userId);
 
-    // v12.0-fix: If the page was recreated after a crash/kill, start a fresh chat
-    // so we never continue a stale conversation or send prompts to the wrong chat.
+    // v12.2-fix: Only force a new chat when the current page is NOT already a
+    // real /chat/ URL. Reusing an existing real chat is safe and avoids breaking
+    // out of a conversation into a disabled new_chat landing page.
     session = this.userSessions.get(userId);
-    if (session?.freshPage) {
-      log.info(`[sendMessageStream] User ${hashUserId(userId)} page recreated — forcing fresh chat`);
+    const currentUrl = page.url();
+    const isRealChat = currentUrl.includes('/chat/');
+    if (session?.freshPage && !isRealChat) {
+      log.info(`[sendMessageStream] User ${hashUserId(userId)} page recreated and not on real chat (${currentUrl}) — forcing fresh chat`);
       options.newChat = true;
+      session.freshPage = false;
+    } else if (session?.freshPage) {
+      log.info(`[sendMessageStream] User ${hashUserId(userId)} reusing real chat (${currentUrl}) — not forcing new chat`);
       session.freshPage = false;
     }
 
@@ -6371,6 +6613,11 @@ class KimiBridge {
       }
 
       await page.bringToFront();
+
+      // v12.2-fix: Dismiss blocking modals and ensure we are on a real /chat/ page.
+      await this._dismissKimiModals(page);
+      await this._ensureRealChat(page);
+
       // v9.6-fix: Use a real timeout (not 0) so innerText throws when no markdown
       // exists on Kimi's home screen, allowing .catch to return '' instead of
       // hanging forever waiting for an element that never appears.
@@ -6401,19 +6648,34 @@ class KimiBridge {
         el.dispatchEvent(new Event('change', { bubbles: true }));
       });
       await page.waitForTimeout(500);
-      await this._pressEnterOnInput(inputLocator);
-      log.info(`Message sent, starting v7.0 stream consumer`);
+
+      // v12.2-fix: Prefer clicking the enabled send button; fall back to Enter.
+      const sendBtn = page.locator('.send-button-container').first();
+      const isSendEnabled = await sendBtn.evaluate((el) => !el.disabled).catch(() => false);
+      if (isSendEnabled) {
+        await sendBtn.click({ timeout: 3000 });
+        log.info(`[sendMessageStream] Message sent via send button`);
+      } else {
+        await this._pressEnterOnInput(inputLocator);
+        log.info(`[sendMessageStream] Message sent via Enter`);
+      }
 
       // v7.7: Keep assistant detection for logging/compatibility, but extraction
       // will use snapshot diff which doesn't depend on correct index.
+      // v12.2-fix: Bound the wait and also detect when the last assistant's text
+      // changed, so we don't hang forever when Kimi reuses the same assistant node.
       let newAssistantWaitCount = 0;
       let targetAssistantIndex = -1;
-      while (true) {
+      const assistantDetectionTimeout = 15000; // 15 s max
+      const assistantDetectionStart = Date.now();
+      const initialLastAssistantText = preSendSnapshot[preSendAssistantCount - 1] || '';
+      while (Date.now() - assistantDetectionStart < assistantDetectionTimeout) {
         const assistants = await page.evaluate(() => {
           const nodes = document.querySelectorAll('.segment-assistant');
           return Array.from(nodes).map((el, i) => ({
             index: i,
             textLength: el.innerText?.length || 0,
+            textPreview: (el.innerText || '').slice(0, 200),
             hasMarkdown: !!el.querySelector('.markdown-container, .markdown'),
           }));
         });
@@ -6426,12 +6688,23 @@ class KimiBridge {
             break;
           }
         }
-        // v8.4: NO TIMEOUT — wait forever for new assistant to appear.
-        // Chrome may lag when sending large prompts. Kimi is still generating.
+        // Fallback: if the last existing assistant's text changed, Kimi may have
+        // updated it in-place. Treat it as the response target.
+        if (currentCount === preSendAssistantCount && preSendAssistantCount > 0) {
+          const lastAssistant = assistants[preSendAssistantCount - 1];
+          if (lastAssistant && lastAssistant.textLength > initialLastAssistantText.length + 50) {
+            targetAssistantIndex = preSendAssistantCount - 1;
+            log.info(`[sendMessageStream] Existing assistant text grew (${initialLastAssistantText.length} -> ${lastAssistant.textLength}) — using index ${targetAssistantIndex}`);
+            break;
+          }
+        }
         if (++newAssistantWaitCount > 100) {
-          log.info(`[sendMessageStream] New assistant not detected yet (wait=${newAssistantWaitCount*100}ms), continuing to wait...`);
+          log.info(`[sendMessageStream] New assistant not detected yet (wait=${newAssistantWaitCount * 100}ms), continuing to wait...`);
         }
         await new Promise(r => setTimeout(r, 100));
+      }
+      if (targetAssistantIndex < 0) {
+        log.warn(`[sendMessageStream] Assistant detection timed out after ${assistantDetectionTimeout}ms — continuing with snapshot diff fallback`);
       }
 
       await page.waitForTimeout(600);

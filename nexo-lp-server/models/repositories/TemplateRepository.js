@@ -5,6 +5,15 @@
 
 const { query, queryOne, run } = require('../sqlite');
 
+const ALLOWED_UPDATE_COLUMNS = [
+  'name', 'description', 'category', 'subcategory', 'stack', 'thumbnail_url',
+  'html', 'css', 'js', 'config', 'tags', 'source', 'usage_count', 'rating',
+  'is_public', 'created_by', 'status', 'original_html', 'sanitized_html',
+  'sanitization_log', 'public_preview_token', 'prompt_hash', 'prompt_censored',
+  'price_stars', 'price_suns', 'price_moons', 'session_id', 'kimi_chat_url',
+  'metadata_json'
+];
+
 class TemplateRepository {
   async create(data) {
     const id = data.id || `tpl-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -112,33 +121,45 @@ class TemplateRepository {
     return query(sql, params);
   }
 
-  async findAll(options = {}) {
-    let sql = 'SELECT * FROM templates WHERE is_public = 1';
+  _buildWhere(options = {}) {
+    const conditions = ['is_public = 1'];
     const params = [];
 
     if (options.status) {
-      sql += ' AND status = ?';
+      conditions.push('status = ?');
       params.push(options.status);
     } else {
-      sql += " AND status IN ('sanitizing', 'available')";
+      conditions.push("status IN ('sanitizing', 'available')");
     }
 
     if (options.category) {
-      sql += ' AND category = ?';
+      conditions.push('category = ?');
       params.push(options.category);
     }
 
+    if (options.subcategory) {
+      conditions.push('subcategory = ?');
+      params.push(options.subcategory);
+    }
+
     if (options.stack) {
-      sql += ' AND stack = ?';
+      conditions.push('stack = ?');
       params.push(options.stack);
     }
 
     if (options.search) {
-      sql += ' AND (name LIKE ? OR description LIKE ?)';
-      params.push(`%${options.search}%`, `%${options.search}%`);
+      const escaped = options.search.replace(/[%_]/g, '\\$&');
+      conditions.push('(name LIKE ? ESCAPE "\\" OR description LIKE ? ESCAPE "\\")');
+      params.push(`%${escaped}%`, `%${escaped}%`);
     }
 
-    sql += ' ORDER BY rating DESC, usage_count DESC';
+    return { where: conditions.join(' AND '), params };
+  }
+
+  async findAll(options = {}) {
+    const { where, params } = this._buildWhere(options);
+
+    let sql = `SELECT * FROM templates WHERE ${where} ORDER BY rating DESC, usage_count DESC`;
 
     const page = options.page || 1;
     const limit = options.limit || 20;
@@ -170,9 +191,15 @@ class TemplateRepository {
     const params = [];
 
     for (const [key, value] of Object.entries(data)) {
+      if (!ALLOWED_UPDATE_COLUMNS.includes(key)) continue;
       updates.push(`${key} = ?`);
       params.push(value);
     }
+
+    if (updates.length === 0) {
+      return this.findById(id);
+    }
+
     params.push(id);
 
     await run(`UPDATE templates SET ${updates.join(', ')} WHERE id = ?`, params);
@@ -236,32 +263,8 @@ class TemplateRepository {
   }
 
   async count(options = {}) {
-    let sql = 'SELECT COUNT(*) as count FROM templates WHERE is_public = 1';
-    const params = [];
-
-    if (options.status) {
-      sql += ' AND status = ?';
-      params.push(options.status);
-    } else {
-      sql += " AND status IN ('sanitizing', 'available')";
-    }
-
-    if (options.category) {
-      sql += ' AND category = ?';
-      params.push(options.category);
-    }
-
-    if (options.stack) {
-      sql += ' AND stack = ?';
-      params.push(options.stack);
-    }
-
-    if (options.search) {
-      sql += ' AND (name LIKE ? OR description LIKE ?)';
-      params.push(`%${options.search}%`, `%${options.search}%`);
-    }
-
-    const row = await queryOne(sql, params);
+    const { where, params } = this._buildWhere(options);
+    const row = await queryOne(`SELECT COUNT(*) as count FROM templates WHERE ${where}`, params);
     return row ? row.count : 0;
   }
 

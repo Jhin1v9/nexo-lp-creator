@@ -187,13 +187,16 @@ class TemplateService {
   }
 
   /**
-   * Use a purchased template as the starting point for a new session.
-   * Copies the template's code into the new session and increments usage.
+   * Use a purchased template as the starting point for a session.
+   * If sessionId is provided, applies the template to that existing session
+   * (after verifying ownership); otherwise creates a new session.
+   * Copies the template's code into the session and increments usage.
    * @param {string} templateId
    * @param {string} userId
-   * @returns {object} New session
+   * @param {string|null} sessionId
+   * @returns {object} Session
    */
-  async useTemplate(templateId, userId) {
+  async useTemplate(templateId, userId, sessionId = null) {
     const template = await TemplateRepository.findById(templateId);
     if (!template) throw new Error('Template not found');
     if (template.status !== 'available') throw new Error('Template is not available yet');
@@ -203,20 +206,28 @@ class TemplateService {
 
     await TemplateRepository.incrementUsage(templateId);
 
-    const newSession = await SessionRepository.create({
-      user_id: userId,
-      initial_prompt: `Template based on ${template.name}`,
-      stack: template.stack,
-      status: 'created',
-    });
+    let targetSession;
+    if (sessionId) {
+      const existingSession = await SessionRepository.findById(sessionId);
+      if (!existingSession) throw new Error('Session not found');
+      if (existingSession.user_id !== userId) throw new Error('Unauthorized');
+      targetSession = existingSession;
+    } else {
+      targetSession = await SessionRepository.create({
+        user_id: userId,
+        initial_prompt: `Template based on ${template.name}`,
+        stack: template.stack,
+        status: 'created',
+      });
+    }
 
-    await SessionRepository.updateGeneratedCode(newSession.id, {
+    await SessionRepository.updateGeneratedCode(targetSession.id, {
       html: template.html,
       css: template.css || '',
       js: template.js || '',
     });
 
-    const session = await SessionRepository.findById(newSession.id);
+    const session = await SessionRepository.findById(targetSession.id);
 
     return {
       success: true,
@@ -260,6 +271,15 @@ class TemplateService {
       prompt: template.prompt_censored,
       censored: true,
     };
+  }
+
+  /**
+   * Get distinct subcategories, optionally filtered by category
+   * @param {string} category
+   * @returns {string[]}
+   */
+  async getSubcategories(category) {
+    return this.repository.getSubcategories(category);
   }
 
   /**

@@ -67,6 +67,49 @@ describe('TemplateRepository & TemplatePurchaseRepository', () => {
     expect(found.public_preview_token).toBe('preview-abc-123');
   });
 
+  test('create stores subcategory and metadata_json', async () => {
+    const metadata = { niche: 'B2B SaaS', audience: 'Founders', difficulty: 'beginner' };
+    const template = await TemplateRepository.create({
+      name: 'Metadata Template',
+      category: 'saas',
+      subcategory: 'startup',
+      metadata_json: JSON.stringify(metadata),
+      status: 'available',
+    });
+
+    expect(template.subcategory).toBe('startup');
+    expect(template.metadata_json).toBe(JSON.stringify(metadata));
+
+    const found = await TemplateRepository.findById(template.id);
+    expect(found.subcategory).toBe('startup');
+    expect(found.metadata_json).toBe(JSON.stringify(metadata));
+  });
+
+  test('findAll filters by subcategory', async () => {
+    const category = 'business';
+    await TemplateRepository.create({ name: 'Sub A', category, subcategory: 'alpha', status: 'available' });
+    await TemplateRepository.create({ name: 'Sub B', category, subcategory: 'beta', status: 'available' });
+
+    const result = await TemplateRepository.findAll({ category, subcategory: 'alpha', limit: 100 });
+    const names = result.templates.map(t => t.name);
+
+    expect(names).toContain('Sub A');
+    expect(names).not.toContain('Sub B');
+  });
+
+  test('getSubcategories returns distinct public subcategories', async () => {
+    const category = 'portfolio';
+    await TemplateRepository.create({ name: 'Sub One', category, subcategory: 'gamma', status: 'available' });
+    await TemplateRepository.create({ name: 'Sub Two', category, subcategory: 'gamma', status: 'available' });
+    await TemplateRepository.create({ name: 'Sub Three', category, subcategory: 'delta', status: 'available' });
+    await TemplateRepository.create({ name: 'Private Sub', category, subcategory: 'epsilon', status: 'available', is_public: 0 });
+
+    const subs = await TemplateRepository.getSubcategories(category);
+    expect(subs).toContain('gamma');
+    expect(subs).toContain('delta');
+    expect(subs).not.toContain('epsilon');
+  });
+
   test('findBySessionId returns template', async () => {
     const sessionId = `sess-${Date.now()}`;
     const template = await TemplateRepository.create({
@@ -91,6 +134,33 @@ describe('TemplateRepository & TemplatePurchaseRepository', () => {
     expect(found).not.toBeNull();
     expect(found.id).toBe(template.id);
     expect(found.public_preview_token).toBe(token);
+  });
+
+  test('update ignores non-allowed columns and prevents SQL injection via column names', async () => {
+    const template = await TemplateRepository.create({
+      name: 'Update Test',
+      category: 'landing',
+      status: 'available',
+    });
+    const originalId = template.id;
+    const originalCreatedAt = template.created_at;
+
+    const updated = await TemplateRepository.update(template.id, {
+      name: 'Updated Name',
+      description: 'Updated description',
+      // These should be ignored to prevent SQL injection and tampering
+      id: 'injected-id',
+      created_at: '1970-01-01T00:00:00.000Z',
+      "status = 'hacked'; DROP TABLE templates; --": 'attack',
+    });
+
+    expect(updated.id).toBe(originalId);
+    expect(updated.name).toBe('Updated Name');
+    expect(updated.description).toBe('Updated description');
+    expect(updated.created_at).toBe(originalCreatedAt);
+
+    const found = await TemplateRepository.findById(originalId);
+    expect(found).not.toBeNull();
   });
 
   test('findAll excludes failed status by default', async () => {

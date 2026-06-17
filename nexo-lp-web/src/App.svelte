@@ -29,11 +29,17 @@
 
   let sidebarCollapsed = false;
   let recentSessions = [];
+  let recentSearchQuery = '';
   let loadingSessions = false;
   let openMenuSessionId = null;
   let menuTriggerRect = null;
 
   $: menuSession = recentSessions.find((s) => s.id === openMenuSessionId);
+
+  $: filteredRecentSessions = recentSessions.filter(s =>
+    !recentSearchQuery ||
+    s.projectName.toLowerCase().includes(recentSearchQuery.toLowerCase())
+  );
 
   const SESSION_STORAGE_KEY = 'nexo-lp-current-session';
 
@@ -393,13 +399,35 @@
         <div class="px-3 pb-2">
           <span class="text-xs font-semibold text-luna-text-muted uppercase tracking-wider">Recent Projects</span>
         </div>
+        <div class="px-3 pb-2">
+          <div class="relative">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-2.5 top-1/2 -translate-y-1/2 text-luna-text-muted"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input
+              type="text"
+              placeholder="Filter projects..."
+              bind:value={recentSearchQuery}
+              class="w-full pl-7 pr-3 py-1.5 rounded-lg border border-luna-border bg-luna-surface text-xs text-luna-text placeholder-luna-text-muted input-focus transition-all"
+            />
+            {#if recentSearchQuery}
+              <button
+                class="absolute right-2 top-1/2 -translate-y-1/2 text-luna-text-muted hover:text-luna-text"
+                on:click={() => recentSearchQuery = ''}
+                aria-label="Clear filter"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            {/if}
+          </div>
+        </div>
         <div class="space-y-1 px-3 overflow-y-auto max-h-[60vh]" on:scroll={closeSessionMenu}>
           {#if loadingSessions}
             <div class="px-3 py-2 text-xs text-luna-text-muted">Loading...</div>
-          {:else if recentSessions.length === 0}
-            <div class="px-3 py-2 text-xs text-luna-text-muted">No projects yet</div>
+          {:else if filteredRecentSessions.length === 0}
+            <div class="px-3 py-2 text-xs text-luna-text-muted">
+              {recentSearchQuery ? 'No matching projects' : 'No projects yet'}
+            </div>
           {:else}
-            {#each recentSessions as s (s.id)}
+            {#each filteredRecentSessions as s (s.id)}
               <div class="relative group">
                 <button
                   class="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-left transition-colors hover:bg-luna-surface"

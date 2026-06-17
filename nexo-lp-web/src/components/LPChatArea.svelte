@@ -10,6 +10,7 @@
   import ToolCard from './ToolCard.svelte';
   import ModeSelector from './ModeSelector.svelte';
   import GenerationPhaseCards from './GenerationPhaseCards.svelte';
+  import LPPhaseInfoCard from './LPPhaseInfoCard.svelte';
 
   let inputValue = '';
   let chatContainer;
@@ -283,7 +284,11 @@
               <div
                 class="px-4 py-3 rounded-2xl text-sm leading-relaxed transition-colors duration-700 {message.role === 'user' ? 'bg-gradient-to-br from-luna-primary to-luna-purple text-white rounded-br-md' : ($isGenerating ? 'bg-white bg-opacity-10 text-white border border-white border-opacity-20 rounded-bl-md' : 'bg-luna-surface text-luna-text border border-luna-border rounded-bl-md')}"
               >
-                <div class="whitespace-pre-wrap">{message.content}</div>
+                {#if message.role === 'assistant' && message.type !== 'streaming'}
+                  <LPPhaseInfoCard content={message.content} />
+                {:else}
+                  <div class="whitespace-pre-wrap">{message.content}</div>
+                {/if}
               </div>
 
               <!-- Timestamp -->

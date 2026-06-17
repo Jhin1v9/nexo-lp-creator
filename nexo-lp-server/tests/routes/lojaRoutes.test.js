@@ -239,6 +239,38 @@ describe('LOJA Routes', () => {
     expect(res.body.success).toBe(false);
   });
 
+  test('GET /api/nexo-lp/templates supports subcategory filter', async () => {
+    const category = 'saas';
+    await createAvailableTemplate({ name: 'Template Alpha', category, subcategory: 'alpha' });
+    await createAvailableTemplate({ name: 'Template Beta', category, subcategory: 'beta' });
+
+    const res = await request(app)
+      .get('/api/nexo-lp/templates')
+      .query({ category, subcategory: 'alpha' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    const names = res.body.data.templates.map(t => t.name);
+    expect(names).toContain('Template Alpha');
+    expect(names).not.toContain('Template Beta');
+  });
+
+  test('GET /api/nexo-lp/templates/subcategories returns distinct subcategories', async () => {
+    const category = 'portfolio';
+    await createAvailableTemplate({ name: 'Creative A', category, subcategory: 'minimal' });
+    await createAvailableTemplate({ name: 'Creative B', category, subcategory: 'minimal' });
+    await createAvailableTemplate({ name: 'Creative C', category, subcategory: 'bold' });
+
+    const res = await request(app)
+      .get('/api/nexo-lp/templates/subcategories')
+      .query({ category });
+
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.subcategories).toContain('minimal');
+    expect(res.body.data.subcategories).toContain('bold');
+  });
+
   test('GET /api/nexo-lp/templates/:id/prompt returns 404 for non-existent template', async () => {
     const userId = 'user-nonexistent-prompt-routes';
 

@@ -641,20 +641,34 @@ router.post('/deploy/zip', asyncHandler(async (req, res) => {
  * GET /templates
  * List all available templates
  *
- * Query: { category?, stack?, search?, page?, limit? }
+ * Query: { category?, subcategory?, stack?, search?, page?, limit? }
  * Response: { success, data: { templates, pagination } }
  */
 router.get('/templates', asyncHandler(async (req, res) => {
-  const { category, stack, search, page = 1, limit = 20 } = req.query;
+  const { category, subcategory, stack, search, page = 1, limit = 20 } = req.query;
 
   const filters = {};
   if (category) filters.category = category;
+  if (subcategory) filters.subcategory = subcategory;
   if (stack) filters.stack = stack;
   if (search) filters.search = search;
 
-  const result = await lpTemplateService.listTemplates(filters, parseInt(page), parseInt(limit));
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+
+  const result = await lpTemplateService.listTemplates(filters, pageNum, limitNum);
 
   res.status(200).json(successResponse(result, 'Templates retrieved successfully'));
+}));
+
+/**
+ * GET /templates/subcategories
+ * List distinct subcategories, optionally filtered by category
+ */
+router.get('/templates/subcategories', asyncHandler(async (req, res) => {
+  const { category } = req.query;
+  const subcategories = await lpTemplateService.getSubcategories(category);
+  res.status(200).json(successResponse({ subcategories }, 'Subcategories retrieved successfully'));
 }));
 
 /**
@@ -681,9 +695,13 @@ router.get('/templates/:id', asyncHandler(async (req, res) => {
  */
 router.post('/templates/:id/use', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { userId } = req.body;
+  const { userId, sessionId } = req.body;
 
-  const result = await lpTemplateService.useTemplate(id, userId || `anonymous-${Date.now()}`);
+  const result = await lpTemplateService.useTemplate(
+    id,
+    userId || `anonymous-${Date.now()}`,
+    sessionId || null
+  );
 
   res.status(201).json(successResponse(result, 'Template applied. New session created.'));
 }));

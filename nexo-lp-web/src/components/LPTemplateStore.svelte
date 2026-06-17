@@ -7,9 +7,13 @@
 
   let searchQuery = '';
   let activeCategory = 'all';
+  let activeSubcategory = 'all';
   let selectedTemplate = null;
   let showModal = false;
   let loading = false;
+  let subcategories = [];
+  let loadingSubcategories = false;
+  let fetchController = null;
 
   const categories = [
     { id: 'all', label: 'All', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>' },
@@ -160,9 +164,18 @@
   ];
 
   async function fetchTemplates() {
+    if (fetchController) {
+      fetchController.abort();
+    }
+    fetchController = new AbortController();
+
     loading = true;
     try {
-      const data = await api.getTemplates({ category: activeCategory, search: searchQuery });
+      const data = await api.getTemplates({
+        category: activeCategory,
+        subcategory: activeSubcategory,
+        search: searchQuery,
+      }, fetchController.signal);
       const backendTemplates = data?.templates || [];
       if (backendTemplates.length > 0) {
         templates.set(backendTemplates);
@@ -170,6 +183,7 @@
         templates.set(demoTemplates);
       }
     } catch (error) {
+      if (error.name === 'AbortError') return;
       console.error('Failed to fetch templates:', error);
       showNotification('Failed to load templates. Showing demo data.', 'error');
       if ($templates.length === 0) {
@@ -177,20 +191,54 @@
       }
     } finally {
       loading = false;
+      fetchController = null;
     }
   }
 
-  $: if (activeCategory !== undefined || searchQuery !== undefined) {
+  async function fetchSubcategories() {
+    if (activeCategory === 'all') {
+      subcategories = [];
+      activeSubcategory = 'all';
+      return;
+    }
+    loadingSubcategories = true;
+    try {
+      const data = await api.getSubcategories(activeCategory);
+      subcategories = data?.subcategories || [];
+      if (!subcategories.includes(activeSubcategory)) {
+        activeSubcategory = 'all';
+      }
+    } catch (error) {
+      console.error('Failed to fetch subcategories:', error);
+      subcategories = [];
+      activeSubcategory = 'all';
+    } finally {
+      loadingSubcategories = false;
+    }
+  }
+
+  function selectCategory(id) {
+    activeCategory = id;
+    activeSubcategory = 'all';
+    fetchSubcategories();
+  }
+
+  function selectSubcategory(id) {
+    activeSubcategory = id;
+  }
+
+  $: if (activeCategory !== undefined || activeSubcategory !== undefined || searchQuery !== undefined) {
     fetchTemplates();
   }
 
   $: filteredTemplates = $templates.filter(t => {
     const matchesCategory = activeCategory === 'all' || t.category === activeCategory;
+    const matchesSubcategory = activeSubcategory === 'all' || t.subcategory === activeSubcategory;
     const matchesSearch = !searchQuery ||
       t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       t.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (t.tags || []).some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesSubcategory && matchesSearch;
   });
 
   function handleTemplateClick(template) {
@@ -216,8 +264,11 @@
   <div class="flex-shrink-0 bg-white border-b border-luna-border px-6 py-4">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h2 class="text-lg font-semibold text-luna-text">Template Gallery</h2>
-        <p class="text-xs text-luna-text-muted mt-0.5">{$templates.length} templates available</p>
+        <h2 class="text-lg font-semibold text-luna-text">Template Marketplace</h2>
+        <p class="text-xs text-luna-text-muted mt-0.5">
+          {filteredTemplates.length} of {$templates.length} templates shown
+          {#if activeSubcategory !== 'all'}in {activeSubcategory}{/if}
+        </p>
       </div>
 
       <!-- Search -->
@@ -250,7 +301,7 @@
           class:bg-transparent={activeCategory !== category.id}
           class:text-luna-text-secondary={activeCategory !== category.id}
           class:hover:bg-luna-surface={activeCategory !== category.id}
-          on:click={() => activeCategory = category.id}
+          on:click={() => selectCategory(category.id)}
         >
           <span class="flex items-center justify-center w-3.5 h-3.5">
             {@html category.icon}
@@ -259,6 +310,43 @@
         </button>
       {/each}
     </div>
+
+    <!-- Subcategory Filters -->
+    {#if activeCategory !== 'all'}
+      <div class="flex items-center gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 border border-luna-border"
+          class:bg-luna-primary={activeSubcategory === 'all'}
+          class:text-white={activeSubcategory === 'all'}
+          class:bg-white={activeSubcategory !== 'all'}
+          class:text-luna-text-secondary={activeSubcategory !== 'all'}
+          class:hover:bg-luna-surface={activeSubcategory !== 'all'}
+          on:click={() => selectSubcategory('all')}
+        >
+          All {categories.find(c => c.id === activeCategory)?.label || ''}
+        </button>
+        {#if loadingSubcategories}
+          <div class="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-luna-border bg-white text-luna-text-muted text-xs">
+            <div class="w-3 h-3 rounded-full border-2 border-luna-border border-t-luna-primary animate-spin"></div>
+            Loading...
+          </div>
+        {:else}
+          {#each subcategories as subcategory}
+            <button
+              class="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 border border-luna-border"
+              class:bg-luna-primary={activeSubcategory === subcategory}
+              class:text-white={activeSubcategory === subcategory}
+              class:bg-white={activeSubcategory !== subcategory}
+              class:text-luna-text-secondary={activeSubcategory !== subcategory}
+              class:hover:bg-luna-surface={activeSubcategory !== subcategory}
+              on:click={() => selectSubcategory(subcategory)}
+            >
+              {subcategory}
+            </button>
+          {/each}
+        {/if}
+      </div>
+    {/if}
   </div>
 
   <!-- Template Grid -->
