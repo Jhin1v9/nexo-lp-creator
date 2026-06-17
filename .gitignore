@@ -48,6 +48,9 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+
+# Git worktrees
+.worktrees/
 *.swo
 *~
 
