@@ -13,6 +13,7 @@
     "test:e2e": "cd e2e && npx playwright test",
     "test:e2e:ui": "cd e2e && npx playwright test --ui",
     "test:e2e:debug": "cd e2e && npx playwright test --debug",
+    "test:e2e:restaurant": "node scripts/e2e-restaurant-test.js",
     "import:kimi-chats": "node scripts/import-kimi-chats-to-loja.js",
     "integrate": "bash scripts/verify-build.sh && bash scripts/run-all-tests.sh"
   },
