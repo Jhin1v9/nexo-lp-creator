@@ -14,7 +14,7 @@
 
 | File | Responsibility |
 |------|----------------|
-| `nexo-lp-server/models/migrations/011_loja_metadata.sql` | Adds `subcategory` and `metadata_json` columns to `templates`. |
+| `nexo-lp-server/models/migrations/012_loja_metadata.sql` | Adds `subcategory` and `metadata_json` columns to `templates`. |
 | `nexo-lp-server/services/lpSanitizationOrchestrator.js` | New observer/orchestrator that runs the 3-step Kimi sanitization/metadata pipeline. |
 | `nexo-lp-server/services/lpTemplateService.js` | Modify `publishFromSession` to create template as `sanitizing`/`is_public=0` and spawn orchestrator. |
 | `nexo-lp-server/models/repositories/TemplateRepository.js` | Update `create`/`update` to persist new metadata fields; add subcategory listing helper. |
@@ -30,12 +30,12 @@
 ## Task 1: Database migration for rich metadata
 
 **Files:**
-- Create: `nexo-lp-server/models/migrations/011_loja_metadata.sql`
+- Create: `nexo-lp-server/models/migrations/012_loja_metadata.sql`
 - Modify: `nexo-lp-server/models/sqlite.js` (ensure migrations run in order)
 
 ### Step 1.1: Create migration file
 
-Create `nexo-lp-server/models/migrations/011_loja_metadata.sql`:
+Create `nexo-lp-server/models/migrations/012_loja_metadata.sql`:
 
 ```sql
 -- ============================================================
@@ -57,7 +57,7 @@ Open `nexo-lp-server/models/sqlite.js` and confirm migrations are loaded from `m
 
 ```bash
 cd /home/jhin/luna/nexo-lp-creator
-git add nexo-lp-server/models/migrations/011_loja_metadata.sql
+git add nexo-lp-server/models/migrations/012_loja_metadata.sql
 git commit -m "feat(db): add subcategory and metadata_json to templates"
 ```
 

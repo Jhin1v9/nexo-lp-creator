@@ -86,7 +86,7 @@ User sees item in LOJA as available with category, subcategory, badges, and prev
 | `created_at` | DATETIME | timestamp |
 | `updated_at` | DATETIME | timestamp |
 
-### New migration `011_loja_metadata.sql`
+### New migration `012_loja_metadata.sql`
 ```sql
 ALTER TABLE templates ADD COLUMN subcategory TEXT;
 ALTER TABLE templates ADD COLUMN metadata_json TEXT;
