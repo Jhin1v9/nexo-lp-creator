@@ -510,3 +510,189 @@ export function voicePulseRadius(baseRadius, amplitude, brightness) {
   const pulse = 1 + amplitude * 0.8 * (0.5 + brightness * 0.5);
   return baseRadius * pulse;
 }
+
+// ═══════════════════════════════════════════════════════════
+//  Cursor Follower Physics Helpers
+// ═══════════════════════════════════════════════════════════
+
+export function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+const CURSOR_FOLLOWER_COUNT = 8;
+const CURSOR_FOLLOWER_MID_POOL_LIMIT = 40;
+const CURSOR_FOLLOWER_MASS_MIN = 0.8;
+const CURSOR_FOLLOWER_MASS_MAX = 1.4;
+const CURSOR_MARGIN_PX = 60;
+const CURSOR_REENTRY_DAMPING = 0.85;
+const CURSOR_LAG_BASE = 0.05;
+const CURSOR_LAG_STEP = 0.04;
+const CURSOR_VELOCITY_LEAD = 3;
+const CURSOR_ATTRACT_K = 0.012;
+const CURSOR_MAX_SPEED = 0.018;
+const CURSOR_DAMPING = 0.96;
+const CURSOR_TRAIL_LENGTH = 7;
+const CURSOR_TRAIL_DECAY = 0.18;
+const CURSOR_INACTIVE_DAMPING = 0.95;
+const CURSOR_INACTIVE_TRAIL_DECAY = 0.2;
+const BOOM_RADIUS_PX = 220;
+const BOOM_FORCE = 0.025;
+
+function ensureFollowerPhysics(s) {
+  if (typeof s.vx !== 'number') s.vx = 0;
+  if (typeof s.vy !== 'number') s.vy = 0;
+  if (typeof s.mass !== 'number' || s.mass <= 0) s.mass = 1;
+}
+
+/**
+ * Seleciona e inicializa um subconjunto de estrelas de fundo para seguir o cursor.
+ * As estrelas escolhidas são mutadas com propriedades físicas (vx, vy, mass, trail).
+ *
+ * @param {Array} allBgStars - Lista de estrelas de fundo (cada uma com `layer`, `nx`, `ny`).
+ * @param {number} [count=CURSOR_FOLLOWER_COUNT] - Número de seguidores desejado.
+ * @returns {Array} Estrelas selecionadas como cursor followers.
+ */
+export function initCursorFollowers(allBgStars, count = CURSOR_FOLLOWER_COUNT) {
+  if (!Array.isArray(allBgStars) || allBgStars.length === 0) return [];
+
+  const near = allBgStars.filter(s => s.layer === 'near');
+  const mid = allBgStars.filter(s => s.layer === 'mid').slice(0, CURSOR_FOLLOWER_MID_POOL_LIMIT);
+  const pool = [...near, ...mid];
+  const followers = [];
+
+  while (followers.length < count && followers.length < pool.length) {
+    const candidate = pool[Math.floor(Math.random() * pool.length)];
+    if (followers.includes(candidate)) continue;
+    candidate.isCursorFollower = true;
+    candidate.vx = 0;
+    candidate.vy = 0;
+    candidate.mass = CURSOR_FOLLOWER_MASS_MIN + Math.random() * (CURSOR_FOLLOWER_MASS_MAX - CURSOR_FOLLOWER_MASS_MIN);
+    candidate.trail = [];
+    followers.push(candidate);
+  }
+  return followers;
+}
+
+/**
+ * Atualiza a posição e velocidade dos cursor followers em relação ao mouse.
+ * Posições são normalizadas (0-1); velocidades são unidades normalizadas por frame.
+ *
+ * @param {Array} followers - Cursor followers a atualizar.
+ * @param {Object} mouse - Posição do mouse em pixels e velocidade (`x`, `y`, `vx`, `vy`).
+ * @param {number} w - Largura do canvas em pixels.
+ * @param {number} h - Altura do canvas em pixels.
+ * @param {boolean} mouseActive - Se o mouse está ativo.
+ * @param {number} reentrySmooth - Fator de suavização de reentrada (0-1).
+ */
+export function updateCursorFollowers(followers, mouse, w, h, mouseActive, reentrySmooth) {
+  const mouseVx = typeof mouse.vx === 'number' ? mouse.vx : 0;
+  const mouseVy = typeof mouse.vy === 'number' ? mouse.vy : 0;
+
+  if (w <= 0 || h <= 0) return;
+
+  if (!mouseActive) {
+    followers.forEach(s => {
+      ensureFollowerPhysics(s);
+      s.vx *= CURSOR_INACTIVE_DAMPING;
+      s.vy *= CURSOR_INACTIVE_DAMPING;
+      s.nx += s.vx;
+      s.ny += s.vy;
+      s.x = s.nx * w;
+      s.y = s.ny * h;
+      s.currentX = s.x;
+      s.currentY = s.y;
+      if (s.trail) {
+        for (let k = 0; k < s.trail.length; k++) {
+          s.trail[k].life -= CURSOR_INACTIVE_TRAIL_DECAY;
+        }
+        while (s.trail.length > 0 && s.trail[0].life <= 0) {
+          s.trail.shift();
+        }
+      }
+    });
+    return;
+  }
+
+  const margin = CURSOR_MARGIN_PX;
+  const safeTargetX = clamp(mouse.x, margin, w - margin);
+  const safeTargetY = clamp(mouse.y, margin, h - margin);
+  const reentryFactor = 1 - reentrySmooth * CURSOR_REENTRY_DAMPING;
+
+  followers.forEach((s, i) => {
+    ensureFollowerPhysics(s);
+    const lag = CURSOR_LAG_BASE + (i % 3) * CURSOR_LAG_STEP;
+    const targetX = (safeTargetX + mouseVx * lag * CURSOR_VELOCITY_LEAD) / w;
+    const targetY = (safeTargetY + mouseVy * lag * CURSOR_VELOCITY_LEAD) / h;
+
+    const dx = targetX - s.nx;
+    const dy = targetY - s.ny;
+    const attractK = (CURSOR_ATTRACT_K / s.mass) * reentryFactor;
+
+    s.vx += dx * attractK;
+    s.vy += dy * attractK;
+
+    const speed = Math.sqrt(s.vx * s.vx + s.vy * s.vy);
+    if (speed > CURSOR_MAX_SPEED) {
+      s.vx = (s.vx / speed) * CURSOR_MAX_SPEED;
+      s.vy = (s.vy / speed) * CURSOR_MAX_SPEED;
+    }
+
+    s.vx *= CURSOR_DAMPING;
+    s.vy *= CURSOR_DAMPING;
+
+    s.nx += s.vx;
+    s.ny += s.vy;
+
+    s.nx = clamp(s.nx, margin / w, 1 - margin / w);
+    s.ny = clamp(s.ny, margin / h, 1 - margin / h);
+
+    s.x = s.nx * w;
+    s.y = s.ny * h;
+    s.currentX = s.x;
+    s.currentY = s.y;
+
+    if (!s.trail) s.trail = [];
+    s.trail.push({ x: s.x, y: s.y, life: 1 });
+    if (s.trail.length > CURSOR_TRAIL_LENGTH) s.trail.shift();
+    for (let k = 0; k < s.trail.length; k++) {
+      s.trail[k].life -= CURSOR_TRAIL_DECAY;
+    }
+    while (s.trail.length > 0 && s.trail[0].life <= 0) {
+      s.trail.shift();
+    }
+  });
+}
+
+/**
+ * Aplica um impulso de repulsão aos cursor followers a partir de um ponto.
+ * Posições são normalizadas (0-1); velocidades são unidades normalizadas por frame.
+ *
+ * @param {Array} followers - Cursor followers afetados.
+ * @param {number} x - Coordenada X do epicentro em pixels.
+ * @param {number} y - Coordenada Y do epicentro em pixels.
+ * @param {number} w - Largura do canvas em pixels.
+ * @param {number} h - Altura do canvas em pixels.
+ */
+export function boomAt(followers, x, y, w, h) {
+  if (w <= 0 || h <= 0) return;
+
+  followers.forEach(s => {
+    ensureFollowerPhysics(s);
+    const sx = (typeof s.nx === 'number' ? s.nx : 0) * w;
+    const sy = (typeof s.ny === 'number' ? s.ny : 0) * h;
+    let dx = sx - x;
+    let dy = sy - y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist >= BOOM_RADIUS_PX) return;
+    if (dist === 0) {
+      const angle = Math.random() * Math.PI * 2;
+      dx = Math.cos(angle);
+      dy = Math.sin(angle);
+      dist = 1;
+    }
+    const falloff = 1 - dist / BOOM_RADIUS_PX;
+    const force = falloff * BOOM_FORCE / s.mass;
+    s.vx += (dx / dist) * force;
+    s.vy += (dy / dist) * force;
+  });
+}

@@ -319,8 +319,8 @@
       {/each}
     {/if}
 
-    <!-- Real-time generation phase cards -->
-    {#if $generationEvents.length > 0}
+    <!-- Real-time generation phase cards (shown only when not in fullscreen overlay) -->
+    {#if !$isGenerating && $generationEvents.length > 0}
       <div class="flex justify-start" in:slide={{ duration: 200 }}>
         <div class="flex gap-3 w-full max-w-[85%]">
           <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600 flex items-center justify-center text-xs font-bold">

@@ -25,6 +25,9 @@
     MODE_COLORS,
     MODE_SHIFT_INTENSITY,
     MODE_BEHAVIOR,
+    initCursorFollowers,
+    updateCursorFollowers,
+    boomAt,
   } from '../lib/starAnimations.js';
 
   export let active = false;
@@ -60,11 +63,44 @@
   let shootingStars = [];
   let shootingStarChance = 0.008;
 
+  let mouse = { x: 0, y: 0, vx: 0, vy: 0, lastX: 0, lastY: 0 };
+  let mouseActive = false;
+  let reentrySmooth = 0;
+  let cursorFollowers = [];
+
   const BG_FAR_COUNT = 80;
   const BG_MID_COUNT = 30;
   const BG_NEAR_COUNT = 10;
   const DYN_CONNECT_DIST = 90;
   const MAX_DYN_PER_STAR = 3;
+
+  function handleMove(e) {
+    if (!active) return;
+    mouseActive = true;
+    mouse.vx = e.clientX - mouse.lastX;
+    mouse.vy = e.clientY - mouse.lastY;
+    mouse.lastX = e.clientX;
+    mouse.lastY = e.clientY;
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+  }
+  function handleLeave() { if (!active) return; mouseActive = false; }
+  function handleEnter(e) {
+    if (!active) return;
+    mouseActive = true;
+    reentrySmooth = 1;
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.lastX = e.clientX;
+    mouse.lastY = e.clientY;
+    mouse.vx = 0;
+    mouse.vy = 0;
+  }
+  function handleClick(e) {
+    if (!active) return;
+    mouseActive = true;
+    boomAt(cursorFollowers, e.clientX, e.clientY, w, h);
+  }
 
   function initStars() {
     starIndex = buildStarIndex(BRIGHT_STARS);
@@ -79,6 +115,7 @@
     bgStarsNear = Array.from({ length: BG_NEAR_COUNT }, () => createBgStarState('near', w, h));
 
     allBgStars = [...bgStarsFar, ...bgStarsMid, ...bgStarsNear];
+    cursorFollowers = initCursorFollowers(allBgStars, 8);
     allBgStars.forEach(s => projectBgStar(s, w, h));
 
     allStars = [...stars, ...bgStarsMid, ...bgStarsNear];
@@ -206,6 +243,7 @@
 
     for (const layer of layers) {
       for (const s of layer.stars) {
+        if (s.isCursorFollower === true) continue;
         if (behavior.drift) {
           s.nx += s.driftVx * behavior.speed * layer.speedMult * 0.008;
           s.ny += s.driftVy * behavior.speed * layer.speedMult * 0.008;
@@ -321,11 +359,37 @@
       const opacity = s.baseOpacity * (0.5 + 0.5 * pulse) * brightnessMult;
       const radius = s.baseRadius * (0.8 + 0.2 * pulse);
 
-      ctx.globalAlpha = Math.max(0, opacity);
-      ctx.fillStyle = `rgb(${s.rgb[0]},${s.rgb[1]},${s.rgb[2]})`;
-      ctx.beginPath();
-      ctx.arc(s.x, s.y, Math.max(0.15, radius), 0, Math.PI * 2);
-      ctx.fill();
+      if (s.isCursorFollower) {
+        if (s.trail && s.trail.length > 1) {
+          ctx.save();
+          ctx.lineCap = 'round';
+          for (let i = 1; i < s.trail.length; i++) {
+            const a = s.trail[i - 1];
+            const b = s.trail[i];
+            const life = (a.life + b.life) * 0.5;
+            ctx.globalAlpha = life * 0.35;
+            ctx.lineWidth = Math.max(0.4, radius * 0.9);
+            ctx.strokeStyle = 'rgba(210,200,255,0.9)';
+            ctx.beginPath();
+            ctx.moveTo(a.x, a.y);
+            ctx.lineTo(b.x, b.y);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        ctx.globalAlpha = Math.max(0, opacity);
+        ctx.fillStyle = 'rgb(235,230,255)';
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, Math.max(0.25, radius * 1.3), 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.globalAlpha = Math.max(0, opacity);
+        ctx.fillStyle = `rgb(${s.rgb[0]},${s.rgb[1]},${s.rgb[2]})`;
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, Math.max(0.15, radius), 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
     stars.forEach((s) => {
@@ -364,12 +428,16 @@
   }
 
   function loop(now) {
+    if (!active) return;
+
     dt = Math.min(now - lastTime, 50);
     lastTime = now;
     time = now;
 
     updateModeState();
     updateStars(now);
+    updateCursorFollowers(cursorFollowers, mouse, w, h, mouseActive, reentrySmooth);
+    reentrySmooth = Math.max(0, reentrySmooth - 0.04);
 
     if (targetMode === 'swarm') {
       updateClusters(clusters, w, h, dt);
@@ -384,6 +452,24 @@
     animId = requestAnimationFrame(loop);
   }
 
+  function startLoop() {
+    if (animId) return;
+    animId = requestAnimationFrame(loop);
+  }
+
+  function stopLoop() {
+    if (animId) {
+      cancelAnimationFrame(animId);
+      animId = null;
+    }
+  }
+
+  $: if (active) {
+    startLoop();
+  } else {
+    stopLoop();
+  }
+
   function resize() {
     w = window.innerWidth;
     h = window.innerHeight;
@@ -395,6 +481,11 @@
       canvas.style.height = h + 'px';
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     }
+
+    mouse.x = w / 2;
+    mouse.y = h / 2;
+    mouse.lastX = mouse.x;
+    mouse.lastY = mouse.y;
 
     stars.forEach(s => projectStar(s, w, h));
     allBgStars.forEach(s => projectBgStar(s, w, h));
@@ -413,12 +504,19 @@
     initStars();
     window.addEventListener('resize', resize);
 
-    animId = requestAnimationFrame(loop);
+    window.addEventListener('mousemove', handleMove);
+    window.addEventListener('mouseleave', handleLeave);
+    window.addEventListener('mouseenter', handleEnter);
+    window.addEventListener('click', handleClick);
   });
 
   onDestroy(() => {
     cancelAnimationFrame(animId);
     window.removeEventListener('resize', resize);
+    window.removeEventListener('mousemove', handleMove);
+    window.removeEventListener('mouseleave', handleLeave);
+    window.removeEventListener('mouseenter', handleEnter);
+    window.removeEventListener('click', handleClick);
   });
 </script>
 

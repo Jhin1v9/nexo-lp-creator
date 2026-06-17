@@ -26,6 +26,7 @@
   import LandingPageCreator from './components/LandingPageCreator.svelte';
   import LPTemplateStore from './components/LPTemplateStore.svelte';
   import LunaStarfield from './components/LunaStarfield.svelte';
+  import LPGeneratingOverlay from './components/LPGeneratingOverlay.svelte';
 
   let sidebarCollapsed = false;
   let recentSessions = [];
@@ -639,3 +640,6 @@
 
   </main>
 </div>
+
+<!-- ===== FULLSCREEN GENERATION OVERLAY ===== -->
+<LPGeneratingOverlay />
