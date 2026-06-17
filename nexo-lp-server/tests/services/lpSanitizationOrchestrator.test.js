@@ -17,10 +17,15 @@ jest.mock('../../services/lpPreviewService', () => ({
   updatePublicPreview: jest.fn(),
 }));
 
+jest.mock('../../services/lpTemplateScreenshotService', () => ({
+  captureTemplateScreenshot: jest.fn().mockResolvedValue('/preview/thumbnails/tpl-test.png'),
+}));
+
 const { initializeDatabase, closeDatabase } = require('../../models/sqlite');
 const TemplateRepository = require('../../models/repositories/TemplateRepository');
 const BridgeAdapter = require('../../services/lpBridgeAdapter.cjs');
 const PreviewService = require('../../services/lpPreviewService');
+const TemplateScreenshotService = require('../../services/lpTemplateScreenshotService');
 const SanitizationOrchestrator = require('../../services/lpSanitizationOrchestrator');
 
 describe('lpSanitizationOrchestrator', () => {
@@ -41,6 +46,7 @@ describe('lpSanitizationOrchestrator', () => {
   beforeEach(() => {
     BridgeAdapter.sendMessage.mockReset();
     PreviewService.updatePublicPreview.mockReset();
+    TemplateScreenshotService.captureTemplateScreenshot.mockClear();
   });
 
   async function createTemplate(sessionId, overrides = {}) {
@@ -111,6 +117,10 @@ describe('lpSanitizationOrchestrator', () => {
     expect(PreviewService.updatePublicPreview).toHaveBeenCalledWith(
       template.public_preview_token,
       sanitizedHtml
+    );
+    expect(TemplateScreenshotService.captureTemplateScreenshot).toHaveBeenCalledWith(
+      template.id,
+      template.public_preview_token
     );
   });
 

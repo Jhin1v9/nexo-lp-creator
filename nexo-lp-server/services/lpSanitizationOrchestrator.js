@@ -1,6 +1,7 @@
 const { EventEmitter } = require('events');
 const TemplateRepository = require('../models/repositories/TemplateRepository');
 const PreviewService = require('./lpPreviewService');
+const TemplateScreenshotService = require('./lpTemplateScreenshotService');
 const BridgeAdapter = require('./lpBridgeAdapter.cjs');
 
 const HYBRID_SANITIZE_PROMPT = `You are a strict HTML sanitizer and frontend optimizer for the NEXO Digital landing page store (https://www.nexo-digital.app/pt).
@@ -204,6 +205,11 @@ class SanitizationOrchestrator extends EventEmitter {
 
       await PreviewService.updatePublicPreview(template.public_preview_token, currentHtml);
 
+      // Generate thumbnail in the background; never fail sanitization because of a screenshot.
+      TemplateScreenshotService.captureTemplateScreenshot(template.id, template.public_preview_token)
+        .then((thumbnailUrl) => TemplateRepository.update(template.id, { thumbnail_url: thumbnailUrl }))
+        .catch((err) => console.error(`[LOJA] Screenshot failed for ${template.id}:`, err.message));
+
       this.emit('sanitization:complete', {
         sessionId,
         templateId: template.id,
@@ -228,6 +234,11 @@ class SanitizationOrchestrator extends EventEmitter {
           sanitization_log: JSON.stringify(log),
         });
         await PreviewService.updatePublicPreview(template.public_preview_token, fallbackHtml);
+
+        // Generate thumbnail for the fallback version as well.
+        TemplateScreenshotService.captureTemplateScreenshot(template.id, template.public_preview_token)
+          .then((thumbnailUrl) => TemplateRepository.update(template.id, { thumbnail_url: thumbnailUrl }))
+          .catch((err) => console.error(`[LOJA] Screenshot failed for ${template.id}:`, err.message));
       } catch (updateErr) {
         log.error = `${err.message}; fallback update failed: ${updateErr.message}`;
         await TemplateRepository.update(template.id, {
