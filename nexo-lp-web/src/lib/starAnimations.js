@@ -510,3 +510,124 @@ export function voicePulseRadius(baseRadius, amplitude, brightness) {
   const pulse = 1 + amplitude * 0.8 * (0.5 + brightness * 0.5);
   return baseRadius * pulse;
 }
+
+// ═══════════════════════════════════════════════════════════
+//  Cursor Follower Physics Helpers
+// ═══════════════════════════════════════════════════════════
+
+export function clamp(val, min, max) {
+  return Math.max(min, Math.min(max, val));
+}
+
+export function pickCursorFollowers(allBgStars, count = 8) {
+  const near = allBgStars.filter(s => s.layer === 'near');
+  const mid = allBgStars.filter(s => s.layer === 'mid').slice(0, 40);
+  const pool = [...near, ...mid];
+  const followers = [];
+  while (followers.length < count && followers.length < pool.length) {
+    const candidate = pool[Math.floor(Math.random() * pool.length)];
+    if (followers.includes(candidate)) continue;
+    candidate.isCursorFollower = true;
+    candidate.vx = 0;
+    candidate.vy = 0;
+    candidate.mass = 0.8 + Math.random() * 0.6;
+    candidate.trail = [];
+    followers.push(candidate);
+  }
+  return followers;
+}
+
+function ensureFollowerPhysics(s) {
+  if (typeof s.vx !== 'number') s.vx = 0;
+  if (typeof s.vy !== 'number') s.vy = 0;
+  if (typeof s.mass !== 'number' || s.mass <= 0) s.mass = 1;
+}
+
+export function applyMouseForces(followers, mouse, w, h, mouseActive, reentrySmooth) {
+  if (!mouseActive) {
+    followers.forEach(s => {
+      ensureFollowerPhysics(s);
+      s.vx *= 0.95;
+      s.vy *= 0.95;
+      s.nx += s.vx;
+      s.ny += s.vy;
+      s.x = s.nx * w;
+      s.y = s.ny * h;
+      s.currentX = s.x;
+      s.currentY = s.y;
+      if (s.trail) {
+        s.trail.forEach(p => { p.life -= 0.2; });
+        s.trail = s.trail.filter(p => p.life > 0);
+      }
+    });
+    return;
+  }
+
+  const margin = 60;
+  const safeTargetX = clamp(mouse.x, margin, w - margin);
+  const safeTargetY = clamp(mouse.y, margin, h - margin);
+  const reentryFactor = 1 - reentrySmooth * 0.85;
+
+  followers.forEach((s, i) => {
+    ensureFollowerPhysics(s);
+    const lag = 0.05 + (i % 3) * 0.04;
+    const targetX = (safeTargetX + mouse.vx * lag * 3) / w;
+    const targetY = (safeTargetY + mouse.vy * lag * 3) / h;
+
+    const dx = targetX - s.nx;
+    const dy = targetY - s.ny;
+    const attractK = (0.012 / s.mass) * reentryFactor;
+
+    s.vx += dx * attractK;
+    s.vy += dy * attractK;
+
+    const maxSpeed = 0.018;
+    const speed = Math.sqrt(s.vx * s.vx + s.vy * s.vy);
+    if (speed > maxSpeed) {
+      s.vx = (s.vx / speed) * maxSpeed;
+      s.vy = (s.vy / speed) * maxSpeed;
+    }
+
+    s.vx *= 0.96;
+    s.vy *= 0.96;
+
+    s.nx += s.vx;
+    s.ny += s.vy;
+
+    s.nx = clamp(s.nx, margin / w, 1 - margin / w);
+    s.ny = clamp(s.ny, margin / h, 1 - margin / h);
+
+    s.x = s.nx * w;
+    s.y = s.ny * h;
+    s.currentX = s.x;
+    s.currentY = s.y;
+
+    if (!s.trail) s.trail = [];
+    s.trail.push({ x: s.x, y: s.y, life: 1 });
+    if (s.trail.length > 7) s.trail.shift();
+    s.trail.forEach(p => { p.life -= 0.18; });
+    s.trail = s.trail.filter(p => p.life > 0);
+  });
+}
+
+export function boomAt(followers, x, y, w, h) {
+  followers.forEach(s => {
+    ensureFollowerPhysics(s);
+    const sx = s.nx * w;
+    const sy = s.ny * h;
+    let dx = sx - x;
+    let dy = sy - y;
+    let dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist >= 220) return;
+    if (dist === 0) {
+      const angle = Math.random() * Math.PI * 2;
+      dx = Math.cos(angle);
+      dy = Math.sin(angle);
+      dist = 1;
+    }
+    const falloff = 1 - dist / 220;
+    const force = falloff * 0.025 / s.mass;
+    s.vx += (dx / dist) * force;
+    s.vy += (dy / dist) * force;
+  });
+}
