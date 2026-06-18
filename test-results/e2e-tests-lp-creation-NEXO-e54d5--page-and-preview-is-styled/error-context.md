@@ -1,0 +1,273 @@
+# Instructions
+
+- Following Playwright test failed.
+- Explain why, be concise, respect Playwright best practices.
+- Provide a snippet of code with the fix, if possible.
+
+# Test info
+
+- Name: e2e/tests/lp-creation.spec.js >> NEXO LP Creator - end-to-end user flow >> user creates a landing page and preview is styled
+- Location: e2e/tests/lp-creation.spec.js:25:3
+
+# Error details
+
+```
+Error: expect(locator).toBeVisible() failed
+
+Locator: locator('text=/Generation complete|View generated page/i').first()
+Expected: visible
+Error: element(s) not found
+
+Call log:
+  - Expect "toBeVisible" with timeout 180000ms
+  - waiting for locator('text=/Generation complete|View generated page/i').first()
+
+```
+
+```yaml
+- complementary:
+  - img
+  - text: NEXO
+  - button "Collapse sidebar":
+    - img
+  - navigation:
+    - button "Editor":
+      - img
+      - text: Editor
+    - button "LOJA":
+      - img
+      - text: LOJA
+    - button "Settings":
+      - img
+      - text: Settings
+    - button "New Project":
+      - img
+      - text: New Project
+    - text: Recent Projects
+    - img
+    - textbox "Filter projects..."
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "test":
+      - img
+      - text: test
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "test padaria 3":
+      - img
+      - text: test padaria 3
+    - button "Project options":
+      - img
+    - button "test padaria 2":
+      - img
+      - text: test padaria 2
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+    - button "Untitled Project":
+      - img
+      - text: Untitled Project
+    - button "Project options":
+      - img
+  - text: Luna Ready
+  - img
+  - text: "50"
+  - img
+  - text: "5"
+  - img
+  - text: "1"
+- main:
+  - heading "Untitled Project" [level=1]
+  - img
+  - text: Generating...
+  - link "GitHub":
+    - /url: https://github.com
+    - img
+    - text: GitHub
+  - button "Chat":
+    - img
+    - text: Chat
+  - button "Preview":
+    - img
+    - text: Preview
+  - button "Code":
+    - img
+    - text: Code
+  - button "Deploy":
+    - img
+    - text: Deploy
+  - button "History":
+    - img
+    - text: History
+  - button "Bugs 3":
+    - img
+    - text: Bugs 3
+  - img
+  - text: Hi! I'm Luna, your landing page creator. Tell me what you'd like to build, and I'll make the magic happen. 12:06 PM
+  - img
+  - text: Create a modern SaaS landing page with pricing, features and testimonials 12:06 PM
+  - img
+  - text: 12:06 PM
+  - img
+  - text: "🎯 Definindo intenção ! Bridge request failed after 2 attempts: locator.evaluate: Target page, context or browser has been closed 🏗️ Estrutura da página ⟳ Designing page structure... Layout: single-page"
+  - button "Estrelas" [disabled]:
+    - img
+    - text: Estrelas
+    - img
+  - text: 2⭐
+  - textbox "Describe the landing page you want to create..." [disabled]
+  - button [disabled]:
+    - img
+  - text: Press Enter to send, Shift+Enter for new line
+```
+
+```
+Error: browserContext.close: Target page, context or browser has been closed
+```
