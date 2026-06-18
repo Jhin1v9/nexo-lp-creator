@@ -5,6 +5,8 @@
   import GenerationPhaseStack from './GenerationPhaseStack.svelte';
   import LunaStarfield from './LunaStarfield.svelte';
 
+  export let minimized = false;
+
   let contentEl;
   let titleEl;
   let progressEl;
@@ -53,13 +55,23 @@
   });
 </script>
 
-{#if $isGenerating}
+{#if $isGenerating && !minimized}
   <div aria-busy="true" class="fixed inset-0 z-[60] flex flex-col items-center justify-center font-sans text-white overflow-hidden pointer-events-none">
     <!-- Immersive starfield wallpaper behind the generating animation -->
     <LunaStarfield active={true} className="overlay-starfield" />
 
+    <!-- Minimize button -->
+    <button
+      type="button"
+      on:click={() => minimized = true}
+      class="pointer-events-auto absolute top-5 right-5 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-[11px] text-white/80 backdrop-blur-md transition-colors"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+      <span>Sair do universo</span>
+    </button>
+
     <!-- Center stage -->
-    <div bind:this={contentEl} class="relative z-10 text-center w-full max-w-xl px-6 -mt-12">
+    <div bind:this={contentEl} class="relative z-10 text-center w-full max-w-xl px-6 -mt-12 pointer-events-auto">
       <div class="relative mb-8">
         <div class="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-luna-primary to-luna-purple p-0.5 shadow-[0_0_50px_rgba(99,102,241,0.45)]">
           <div class="w-full h-full rounded-2xl bg-slate-950 flex items-center justify-center">
@@ -96,6 +108,17 @@
       <GenerationPhaseStack events={$generationEvents} />
     </div>
   </div>
+{/if}
+
+{#if $isGenerating && minimized}
+  <button
+    type="button"
+    on:click={() => minimized = false}
+    class="fixed bottom-6 right-6 z-[60] flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-luna-primary to-luna-purple text-white text-sm font-medium shadow-[0_0_30px_rgba(99,102,241,0.45)] hover:shadow-[0_0_40px_rgba(99,102,241,0.6)] hover:scale-105 transition-all pointer-events-auto"
+  >
+    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Voltar pro universo</span>
+  </button>
 {/if}
 
 <style>

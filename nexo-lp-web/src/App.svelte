@@ -40,6 +40,7 @@
   let sidebarWidth = 256;
   let labelOpacity = 1;
   let sidebarCollapsedBeforeGeneration = false;
+  let overlayMinimized = false;
 
   const SIDEBAR_WIDTH_EXPANDED = 256; // w-64
   const SIDEBAR_WIDTH_COLLAPSED = 64; // w-16
@@ -396,6 +397,7 @@
   class="flex h-screen w-full overflow-hidden relative z-10 transition-colors duration-700"
   class:bg-luna-surface={!$isGenerating}
   class:bg-transparent={$isGenerating}
+  class:pointer-events-none={$isGenerating && !overlayMinimized}
 >
 
   <!-- ===== LEFT SIDEBAR ===== -->
@@ -739,4 +741,4 @@
 </div>
 
 <!-- ===== FULLSCREEN GENERATION OVERLAY ===== -->
-<LPGeneratingOverlay />
+<LPGeneratingOverlay bind:minimized={overlayMinimized} />
