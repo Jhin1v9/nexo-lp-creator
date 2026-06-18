@@ -6,6 +6,12 @@ export default defineConfig({
   server: {
     port: 5174,
     host: true,
+    proxy: {
+      '/preview': {
+        target: 'http://localhost:3460',
+        changeOrigin: true,
+      },
+    },
   },
   build: {
     outDir: 'dist',

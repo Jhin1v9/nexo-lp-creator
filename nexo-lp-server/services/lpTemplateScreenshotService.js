@@ -78,14 +78,21 @@ class TemplateScreenshotService {
 
     try {
       page = await context.newPage({ viewport: DEFAULT_VIEWPORT });
-      await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 60000 });
-      await page.waitForTimeout(1500);
+      // Disable arbitrary timeouts; rely on navigation/load-state signals instead.
+      page.setDefaultTimeout(0);
+
+      await page.goto(previewUrl, { waitUntil: 'networkidle', timeout: 0 });
+      // Wait for fonts and the document to be fully ready before capturing.
+      await page.evaluate(() => document.fonts.ready).catch(() => {});
+      await page.waitForLoadState('networkidle').catch(() => {});
+
       await page.screenshot({ path: screenshotPath, fullPage: false });
       return thumbnailUrl;
     } finally {
       if (page) await page.close().catch(() => {});
+      // Only close the browser if we launched it locally. When reusing the
+      // shared Kimi Chrome via CDP we must not kill the browser process.
       if (launched && browser) await browser.close().catch(() => {});
-      else if (browser) await browser.close().catch(() => {});
     }
   }
 

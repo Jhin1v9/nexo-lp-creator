@@ -8,6 +8,7 @@ const path = require('path');
 const testDbPath = path.join(__dirname, '../../../data/nexo-lp-test-sanitization-orchestrator.db');
 process.env.NEXO_LP_DB_PATH = testDbPath;
 process.env.NODE_ENV = 'test';
+process.env.SANITIZE_KIMI_DELAY_MS = '0';
 
 jest.mock('../../services/lpBridgeAdapter.cjs', () => ({
   sendMessage: jest.fn(),
@@ -66,8 +67,8 @@ describe('lpSanitizationOrchestrator', () => {
   test('sanitizes and marks template available when review is OK', async () => {
     const sessionId = 'sess-ok-001';
     const template = await createTemplate(sessionId);
-    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Welcome to our site.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
-    const sanitizedHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>NEXO Digital</title></head><body><h1>NEXO Digital</h1><p>We create digital experiences that convert.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
+    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Welcome to our site. We offer the best solutions for your business with modern design and responsive layouts.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
+    const sanitizedHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>NEXO Digital</title></head><body><h1>NEXO Digital</h1><p>We create digital experiences that convert. Discover our modern solutions designed for growth and engagement.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
     const metadata = {
       category: 'saas',
       subcategory: 'b2b-saas',
@@ -106,7 +107,7 @@ describe('lpSanitizationOrchestrator', () => {
 
     const updated = await TemplateRepository.findById(template.id);
     expect(updated.status).toBe('available');
-    expect(updated.is_public).toBe(1);
+    expect(updated.is_public).toBe(2);
     expect(updated.sanitized_html).toBe(sanitizedHtml);
     expect(updated.html).toBe(sanitizedHtml);
     expect(updated.category).toBe('saas');
@@ -127,7 +128,7 @@ describe('lpSanitizationOrchestrator', () => {
   test('applies corrections and marks template available', async () => {
     const sessionId = 'sess-correct-002';
     const template = await createTemplate(sessionId);
-    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Welcome to our site.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
+    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Welcome to our site. We offer the best solutions for your business.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
     const sanitizedHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>NEXO Digital</title></head><body><h1>NEXO Digital</h1><p>We create digital experiences that convert.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li></ul></section></body></html>';
     const refinedHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>NEXO Digital Refined</title></head><body><h1>NEXO Digital</h1><p>Refined landing page content with improved copy and spacing for better conversion.</p><section><h2>Features</h2><ul><li>Fast</li><li>Secure</li><li>Refined</li></ul></section></body></html>';
     const metadata = { category: 'landing' };
@@ -157,13 +158,16 @@ describe('lpSanitizationOrchestrator', () => {
     expect(BridgeAdapter.sendMessage).toHaveBeenCalledTimes(3);
   });
 
-  test('marks template failed when bridge throws', async () => {
+  test('falls back to unreviewed status when bridge throws', async () => {
     const sessionId = 'sess-fail-003';
-    const template = await createTemplate(sessionId);
+    const template = await createTemplate(sessionId, {
+      price_stars: 5,
+      price_suns: 0,
+      price_moons: 0,
+    });
+    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Contact us at hello@acme.com</p></body></html>';
 
     BridgeAdapter.sendMessage.mockRejectedValue(new Error('Bridge disconnected'));
-
-    const originalHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Acme Corp</title></head><body><h1>Acme Corp</h1><p>Contact us at hello@acme.com</p></body></html>';
 
     const result = await SanitizationOrchestrator.startSanitization(
       sessionId,
@@ -173,12 +177,15 @@ describe('lpSanitizationOrchestrator', () => {
       'user-3'
     );
 
-    expect(result.success).toBe(true);
+    expect(result.success).toBe(false);
     expect(result.fallback).toBe(true);
+    expect(result.unreviewed).toBe(true);
 
     const updated = await TemplateRepository.findById(template.id);
-    expect(updated.status).toBe('available');
+    expect(updated.status).toBe('unreviewed');
     expect(updated.is_public).toBe(1);
+    expect(updated.price_stars).toBe(3); // half of 5 rounded up
+    expect(updated.original_price_stars).toBe(5);
     expect(updated.html).not.toContain('acme.com');
     expect(updated.html).toContain('NEXO Digital');
   });

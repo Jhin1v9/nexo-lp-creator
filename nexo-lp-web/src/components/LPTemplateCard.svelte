@@ -1,10 +1,7 @@
 <script>
   import { createEventDispatcher } from 'svelte';
-  import { fly, fade } from 'svelte/transition';
-  import { quintOut } from 'svelte/easing';
 
   export let template = {};
-  export let delay = 0;
 
   const dispatch = createEventDispatcher();
 
@@ -79,6 +76,8 @@
         return { label: 'Available', class: 'bg-emerald-100 text-emerald-700' };
       case 'sanitizing':
         return { label: 'Sanitizing', class: 'bg-amber-100 text-amber-700' };
+      case 'unreviewed':
+        return { label: 'Sem revisão', class: 'bg-rose-100 text-rose-700' };
       case 'failed':
         return { label: 'Failed', class: 'bg-red-100 text-red-700' };
       default:
@@ -151,6 +150,7 @@
   $: gradient = template.gradient || getGradient(template.name);
   $: statusBadge = getStatusBadge(template.status);
   $: isUnavailable = template.status === 'failed' || template.status === 'sanitizing';
+  $: isUnreviewed = template.status === 'unreviewed';
   $: isSanitizing = template.status === 'sanitizing';
   $: metadata = templateMetadata(template);
   $: marketingBadges = getMarketingBadges(template, metadata);
@@ -158,29 +158,37 @@
 </script>
 
 <button
-  class="group text-left rounded-xl border border-luna-border bg-white overflow-hidden card-hover transition-all duration-250 w-full relative"
+  class="template-card group text-left rounded-xl border border-luna-border bg-white overflow-hidden card-hover transition-all duration-250 w-full relative"
   class:opacity-60={isUnavailable}
   class:cursor-not-allowed={isUnavailable}
   on:click={handleClick}
-  in:fly={{ y: 15, duration: 300, delay, easing: quintOut }}
   disabled={isUnavailable}
 >
   <!-- Preview Area -->
   <div class="h-36 bg-gradient-to-br {gradient} relative overflow-hidden">
-    <!-- Abstract Pattern -->
-    <div class="absolute inset-0 opacity-10">
-      <div class="absolute top-4 left-4 w-12 h-12 rounded-lg bg-white transform rotate-12"></div>
-      <div class="absolute bottom-6 right-6 w-16 h-16 rounded-full bg-white transform -rotate-12"></div>
-      <div class="absolute top-1/2 left-1/2 w-8 h-8 rounded bg-white transform -translate-x-1/2 -translate-y-1/2 rotate-45"></div>
-    </div>
-
-    <!-- Preview Content -->
-    <div class="absolute inset-0 flex items-center justify-center text-white p-4">
-      <div class="text-center">
-        <h4 class="text-lg font-bold opacity-90">{template.name}</h4>
-        <p class="text-xs opacity-70 mt-1">{getCategoryLabel(template.category)}</p>
+    {#if template.thumbnail_url}
+      <img
+        src={template.thumbnail_url}
+        alt={template.name}
+        class="absolute inset-0 w-full h-full object-cover"
+        loading="lazy"
+      />
+    {:else}
+      <!-- Abstract Pattern -->
+      <div class="absolute inset-0 opacity-10">
+        <div class="absolute top-4 left-4 w-12 h-12 rounded-lg bg-white transform rotate-12"></div>
+        <div class="absolute bottom-6 right-6 w-16 h-16 rounded-full bg-white transform -rotate-12"></div>
+        <div class="absolute top-1/2 left-1/2 w-8 h-8 rounded bg-white transform -translate-x-1/2 -translate-y-1/2 rotate-45"></div>
       </div>
-    </div>
+
+      <!-- Preview Content -->
+      <div class="absolute inset-0 flex items-center justify-center text-white p-4">
+        <div class="text-center">
+          <h4 class="text-lg font-bold opacity-90">{template.name}</h4>
+          <p class="text-xs opacity-70 mt-1">{getCategoryLabel(template.category)}</p>
+        </div>
+      </div>
+    {/if}
 
     <!-- Marketing Badges -->
     {#if marketingBadges.length > 0}
@@ -199,6 +207,15 @@
         {statusBadge.label}
       </span>
     </div>
+
+    <!-- Unreviewed Discount Badge -->
+    {#if isUnreviewed}
+      <div class="absolute bottom-3 left-3">
+        <span class="px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-500 text-white shadow-sm">
+          Sem revisão · 50% off
+        </span>
+      </div>
+    {/if}
 
     <!-- Sanitizing Overlay -->
     {#if isSanitizing}

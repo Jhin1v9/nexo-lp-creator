@@ -324,6 +324,55 @@ class BridgeAdapter {
   }
 
   /**
+   * Try to fetch an attached/downloadable HTML file that Kimi created in the
+   * chat (e.g. "Download: sanitized.html"). Falls back to null if the file
+   * cannot be located or fetched.
+   * @param {object} context - Generation context with userId
+   * @param {string} text - Kimi text response, used as a hint to locate the file
+   * @returns {Promise<string|null>}
+   */
+  async fetchAttachedHtml(context, text) {
+    const bridge = await this.ensureBridge();
+    if (!bridge) return null;
+
+    const session = bridge.userSessions?.get(context.userId);
+    const page = session?.page;
+    if (!page) return null;
+
+    // Look for an .html file reference in the response as a hint.
+    const fileHintMatch = String(text || '').match(/([a-zA-Z0-9_-]+\.html)/i);
+    const fileHint = fileHintMatch ? fileHintMatch[1] : null;
+
+    try {
+      const fileUrl = await page.evaluate((hint) => {
+        const links = Array.from(document.querySelectorAll('a'));
+        const match = links.find((a) => {
+          const href = (a.href || '').toLowerCase();
+          const txt = (a.textContent || '').toLowerCase();
+          if (href.endsWith('.html')) return true;
+          if (hint && (txt.includes(hint.toLowerCase()) || href.includes(hint.toLowerCase()))) return true;
+          return false;
+        });
+        return match ? match.href : null;
+      }, fileHint);
+
+      if (!fileUrl) return null;
+
+      console.log(`[BridgeAdapter][${context.userId}] Fetching attached HTML file: ${fileUrl}`);
+      const content = await page.evaluate(async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.text();
+      }, fileUrl);
+
+      return content;
+    } catch (err) {
+      console.warn(`[BridgeAdapter][${context.userId}] Failed to fetch attached HTML:`, err.message);
+      return null;
+    }
+  }
+
+  /**
    * Send a streaming message to the AI bridge
    * @param {object} context - Generation context
    * @param {string} prompt - User prompt

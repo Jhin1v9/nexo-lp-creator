@@ -18,7 +18,18 @@ const BridgeAdapter = require('./lpBridgeAdapter.cjs');
 const lpSessionService = require('./lpSessionService');
 const lpVersionService = require('./lpVersionService');
 const lpTemplateService = require('./lpTemplateService');
+const lpBugDetectorService = require('./lpBugDetectorService');
+const lpRebuildEngine = require('./lpRebuildEngine');
 const config = require('../config/nexo-lp-config');
+const { ResponseParser, ReviewValidationError } = require('./luna/ResponseParser.cjs');
+const {
+  intentionPrompt,
+  structurePrompt,
+  codePrompt,
+  reviewPrompt,
+  fixPrompt,
+  reviewRetryPrompt,
+} = require('./prompts/nexoPromptPack');
 
 // Store active SSE connections by sessionId
 const eventStreams = new Map();
@@ -116,34 +127,21 @@ function sleep(ms) {
  * Generation phase prompts
  */
 const PHASE_PROMPTS = {
-  intention: (prompt) =>
-    `Analyze this landing page request and extract structured requirements:\n\n"${prompt}"\n\nReturn a JSON object with: title, description, sections (array), style (tone, colors, typography), target (audience, purpose).`,
-
-  structure: (intention) =>
-    `Design a landing page structure based on these requirements:\n${JSON.stringify(intention, null, 2)}\n\nReturn a JSON object with: layout type, sections array (each with id, type, components, order), navigation boolean, responsive breakpoints.`,
-
-  code: (structure, stack) =>
-    `Generate a complete landing page using ${stack}. Structure:\n${JSON.stringify(structure, null, 2)}\n\n` +
-    `CRITICAL INSTRUCTIONS:\n` +
-    `- Return the FULL code INLINE in your message, wrapped in markdown code blocks (\`\`\`html ... \`\`\`).\n` +
-    `- DO NOT create files, attachments, or sandbox links (never use sandbox:// or file:// links).\n` +
-    `- DO NOT offer downloads or say "download the file above".\n` +
-    `- Return ONLY the code, no explanations.\n` +
-    `Use Tailwind CSS classes. Make it modern, responsive, and visually stunning.`,
-
-
-  review: (html) =>
-    `Review this landing page HTML for quality:\n\n${html.substring(0, 3000)}\n\nReturn a JSON object with: score (0-100), issues array, suggestions array, passed boolean.`,
-
-  preview: () =>
-    `Prepare preview metadata.`,
-
-  deploy: () =>
-    `Prepare deployment configuration.`,
+  intention: (prompt) => intentionPrompt(prompt),
+  structure: (intention) => structurePrompt(intention),
+  code: (structure, stack) => codePrompt(structure, stack),
+  review: (html) => reviewPrompt(html),
+  fix: (html, review) => fixPrompt(html, review),
+  preview: () => 'Prepare preview metadata.',
+  deploy: () => 'Prepare deployment configuration.',
 };
 
 const CONTINUE_PROMPT = 'continue';
+const MAX_REVIEW_RETRIES = 2;
 const MAX_CONTINUE_ATTEMPTS = 5;
+
+const REVIEW_RETRY_PROMPT = (html, reason, rawResponse) =>
+  reviewRetryPrompt(html, reason, rawResponse);
 
 /**
  * Detect if a response is just intermediate metadata JSON and not real code.
@@ -185,6 +183,15 @@ function hasRealCode(text) {
     '<style',
   ];
   return codeMarkers.some((marker) => lower.includes(marker));
+}
+
+/**
+ * Detect when Kimi refuses to continue because the conversation is too long.
+ */
+function isConversationTooLong(text) {
+  if (!text || typeof text !== 'string') return false;
+  const lower = text.toLowerCase();
+  return lower.includes('conversation with kimi is getting too long') || lower.includes('try starting a new session');
 }
 
 class GenerationService {
@@ -391,6 +398,7 @@ class GenerationService {
     const interPhaseDelayMs = config.kimiBridge.cooldownMs || 5000;
 
     let currentHtml = '';
+    let lastValidHtml = '';
 
     // Persist the bridge userId so the same Kimi page/chat is reused for this session
     if (context.userId) {
@@ -398,7 +406,7 @@ class GenerationService {
     }
 
     for (const phase of this.phases) {
-      if (phase === 'deploy') continue; // Deploy is handled separately
+      if (phase === 'deploy' || phase === 'preview') continue; // Deploy handled separately; preview is local
 
       // Start phase
       sendPhaseEvent(sessionId, 'action_start', phase, {
@@ -422,9 +430,6 @@ class GenerationService {
           break;
         case 'review':
           phasePrompt = PHASE_PROMPTS.review(currentHtml);
-          break;
-        case 'preview':
-          phasePrompt = PHASE_PROMPTS.preview();
           break;
         default:
           phasePrompt = prompt;
@@ -464,18 +469,70 @@ class GenerationService {
           case 'code':
             currentHtml = this.extractHtmlFromResponse(content);
             await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
+
+            // Snapshot the raw generated code before QA review
+            try {
+              await lpVersionService.saveVersion(sessionId, {
+                html: currentHtml,
+                css: '',
+                js: '',
+                note: 'Generated code (before review)',
+                metadata: { source: 'code-before-review', stack: selectedStack, isComplete: lpVersionService.isHtmlComplete(currentHtml) },
+              });
+            } catch (versionErr) {
+              console.error(`[GenerationService][${sessionId}] pre-review version snapshot failed:`, versionErr.message);
+            }
+
+            if (lpVersionService.isHtmlComplete(currentHtml)) {
+              lastValidHtml = currentHtml;
+            }
             break;
-          case 'review':
-            context.review = this.safeJsonParse(content, this.generateMockReview(currentHtml));
+          case 'review': {
+            let reviewContent = content;
+            let lastReviewError = null;
+            for (let attempt = 1; attempt <= MAX_REVIEW_RETRIES; attempt += 1) {
+              try {
+                context.review = this.parseReviewResponse(reviewContent, currentHtml, sessionId);
+                lastReviewError = null;
+                break;
+              } catch (err) {
+                lastReviewError = err;
+                console.warn(`[GenerationService][${sessionId}][review] parse attempt ${attempt}/${MAX_REVIEW_RETRIES} failed: ${err.reason || err.message}`);
+                if (attempt === MAX_REVIEW_RETRIES) {
+                  break;
+                }
+                const retryPhase = `review-retry-${attempt}`;
+                sendPhaseEvent(sessionId, 'action_start', retryPhase, {
+                  message: `Review parse failed — retrying QA (${attempt}/${MAX_REVIEW_RETRIES})...`,
+                  attempt,
+                });
+                const retryPrompt = REVIEW_RETRY_PROMPT(currentHtml, err.reason || 'invalid JSON', reviewContent);
+                const retryResponse = await this.sendMessageWithoutHardTimeout(context, retryPrompt, {
+                  stack: selectedStack,
+                  phase: 'review',
+                  phaseTimeoutMs,
+                });
+                reviewContent = retryResponse.content || '';
+                sendPhaseEvent(sessionId, 'action_end', retryPhase, {
+                  message: `Review retry ${attempt} complete`,
+                  attempt,
+                });
+              }
+            }
+            if (lastReviewError) {
+              sendPhaseEvent(sessionId, 'action_error', `review-retry-${MAX_REVIEW_RETRIES}`, {
+                error: lastReviewError.message,
+              });
+              throw lastReviewError;
+            }
+            this.normalizeReviewResult(context.review, currentHtml);
             break;
-          case 'preview':
-            await PreviewService.savePreview(sessionId, currentHtml);
-            break;
+          }
         }
 
         sendPhaseEvent(sessionId, 'action_end', phase, {
           message: this.getPhaseMessage(phase, 'end'),
-          result: context[phase] || (phase === 'code' ? { stack: selectedStack, fileCount: 1 } : { completed: true }),
+          result: context[phase] || (phase === 'code' ? { stack: selectedStack, fileCount: 1, htmlLength: currentHtml.length } : { completed: true }),
         });
 
         // Respect Kimi rate-limit cooldown between phases
@@ -486,6 +543,12 @@ class GenerationService {
           error: error.message,
           recoverable: true,
         });
+
+        // Review phase has no fallback: if Kimi cannot produce a parseable review,
+        // we must fail fast instead of publishing unchecked code.
+        if (phase === 'review') {
+          throw error;
+        }
 
         // Continue with mock/local data on error so the user still gets something
         if (phase === 'intention') context.intention = this.generateMockIntention(prompt);
@@ -498,17 +561,189 @@ class GenerationService {
       }
     }
 
+    // If review failed, attempt to rebuild and re-review the code
+    if (context.review && !context.review.passed) {
+      const maxRebuildAttempts = config.rebuild.maxAttempts || 3;
+      for (let attempt = 1; attempt <= maxRebuildAttempts; attempt++) {
+        const fixPhase = `fix-${attempt}`;
+        const reReviewPhase = `re-review-${attempt}`;
+
+        // 1. Ask Kimi to fix the identified issues
+        let stopRebuild = false;
+        sendPhaseEvent(sessionId, 'action_start', fixPhase, {
+          message: `Corrigindo código (tentativa ${attempt}/${maxRebuildAttempts})...`,
+          attempt,
+          previousReview: context.review,
+        });
+        try {
+          const fixPrompt = PHASE_PROMPTS.fix(currentHtml, context.review);
+          const fixResponse = await this.runCodePhaseWithContinue(sessionId, context, fixPrompt, selectedStack, phaseTimeoutMs);
+          if (isConversationTooLong(fixResponse.content || '')) {
+            console.warn(`[GenerationService][${sessionId}] Kimi reported conversation too long; stopping rebuild loop`);
+            sendPhaseEvent(sessionId, 'action_error', fixPhase, {
+              error: 'Conversation with Kimi is too long; stopping auto-rebuild.',
+              recoverable: false,
+            });
+            stopRebuild = true;
+          } else {
+            const fixedHtml = this.extractHtmlFromResponse(fixResponse.content || '');
+            if (hasRealCode(fixedHtml)) {
+              currentHtml = fixedHtml;
+              await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
+              if (lpVersionService.isHtmlComplete(currentHtml)) {
+                lastValidHtml = currentHtml;
+              }
+              console.log(`[GenerationService][${sessionId}] AI fix attempt ${attempt} applied, html length=${currentHtml.length}`);
+            }
+          }
+        } catch (fixErr) {
+          console.error(`[GenerationService][${sessionId}] AI fix attempt ${attempt} failed:`, fixErr.message);
+        }
+
+        if (stopRebuild) break;
+
+        // 2. Apply local auto-fixes as a safety net
+        try {
+          const localReport = await lpBugDetectorService.detect(sessionId, currentHtml);
+          if (!localReport.passed && localReport.issues && localReport.issues.length > 0) {
+            const rebuildResult = await lpRebuildEngine.rebuild(sessionId, currentHtml, localReport.issues, 1);
+            if (rebuildResult.fixesApplied.length > 0) {
+              currentHtml = rebuildResult.html;
+              await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
+              if (lpVersionService.isHtmlComplete(currentHtml)) {
+                lastValidHtml = currentHtml;
+              }
+              console.log(`[GenerationService][${sessionId}] local fix attempt ${attempt} applied: ${rebuildResult.fixesApplied.length} fixes`);
+            }
+          }
+        } catch (localErr) {
+          console.error(`[GenerationService][${sessionId}] local rebuild attempt ${attempt} failed:`, localErr.message);
+        }
+
+        sendPhaseEvent(sessionId, 'action_end', fixPhase, {
+          message: `Correção ${attempt} finalizada`,
+          attempt,
+        });
+
+        if (stopRebuild) break;
+
+        // 3. Re-run QA review
+        sendPhaseEvent(sessionId, 'action_start', reReviewPhase, {
+          message: `Reverificando qualidade (tentativa ${attempt}/${maxRebuildAttempts})...`,
+          attempt,
+        });
+        try {
+          const reReviewPrompt = PHASE_PROMPTS.review(currentHtml);
+          const reReviewResponse = await this.sendMessageWithoutHardTimeout(context, reReviewPrompt, {
+            stack: selectedStack,
+            phase: 'review',
+            phaseTimeoutMs,
+          });
+          if (isConversationTooLong(reReviewResponse.content || '')) {
+            console.warn(`[GenerationService][${sessionId}] Kimi reported conversation too long during re-review; stopping rebuild loop`);
+            sendPhaseEvent(sessionId, 'action_error', reReviewPhase, {
+              error: 'Conversation with Kimi is too long; stopping auto-rebuild.',
+              recoverable: false,
+            });
+            stopRebuild = true;
+          } else {
+            context.review = await this.parseReviewResponse(reReviewResponse.content || '', currentHtml, sessionId);
+            this.normalizeReviewResult(context.review, currentHtml);
+            console.log(`[GenerationService][${sessionId}] re-review attempt ${attempt}: passed=${context.review.passed}, score=${context.review.score}`);
+          }
+        } catch (reviewErr) {
+          console.error(`[GenerationService][${sessionId}] re-review attempt ${attempt} failed:`, reviewErr.message);
+          sendPhaseEvent(sessionId, 'action_error', reReviewPhase, {
+            error: reviewErr.message,
+            recoverable: true,
+          });
+        }
+
+        sendPhaseEvent(sessionId, 'action_end', reReviewPhase, {
+          message: `Reverificação ${attempt} finalizada`,
+          attempt,
+          result: {
+            passed: !!context.review?.passed,
+            score: context.review?.score,
+          },
+        });
+
+        if (stopRebuild) break;
+
+        if (context.review?.passed) {
+          break;
+        }
+
+        await sleep(interPhaseDelayMs);
+      }
+    }
+
+    // Always keep the session on the last complete HTML. If the final code is
+    // truncated or broken, roll back to the most recent valid snapshot.
+    if (lastValidHtml && !lpVersionService.isHtmlComplete(currentHtml)) {
+      currentHtml = lastValidHtml;
+      await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
+      console.log(`[GenerationService][${sessionId}] rolled back to last complete HTML (${currentHtml.length} chars)`);
+    }
+
+    // Snapshot the final code after QA review / rebuild loop
+    try {
+      await lpVersionService.saveVersion(sessionId, {
+        html: currentHtml,
+        css: '',
+        js: '',
+        note: 'Final code after review',
+        metadata: { source: 'code-after-review', stack: selectedStack, isComplete: lpVersionService.isHtmlComplete(currentHtml), reviewPassed: !!context.review?.passed },
+      });
+    } catch (versionErr) {
+      console.error(`[GenerationService][${sessionId}] post-review version snapshot failed:`, versionErr.message);
+    }
+
+    // Preview is generated locally (no AI prompt needed)
+    sendPhaseEvent(sessionId, 'action_start', 'preview', {
+      message: this.getPhaseMessage('preview', 'start'),
+    });
+    await SessionRepository.updateStatus(sessionId, 'preview');
+    try {
+      await PreviewService.savePreview(sessionId, currentHtml);
+      sendPhaseEvent(sessionId, 'action_end', 'preview', {
+        message: this.getPhaseMessage('preview', 'end'),
+        result: { completed: true },
+      });
+    } catch (previewErr) {
+      console.error(`[GenerationService][${sessionId}] preview save failed:`, previewErr.message);
+      sendPhaseEvent(sessionId, 'action_error', 'preview', {
+        error: previewErr.message,
+        recoverable: true,
+      });
+    }
+
     // Publish to LOJA
     console.info(`[GenerationService][${sessionId}] Publishing to LOJA...`);
     try {
-      const publishedTemplate = await lpTemplateService.publishFromSession(sessionId, context.userId || options.userId);
-      console.info(`[GenerationService][${sessionId}] Published to LOJA: ${publishedTemplate.id}`);
-      sendPhaseEvent(sessionId, 'action_end', 'publish', {
-        message: 'Published to LOJA',
-        success: true,
-        templateId: publishedTemplate.id,
-        publicPreviewToken: publishedTemplate.public_preview_token,
-      });
+      const userId = context.userId || options.userId;
+      const reviewPassed = !!context.review?.passed;
+
+      if (reviewPassed) {
+        const publishedTemplate = await lpTemplateService.publishFromSession(sessionId, userId);
+        console.info(`[GenerationService][${sessionId}] Published to LOJA: ${publishedTemplate.id}`);
+        sendPhaseEvent(sessionId, 'action_end', 'publish', {
+          message: 'Published to LOJA',
+          success: true,
+          templateId: publishedTemplate.id,
+          publicPreviewToken: publishedTemplate.public_preview_token,
+        });
+      } else {
+        const publishedTemplate = await lpTemplateService.publishUnreviewedFromSession(sessionId, userId, 'review-failed');
+        console.info(`[GenerationService][${sessionId}] Published to LOJA as unreviewed: ${publishedTemplate.id}`);
+        sendPhaseEvent(sessionId, 'action_end', 'publish', {
+          message: 'Published to LOJA as unreviewed (discounted)',
+          success: true,
+          unreviewed: true,
+          templateId: publishedTemplate.id,
+          publicPreviewToken: publishedTemplate.public_preview_token,
+        });
+      }
     } catch (publishErr) {
       console.error(`[GenerationService][${sessionId}] LOJA publish failed: ${publishErr.message}`);
       sendPhaseEvent(sessionId, 'action_end', 'publish', {
@@ -545,13 +780,6 @@ class GenerationService {
       kimiChatUrl: context.chatUrl,
       ...contextInfo,
     });
-
-    // Persist a version snapshot for rollback / history
-    try {
-      await lpVersionService.snapshot(sessionId, 'generation');
-    } catch (err) {
-      console.error(`[GenerationService][${sessionId}] version snapshot failed:`, err.message);
-    }
   }
 
   /**
@@ -1122,8 +1350,28 @@ ${body}
       score: Math.max(0, score),
       issues,
       suggestions: ['Add more visual elements', 'Consider adding animations'],
-      passed: score >= 70,
+      passed: score >= 90 && issues.every((i) => i.severity !== 'critical' && i.severity !== 'error'),
     };
+  }
+
+  /**
+   * Normalize a review result so passed=false whenever critical/error issues exist
+   * or the local bug detector rejects the HTML.
+   * @param {object} review
+   * @param {string} html
+   */
+  normalizeReviewResult(review, html) {
+    if (!review || typeof review !== 'object') {
+      return;
+    }
+
+    const hasCriticalOrError = (review.issues || []).some(
+      (issue) => issue.severity === 'critical' || issue.severity === 'error'
+    );
+
+    if (review.score < 90 || hasCriticalOrError) {
+      review.passed = false;
+    }
   }
 
   /**
@@ -1145,53 +1393,72 @@ ${body}
   }
 
   /**
-   * Safely parse JSON, return fallback on error
+   * Extract the best review-like JSON object from a string.
+   * Delegates to ResponseParser.
+   * @param {string} str
+   * @returns {object|null}
+   */
+  extractJsonObject(str) {
+    return ResponseParser.extractJsonObject(str);
+  }
+
+  /**
+   * Normalize a parsed review-like object into a consistent shape.
+   * Delegates to ResponseParser.
+   * @param {object} parsed
+   * @returns {object|null}
+   */
+  normalizeReviewShape(parsed) {
+    return ResponseParser.normalizeReviewShape(parsed);
+  }
+
+  /**
+   * Safely parse JSON, return fallback on error.
    * @param {string} str
    * @param {object} fallback
    * @returns {object}
    */
   safeJsonParse(str, fallback) {
+    const parsed = ResponseParser.extractJsonObject(str);
+    if (parsed !== null) {
+      return parsed;
+    }
+    return fallback;
+  }
+
+  /**
+   * Parse a review-phase response using the real ResponseParser.
+   * No local bug-detector fallbacks: if Kimi returns an empty or malformed
+   * review, we throw ReviewValidationError so the caller can retry with a
+   * stricter prompt.
+   * @param {string} content - Raw Kimi response
+   * @param {string} html - Current HTML being reviewed
+   * @param {string} sessionId - For logging
+   * @returns {object} Review object
+   */
+  parseReviewResponse(content, html, sessionId) {
     try {
-      // Try to extract JSON from markdown code blocks
-      const codeBlockMatch = str.match(/```(?:json)?\n?([\s\S]*?)```/);
-      if (codeBlockMatch) {
-        return JSON.parse(codeBlockMatch[1].trim());
-      }
-      return JSON.parse(str);
-    } catch {
-      return fallback;
+      const review = ResponseParser.extractReviewFromResponse(content);
+      console.log(
+        `[GenerationService][${sessionId}] Parsed review JSON with ${review.issues.length} issue(s), score=${review.score}, passed=${review.passed}`
+      );
+      return review;
+    } catch (err) {
+      console.warn(
+        `[GenerationService][${sessionId}] Review parse failed: ${err.reason || err.message}. Raw response (${(content || '').length} chars): ${String(content || '').slice(0, 2000).replace(/\n/g, ' ')}`
+      );
+      throw err;
     }
   }
 
   /**
-   * Extract HTML from AI response (handles code blocks and Kimi code-block headers)
+   * Extract HTML from AI response.
+   * Delegates to ResponseParser.
    * @param {string} response
    * @returns {string}
    */
   extractHtmlFromResponse(response) {
-    if (!response) return '';
-    let text = response;
-
-    // Strip common Kimi code-block headers that leak from the DOM extraction
-    text = text.replace(/^(HTML|CSS|JavaScript|JS|JSON)\s*(Preview|Copy|复制|複製)?\s*/i, '');
-
-    // Try to extract from markdown code block
-    const codeBlockMatch = text.match(/```(?:html)?\n?([\s\S]*?)```/);
-    if (codeBlockMatch) {
-      return codeBlockMatch[1].trim();
-    }
-
-    // If the text contains <!DOCTYPE or <html, slice from the first HTML-like start
-    const doctypeIdx = text.toLowerCase().indexOf('<!doctype');
-    const htmlIdx = text.toLowerCase().indexOf('<html');
-    const startIdx = doctypeIdx >= 0 && htmlIdx >= 0
-      ? Math.min(doctypeIdx, htmlIdx)
-      : (doctypeIdx >= 0 ? doctypeIdx : htmlIdx);
-    if (startIdx >= 0) {
-      return text.slice(startIdx).trim();
-    }
-
-    return text.trim();
+    return ResponseParser.extractHtmlFromResponse(response);
   }
 }
 
@@ -1200,3 +1467,4 @@ module.exports.registerEventStream = registerEventStream;
 module.exports.unregisterEventStream = unregisterEventStream;
 module.exports.closeAllStreams = closeAllStreams;
 module.exports.emitGenerationEvent = emitGenerationEvent;
+module.exports.PHASE_PROMPTS = PHASE_PROMPTS;

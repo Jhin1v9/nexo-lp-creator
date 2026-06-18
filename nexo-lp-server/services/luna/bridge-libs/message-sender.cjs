@@ -153,6 +153,14 @@ class MessageSender {
     if (options.newChat && !isAgentOrSwarm) {
       await page.goto('https://www.kimi.com/?chat_enter_method=new_chat&lang=en', { waitUntil: 'domcontentloaded' });
       await page.waitForTimeout(2000);
+
+      // Hard refresh on the same tab to bypass any cached Kimi state.
+      if (options.hardRefresh) {
+        await page.bringToFront();
+        await page.keyboard.press('Control+Alt+F5');
+        await page.waitForTimeout(2000);
+      }
+
       if (session) {
         session.chatUrl = page.url();
         this.bridge._saveChatUrl(userId, session.chatUrl);

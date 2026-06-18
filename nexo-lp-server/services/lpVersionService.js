@@ -87,8 +87,21 @@ class VersionService {
       css: session.generated_css || '',
       js: session.generated_js || '',
       changeSummary: `Saved after ${source}`,
-      metadata: { source, stack: session.stack },
+      metadata: { source, stack: session.stack, isComplete: this.isHtmlComplete(session.current_html) },
     });
+  }
+
+  /**
+   * Check if a generated HTML string looks complete and functional.
+   */
+  isHtmlComplete(html) {
+    if (!html || typeof html !== 'string') return false;
+    const lower = html.toLowerCase().trim();
+    if (!lower.includes('<!doctype html>') && !lower.includes('<html')) return false;
+    if (!lower.includes('</html>')) return false;
+    if (!lower.includes('<body')) return false;
+    if (html.length < 150) return false;
+    return true;
   }
 }
 

@@ -1,5 +1,7 @@
 <script>
+  import { onMount } from 'svelte';
   import { fade, fly } from 'svelte/transition';
+  import { gsap } from 'gsap';
   import { templates, showNotification, currentTemplate } from '../stores.js';
   import * as api from '../api.js';
   import LPTemplateCard from './LPTemplateCard.svelte';
@@ -14,6 +16,9 @@
   let subcategories = [];
   let loadingSubcategories = false;
   let fetchController = null;
+  let headerEl;
+  let gridEl;
+  let previousLoading = true;
 
   const categories = [
     { id: 'all', label: 'All', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>' },
@@ -175,6 +180,7 @@
         category: activeCategory,
         subcategory: activeSubcategory,
         search: searchQuery,
+        limit: 100,
       }, fetchController.signal);
       const backendTemplates = data?.templates || [];
       if (backendTemplates.length > 0) {
@@ -257,14 +263,59 @@
     showModal = false;
     selectedTemplate = null;
   }
+
+  function animateCards() {
+    if (!gridEl) return;
+    const cards = gridEl.querySelectorAll('.template-card');
+    gsap.fromTo(
+      cards,
+      { opacity: 0, y: 20, scale: 0.96 },
+      {
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        duration: 0.4,
+        stagger: 0.04,
+        ease: 'power3.out',
+        overwrite: 'auto',
+      }
+    );
+  }
+
+  $: if (loading) {
+    previousLoading = true;
+  } else if (previousLoading && gridEl && filteredTemplates.length > 0) {
+    previousLoading = false;
+    animateCards();
+  }
+
+  onMount(() => {
+    if (!headerEl) return;
+    const title = headerEl.querySelector('.store-title');
+    const filters = headerEl.querySelectorAll('.store-filter');
+    const search = headerEl.querySelector('.store-search');
+
+    gsap.fromTo(
+      [title, search, ...filters],
+      { opacity: 0, y: -12 },
+      {
+        opacity: 1,
+        y: 0,
+        duration: 0.6,
+        stagger: 0.06,
+        ease: 'power3.out',
+        overwrite: 'auto',
+      }
+    );
+  });
 </script>
 
 <div class="flex flex-col h-full bg-luna-surface overflow-hidden">
   <!-- Header -->
-  <div class="flex-shrink-0 bg-white border-b border-luna-border px-6 py-4">
+  <div bind:this={headerEl} class="flex-shrink-0 bg-white border-b border-luna-border px-6 py-4">
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
       <div>
-        <h2 class="text-lg font-semibold text-luna-text">Template Marketplace</h2>
+        <h2 class="store-title text-lg font-semibold text-luna-text">Template Marketplace</h2>
         <p class="text-xs text-luna-text-muted mt-0.5">
           {filteredTemplates.length} of {$templates.length} templates shown
           {#if activeSubcategory !== 'all'}in {activeSubcategory}{/if}
@@ -272,7 +323,7 @@
       </div>
 
       <!-- Search -->
-      <div class="relative w-full sm:w-72">
+      <div class="store-search relative w-full sm:w-72">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="absolute left-3 top-1/2 -translate-y-1/2 text-luna-text-muted"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
         <input
           type="text"
@@ -295,7 +346,7 @@
     <div class="flex items-center gap-2 mt-4 overflow-x-auto pb-1 scrollbar-hide">
       {#each categories as category}
         <button
-          class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200"
+          class="store-filter flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all duration-200"
           class:bg-luna-primary={activeCategory === category.id}
           class:text-white={activeCategory === category.id}
           class:bg-transparent={activeCategory !== category.id}
@@ -358,12 +409,11 @@
         <p class="text-sm text-luna-text-muted">Fetching the latest templates from the studio.</p>
       </div>
     {:else if filteredTemplates.length > 0}
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {#each filteredTemplates as template, i (template.id)}
+      <div bind:this={gridEl} class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {#each filteredTemplates as template (template.id)}
           <LPTemplateCard
             {template}
             on:click={() => handleTemplateClick(template)}
-            delay={i * 60}
           />
         {/each}
       </div>

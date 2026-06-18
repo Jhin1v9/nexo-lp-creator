@@ -178,6 +178,31 @@ router.post('/sessions/:id/messages', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * POST /sessions/:id/publish
+ * Publish a session's generated landing page to the LOJA.
+ * Creates a template in 'sanitizing' status and triggers the Luna/Kimi
+ * sanitization orchestrator. Returns the created template immediately;
+ * sanitization continues in the background.
+ */
+router.post('/sessions/:id/publish', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const session = await lpSessionService.getSessionById(id);
+
+  if (!session) {
+    return res.status(404).json(errorResponse('Session not found', 'NOT_FOUND', 404));
+  }
+
+  const template = await lpTemplateService.publishFromSession(id, session.user_id);
+
+  res.status(201).json(successResponse({
+    sessionId: id,
+    templateId: template.id,
+    status: template.status,
+    publicPreviewToken: template.public_preview_token,
+  }, 'Session published to LOJA. Sanitization started in background.'));
+}));
+
+/**
  * PATCH /sessions/:id
  * Rename a session (updates its title/initial prompt)
  */
@@ -684,6 +709,45 @@ router.get('/templates/:id', asyncHandler(async (req, res) => {
   }
 
   res.status(200).json(successResponse(template, 'Template retrieved successfully'));
+}));
+
+/**
+ * PATCH /templates/:id
+ * Update template fields such as thumbnail_url, name, description, etc.
+ * Intended for admin/maintenance use (e.g. attaching generated thumbnails).
+ */
+router.patch('/templates/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const allowed = ['name', 'description', 'category', 'subcategory', 'tags', 'thumbnail_url', 'metadata_json'];
+  const updates = {};
+  for (const key of allowed) {
+    if (req.body[key] !== undefined) {
+      updates[key] = req.body[key];
+    }
+  }
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json(errorResponse('No allowed fields provided', 'INVALID_PARAM', 400));
+  }
+
+  const template = await lpTemplateService.updateTemplate(id, updates);
+  if (!template) {
+    return res.status(404).json(errorResponse('Template not found', 'NOT_FOUND', 404));
+  }
+
+  res.status(200).json(successResponse(template, 'Template updated successfully'));
+}));
+
+/**
+ * POST /templates/:id/enrich-local
+ * Enrich template metadata locally from its HTML (no Kimi/Chrome).
+ * Updates name, description, category, subcategory, tags, and metadata_json.
+ */
+router.post('/templates/:id/enrich-local', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const template = await lpTemplateService.enrichMetadataLocal(id);
+
+  res.status(200).json(successResponse(template, 'Template metadata enriched locally'));
 }));
 
 /**

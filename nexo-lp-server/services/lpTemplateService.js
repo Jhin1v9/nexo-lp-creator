@@ -13,6 +13,7 @@ const crypto = require('crypto');
 const TemplateRepository = require('../models/repositories/TemplateRepository');
 const TemplatePurchaseRepository = require('../models/repositories/TemplatePurchaseRepository');
 const SessionRepository = require('../models/repositories/SessionRepository');
+const MessageRepository = require('../models/repositories/MessageRepository');
 const CurrencyRepository = require('../models/repositories/CurrencyRepository');
 const PreviewService = require('./lpPreviewService');
 const SanitizationOrchestrator = require('./lpSanitizationOrchestrator');
@@ -147,7 +148,7 @@ class TemplateService {
       created_by: userId,
       session_id: sessionId,
       kimi_chat_url: chatUrl,
-      is_public: 0,
+      is_public: 1,
     });
 
     await PreviewService.publishPublicPreview(sessionId, this._blockedPreviewHtml(template.name), token);
@@ -156,6 +157,108 @@ class TemplateService {
       .catch((err) => console.error('[LOJA] Sanitization orchestrator failed:', err.message));
 
     return template;
+  }
+
+  /**
+   * Publish a session that has not passed QA review as an "unreviewed" template.
+   * The template is sold at half price until it is later sanitized and promoted
+   * to 'available'.
+   * @param {string} sessionId
+   * @param {string} userId
+   * @param {string} reason - Why it is unreviewed (e.g. 'review-failed', 'cron-backfill')
+   * @returns {object} Created template
+   */
+  async publishUnreviewedFromSession(sessionId, userId, reason = 'unreviewed') {
+    const session = await SessionRepository.findById(sessionId);
+    if (!session) throw new Error('Session not found');
+    if (session.user_id !== userId) throw new Error('Unauthorized');
+
+    const html = session.current_html || '';
+    if (!this._isValidHtml(html)) {
+      throw new Error('Session does not contain valid HTML');
+    }
+
+    const existing = await TemplateRepository.findBySessionId(sessionId);
+    if (existing) return existing;
+
+    const prompt = session.initial_prompt || '';
+    const token = PreviewService.generatePublicToken();
+
+    let metadataKimiChatUrl = null;
+    if (session.metadata_json) {
+      try {
+        metadataKimiChatUrl = JSON.parse(session.metadata_json).kimiChatUrl || null;
+      } catch {
+        metadataKimiChatUrl = null;
+      }
+    }
+    const chatUrl = session.kimi_chat_url || metadataKimiChatUrl || null;
+
+    const originalPrices = config.loja.defaultPrices;
+    const discountedPrices = {
+      stars: Math.max(1, Math.ceil(originalPrices.stars / 2)),
+      suns: Math.max(0, Math.ceil(originalPrices.suns / 2)),
+      moons: Math.max(0, Math.ceil(originalPrices.moons / 2)),
+    };
+
+    const template = await TemplateRepository.create({
+      name: this._generateName(session),
+      description: this._generateDescription(session),
+      category: 'landing',
+      stack: session.stack || 'react-tailwind',
+      html,
+      original_html: html,
+      status: 'unreviewed',
+      public_preview_token: token,
+      prompt_hash: this._hashPrompt(prompt),
+      prompt_censored: '[PROMPT BLOCKED — purchase this template in the LOJA to unlock the original prompt]',
+      price_stars: discountedPrices.stars,
+      price_suns: discountedPrices.suns,
+      price_moons: discountedPrices.moons,
+      original_price_stars: originalPrices.stars,
+      original_price_suns: originalPrices.suns,
+      original_price_moons: originalPrices.moons,
+      source: 'generated',
+      created_by: userId,
+      session_id: sessionId,
+      kimi_chat_url: chatUrl,
+      unreviewed_reason: reason,
+      is_public: 1,
+    });
+
+    // For unreviewed templates the buyer needs to see the actual (unsanitized)
+    // HTML in the preview to decide whether to buy discounted or wait.
+    await PreviewService.publishPublicPreview(sessionId, html, token);
+
+    return template;
+  }
+
+  /**
+   * Promote an unreviewed template to fully reviewed/available.
+   * Restores the original price.
+   * @param {string} templateId
+   * @returns {object|null}
+   */
+  async promoteToReviewed(templateId) {
+    const template = await TemplateRepository.findById(templateId);
+    if (!template) return null;
+    if (template.status !== 'unreviewed') return template;
+
+    return TemplateRepository.update(templateId, {
+      status: 'available',
+      is_public: 2,
+      reviewed_at: new Date().toISOString(),
+      unreviewed_reason: null,
+      price_stars: template.original_price_stars || config.loja.defaultPrices.stars,
+      price_suns: template.original_price_suns || config.loja.defaultPrices.suns,
+      price_moons: template.original_price_moons || config.loja.defaultPrices.moons,
+    });
+  }
+
+  _isValidHtml(html) {
+    if (!html || typeof html !== 'string' || html.length < 15000) return false;
+    const lower = html.toLowerCase();
+    return lower.includes('<!doctype html>') && lower.includes('<html') && lower.includes('</html>') && lower.includes('<body');
   }
 
   /**
@@ -187,6 +290,28 @@ class TemplateService {
   }
 
   /**
+   * Resolve the original user prompt for a template.
+   * Prefers the first user message of the source session, then the session's
+   * initial_prompt, then a fallback based on the template name.
+   * @param {object} template
+   * @param {object|null} sourceSession
+   * @returns {Promise<string>}
+   */
+  async resolveOriginalPrompt(template, sourceSession) {
+    if (sourceSession) {
+      const messages = await MessageRepository.findBySession(sourceSession.id, { limit: 100 });
+      const firstUserMessage = messages.find((m) => m.role === 'user');
+      if (firstUserMessage && typeof firstUserMessage.content === 'string' && firstUserMessage.content.trim()) {
+        return firstUserMessage.content.trim();
+      }
+      if (sourceSession.initial_prompt && typeof sourceSession.initial_prompt === 'string' && sourceSession.initial_prompt.trim()) {
+        return sourceSession.initial_prompt.trim();
+      }
+    }
+    return `Template based on ${template.name}`;
+  }
+
+  /**
    * Use a purchased template as the starting point for a session.
    * If sessionId is provided, applies the template to that existing session
    * (after verifying ownership); otherwise creates a new session.
@@ -206,16 +331,22 @@ class TemplateService {
 
     await TemplateRepository.incrementUsage(templateId);
 
+    const sourceSession = await SessionRepository.findById(template.session_id);
+    const originalPrompt = await this.resolveOriginalPrompt(template, sourceSession);
+
     let targetSession;
     if (sessionId) {
       const existingSession = await SessionRepository.findById(sessionId);
       if (!existingSession) throw new Error('Session not found');
       if (existingSession.user_id !== userId) throw new Error('Unauthorized');
-      targetSession = existingSession;
+      targetSession = await SessionRepository.update(existingSession.id, {
+        initial_prompt: originalPrompt,
+        stack: template.stack || existingSession.stack,
+      });
     } else {
       targetSession = await SessionRepository.create({
         user_id: userId,
-        initial_prompt: `Template based on ${template.name}`,
+        initial_prompt: originalPrompt,
         stack: template.stack,
         status: 'created',
       });
@@ -234,6 +365,7 @@ class TemplateService {
       sessionId: session.id,
       templateId: template.id,
       templateName: template.name,
+      initialPrompt: session.initial_prompt,
       status: session.status,
       stack: session.stack,
       current_html: session.current_html,
@@ -259,9 +391,10 @@ class TemplateService {
     const purchased = await TemplatePurchaseRepository.findByTemplateAndUser(templateId, userId);
     if (purchased) {
       const session = await SessionRepository.findById(template.session_id);
+      const originalPrompt = await this.resolveOriginalPrompt(template, session);
       return {
         unlocked: true,
-        prompt: session ? session.initial_prompt : null,
+        prompt: originalPrompt,
         censored: false,
       };
     }
@@ -463,6 +596,123 @@ class TemplateService {
 
   _generateDescription(session) {
     return `Generated landing page using ${session.stack || 'react-tailwind'}`;
+  }
+
+  /**
+   * Enrich template metadata locally by extracting title/description from the
+   * HTML and inferring category/tags from the content. Does NOT use Kimi/Chrome.
+   * @param {string} templateId
+   * @returns {object} Updated template
+   */
+  async enrichMetadataLocal(templateId) {
+    const template = await this.repository.findById(templateId);
+    if (!template) throw new Error('Template not found');
+
+    const html = template.html || template.original_html || '';
+    const titleMatch = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+
+    const htmlTitle = (titleMatch ? titleMatch[1] : '').trim();
+    const description = (descMatch ? descMatch[1] : template.description || htmlTitle || '').trim();
+    const text = `${template.name} ${description} ${html}`.toLowerCase();
+
+    const category = this._inferCategory(text);
+    const subcategory = this._inferSubcategory(text, category);
+    const tags = this._inferTags(text, category);
+    const features = this._inferFeatures(text);
+
+    const metadata = {
+      category,
+      subcategory,
+      tags,
+      niche: category,
+      audience: 'general',
+      difficulty: 'beginner',
+      features,
+      colors: ['#6366F1', '#8B5CF6', '#0F172A'],
+      style: 'modern',
+      seoKeywords: tags,
+      badges: [],
+      whyBuy: description || 'High-converting landing page template.',
+      useCases: ['Landing page', 'Marketing campaign', 'Product launch'],
+    };
+
+    return this.repository.update(templateId, {
+      name: (template.name || htmlTitle || 'Landing Page').slice(0, 100),
+      description: description.slice(0, 500),
+      category,
+      subcategory,
+      tags: tags.join(','),
+      metadata_json: JSON.stringify(metadata),
+    });
+  }
+
+  _inferCategory(text) {
+    // Must match the CHECK constraint in the templates table.
+    if (/restaurant|restaurante|caf[eé]|coffee|padaria|bakery|gelato|pizza|sorvete|food|comida/.test(text)) return 'business';
+    if (/clinic|cl[ií]nica|hospital|medical|m[eé]dico|health|sa[uú]de/.test(text)) return 'business';
+    if (/saas|software|app|tech|tecnologia|plataforma|dashboard/.test(text)) return 'saas';
+    if (/portfolio|designer|developer|freelancer/.test(text)) return 'portfolio';
+    if (/agency|ag[eê]ncia|marketing|digital/.test(text)) return 'agency';
+    if (/event|evento|show|conference|festa|futebol|sports|esporte/.test(text)) return 'event';
+    if (/ecommerce|shop|store|loja|produto|product|venda|jogo|game/.test(text)) return 'ecommerce';
+    if (/course|curso|escola|school|education|educa/.test(text)) return 'business';
+    if (/startup|launch/.test(text)) return 'startup';
+    return 'landing';
+  }
+
+  _inferSubcategory(text, category) {
+    const map = {
+      food: /restaurant|restaurante/.test(text) ? 'restaurant' : /padaria|bakery/.test(text) ? 'bakery' : /caf[eé]|coffee/.test(text) ? 'cafe' : /gelato|sorvete|ice.cream/.test(text) ? 'ice-cream' : 'food',
+      health: /clinic|cl[ií]nica/.test(text) ? 'clinic' : 'health',
+      saas: /b2b/.test(text) ? 'b2b-saas' : 'saas',
+      agency: 'digital-agency',
+      event: /futebol|sports|esporte/.test(text) ? 'sports' : 'event',
+      ecommerce: /product|produto/.test(text) ? 'product' : 'store',
+      education: /course|curso/.test(text) ? 'course' : 'school',
+      startup: 'launch',
+      portfolio: 'creative',
+      landing: 'landing',
+    };
+    return map[category] || category;
+  }
+
+  _inferTags(text, category) {
+    const tags = new Set([category, 'responsive', 'modern']);
+    const keywordMap = {
+      restaurant: ['restaurant', 'food', 'menu', 'reservation'],
+      cafe: ['cafe', 'coffee', 'breakfast', 'cozy'],
+      bakery: ['bakery', 'bread', 'fresh', 'artisan'],
+      clinic: ['clinic', 'medical', 'healthcare', 'appointment'],
+      saas: ['saas', 'software', 'b2b', 'pricing'],
+      agency: ['agency', 'marketing', 'services', 'portfolio'],
+      event: ['event', 'landing', 'rsvp'],
+      ecommerce: ['ecommerce', 'product', 'shopping', 'store'],
+      education: ['course', 'education', 'learning', 'school'],
+      startup: ['startup', 'launch', 'innovation'],
+      portfolio: ['portfolio', 'creative', 'gallery'],
+    };
+    (keywordMap[category] || []).forEach((t) => tags.add(t));
+    if (/hero|header/.test(text)) tags.add('hero');
+    if (/pricing|pre[cç]o|plan/.test(text)) tags.add('pricing');
+    if (/testimonial|depoimento|review/.test(text)) tags.add('testimonials');
+    if (/contact|contato|form/.test(text)) tags.add('contact');
+    if (/footer/.test(text)) tags.add('footer');
+    return Array.from(tags).slice(0, 10);
+  }
+
+  _inferFeatures(text) {
+    const features = [];
+    if (/hero|banner/.test(text)) features.push('Hero section');
+    if (/feature|recurso|benefit|benef[ií]cio/.test(text)) features.push('Features grid');
+    if (/pricing|pre[cç]o|plan/.test(text)) features.push('Pricing table');
+    if (/testimonial|depoimento|review/.test(text)) features.push('Testimonials');
+    if (/contact|contato|form/.test(text)) features.push('Contact form');
+    if (/gallery|galeria|portfolio/.test(text)) features.push('Gallery');
+    if (/cta|call.to.action/.test(text)) features.push('Call-to-action');
+    if (/faq/.test(text)) features.push('FAQ');
+    if (features.length === 0) features.push('Hero section', 'Call-to-action');
+    return features;
   }
 }
 

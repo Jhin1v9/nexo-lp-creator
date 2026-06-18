@@ -17,6 +17,7 @@ const SessionRepository = require('../nexo-lp-server/models/repositories/Session
 const TemplateRepository = require('../nexo-lp-server/models/repositories/TemplateRepository');
 const SanitizationOrchestrator = require('../nexo-lp-server/services/lpSanitizationOrchestrator');
 const PreviewService = require('../nexo-lp-server/services/lpPreviewService');
+const BridgeAdapter = require('../nexo-lp-server/services/lpBridgeAdapter.cjs');
 
 const SAMPLE_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -133,7 +134,10 @@ async function main() {
     fs.writeFileSync(logPath, JSON.stringify(result.log, null, 2));
     console.log(`Log saved to: ${logPath}`);
   } finally {
+    await BridgeAdapter.disconnect();
     closeDatabase();
+    // Force exit so Playwright's CDP transport doesn't keep the process alive.
+    process.exit(0);
   }
 }
 

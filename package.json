@@ -15,6 +15,9 @@
     "test:e2e:debug": "cd e2e && npx playwright test --debug",
     "test:e2e:restaurant": "node scripts/e2e-restaurant-test.js",
     "import:kimi-chats": "node scripts/import-kimi-chats-to-loja.js",
+    "generate:thumbnails": "node scripts/generate-template-thumbnails.js",
+    "enrich:metadata": "node scripts/enrich-template-metadata.js",
+    "cron:publish-unreviewed": "node scripts/cron-publish-unreviewed.js",
     "integrate": "bash scripts/verify-build.sh && bash scripts/run-all-tests.sh"
   },
   "keywords": [

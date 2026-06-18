@@ -136,6 +136,25 @@
   function getDiffPreview(version) {
     return getChanges(version).map((change) => `+ ${change}`).join('\n');
   }
+
+  function isCompleteVersion(version) {
+    if (version.metadata) {
+      try {
+        const meta = typeof version.metadata === 'string' ? JSON.parse(version.metadata) : version.metadata;
+        return meta.isComplete === true;
+      } catch (e) {
+        // ignore
+      }
+    }
+    return true;
+  }
+
+  $: sortedVersions = ($versionHistory || []).slice().sort((a, b) => {
+    const aComplete = isCompleteVersion(a) ? 1 : 0;
+    const bComplete = isCompleteVersion(b) ? 1 : 0;
+    if (aComplete !== bComplete) return bComplete - aComplete;
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
 </script>
 
 <div class="flex flex-col h-full bg-white overflow-hidden">
@@ -143,7 +162,7 @@
   <div class="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-luna-border">
     <div>
       <h2 class="text-lg font-semibold text-luna-text">Version History</h2>
-      <p class="text-xs text-luna-text-muted mt-0.5">{$versionHistory.length} versions saved</p>
+      <p class="text-xs text-luna-text-muted mt-0.5">{$versionHistory.length} versions saved · complete first</p>
     </div>
     <button
       class="flex items-center gap-2 px-4 py-2 rounded-xl btn-primary text-white text-sm font-medium"
@@ -166,7 +185,7 @@
         <div class="absolute left-[19px] top-0 bottom-0 w-0.5 bg-luna-border"></div>
 
         <div class="space-y-4">
-          {#each $versionHistory as version, i (version.id)}
+          {#each sortedVersions as version, i (version.id)}
             <div
               class="relative flex gap-4 group"
               in:fly={{ y: 10, duration: 250, delay: i * 50 }}
@@ -175,7 +194,7 @@
               <div class="relative z-10 flex-shrink-0">
                 <div class="w-10 h-10 rounded-full {getVersionColor(i)} bg-opacity-10 border-2 border-white shadow-sm flex items-center justify-center">
                   <span class="text-xs font-bold {getVersionColor(i)} text-opacity-80" style="color: inherit;">
-                    {$versionHistory.length - i}
+                    {sortedVersions.length - i}
                   </span>
                 </div>
               </div>
@@ -183,7 +202,7 @@
               <!-- Version Card -->
               <div class="flex-1 min-w-0">
                 <button
-                  class="w-full text-left p-4 rounded-xl border border-luna-border bg-white hover:border-luna-primary/30 hover:shadow-md transition-all duration-200"
+                  class="w-full text-left p-4 rounded-xl border border-luna-border bg-white hover:border-luna-primary/30 hover:shadow-md transition-all duration-200 {isCompleteVersion(version) ? '' : 'opacity-75'}"
                   on:click={() => toggleVersionDetails(version)}
                 >
                   <div class="flex items-start justify-between gap-3">
@@ -193,6 +212,9 @@
                         <span class="text-xs text-luna-text-muted">{formatTime(version.created_at)}</span>
                         <span class="text-xs text-luna-text-muted">{formatFullTime(version.created_at)}</span>
                         <span class="px-1.5 py-0.5 rounded bg-luna-surface text-[10px] text-luna-text-muted">{version.version_number ? `v${version.version_number}` : 'manual'}</span>
+                        {#if !isCompleteVersion(version)}
+                          <span class="px-1.5 py-0.5 rounded bg-amber-50 text-[10px] text-amber-700 border border-amber-100">incomplete</span>
+                        {/if}
                       </div>
                     </div>
                     <div class="flex items-center gap-2 flex-shrink-0">

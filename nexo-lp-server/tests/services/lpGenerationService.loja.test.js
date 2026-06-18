@@ -196,4 +196,389 @@ describe('lpGenerationService LOJA integration', () => {
 
     publishSpy.mockRestore();
   }, 30000);
+
+  test('rebuilds code when QA review fails and stops sending preview prompts to AI', async () => {
+    const session = await createSession();
+    sessionId = session.id;
+
+    let codeCallCount = 0;
+    let reviewCallCount = 0;
+
+    BridgeAdapter.sendMessage.mockImplementation(async (_context, prompt, options = {}) => {
+      switch (options.phase) {
+        case 'intention':
+          return {
+            content: JSON.stringify({
+              title: 'Coffee Shop',
+              description: 'Fresh coffee landing page',
+              sections: ['hero', 'features', 'cta'],
+              style: {
+                tone: 'modern',
+                colors: { primary: '#3B82F6', secondary: '#1E293B', accent: '#10B981' },
+                typography: 'modern',
+              },
+              target: { audience: 'general', purpose: 'branding' },
+            }),
+          };
+        case 'structure':
+          return {
+            content: JSON.stringify({
+              layout: 'single-page',
+              sections: [
+                { id: 'hero', type: 'hero-section', components: ['heading', 'subheading'], order: 1 },
+                { id: 'features', type: 'features-section', components: ['feature-cards'], order: 2 },
+                { id: 'cta', type: 'cta-section', components: ['cta-button'], order: 3 },
+              ],
+              navigation: true,
+              responsive_breakpoints: ['mobile', 'tablet', 'desktop'],
+            }),
+          };
+        case 'code': {
+          codeCallCount += 1;
+          // First code call returns broken HTML; subsequent calls (fix prompts) return corrected HTML
+          const html = codeCallCount === 1
+            ? '<!DOCTYPE html><html><body><h1>Coffee Shop</h1><button>Click</button></body></html>'
+            : '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Coffee Shop</title></head><body><h1>Coffee Shop</h1><button type="button">Click</button></body></html>';
+          return { content: `\`\`\`html\n${html}\n\`\`\`` };
+        }
+        case 'review': {
+          reviewCallCount += 1;
+          // First review fails; re-review passes
+          if (reviewCallCount === 1) {
+            return {
+              content: JSON.stringify({
+                score: 65,
+                issues: [
+                  { severity: 'error', message: 'Missing viewport meta tag' },
+                  { severity: 'warning', message: 'Button missing type attribute' },
+                ],
+                suggestions: ['Add viewport meta', 'Add button type'],
+                passed: true, // intentionally wrong to test normalization
+              }),
+            };
+          }
+          return {
+            content: JSON.stringify({ score: 95, issues: [], suggestions: [], passed: true }),
+          };
+        }
+        default:
+          return { content: '' };
+      }
+    });
+
+    await lpGenerationService.startGeneration(
+      sessionId,
+      'A landing page for my coffee shop',
+      'react-tailwind',
+      { userId }
+    );
+
+    const finalSession = await SessionRepository.findById(sessionId);
+    expect(finalSession.status).toBe('preview');
+
+    // Should have generated initial code + at least one fix attempt
+    expect(codeCallCount).toBeGreaterThanOrEqual(2);
+    // Should have run initial review + re-review
+    expect(reviewCallCount).toBeGreaterThanOrEqual(2);
+
+    // The preview phase should never be sent to the AI bridge
+    const previewCalls = BridgeAdapter.sendMessage.mock.calls.filter(([, , opts]) => opts && opts.phase === 'preview');
+    expect(previewCalls.length).toBe(0);
+
+    // Final HTML should be the corrected one (has viewport meta)
+    expect(finalSession.current_html).toContain('viewport');
+  }, 30000);
+
+  test('sends complete HTML (not truncated) to QA review when HTML exceeds 4000 chars', async () => {
+    const session = await createSession();
+    sessionId = session.id;
+
+    const longHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Long Page</title></head><body><h1>Long Page</h1>' +
+      '<p>' + 'x'.repeat(5000) + '</p>' +
+      '</body></html>';
+
+    BridgeAdapter.sendMessage.mockImplementation(async (_context, prompt, options = {}) => {
+      switch (options.phase) {
+        case 'intention':
+          return {
+            content: JSON.stringify({
+              title: 'Long Page',
+              description: 'A long landing page',
+              sections: ['hero', 'features', 'cta'],
+              style: {
+                tone: 'modern',
+                colors: { primary: '#3B82F6', secondary: '#1E293B', accent: '#10B981' },
+                typography: 'modern',
+              },
+              target: { audience: 'general', purpose: 'branding' },
+            }),
+          };
+        case 'structure':
+          return {
+            content: JSON.stringify({
+              layout: 'single-page',
+              sections: [
+                { id: 'hero', type: 'hero-section', components: ['heading', 'subheading'], order: 1 },
+                { id: 'features', type: 'features-section', components: ['feature-cards'], order: 2 },
+                { id: 'cta', type: 'cta-section', components: ['cta-button'], order: 3 },
+              ],
+              navigation: true,
+              responsive_breakpoints: ['mobile', 'tablet', 'desktop'],
+            }),
+          };
+        case 'code':
+          return { content: `\`\`\`html\n${longHtml}\n\`\`\`` };
+        case 'review':
+          return {
+            content: JSON.stringify({ score: 95, issues: [], suggestions: [], passed: true }),
+          };
+        default:
+          return { content: '' };
+      }
+    });
+
+    await lpGenerationService.startGeneration(
+      sessionId,
+      'A landing page with lots of content',
+      'react-tailwind',
+      { userId }
+    );
+
+    const reviewCalls = BridgeAdapter.sendMessage.mock.calls.filter(([, , opts]) => opts && opts.phase === 'review');
+    expect(reviewCalls.length).toBeGreaterThanOrEqual(1);
+
+    const reviewPrompt = reviewCalls[0][1];
+    expect(reviewPrompt).toContain(longHtml);
+    expect(reviewPrompt).not.toContain(longHtml.substring(0, 4000) + 'CRITICAL RULES');
+    expect(reviewPrompt.length).toBeGreaterThan(longHtml.length + 200);
+
+    const finalSession = await SessionRepository.findById(sessionId);
+    expect(finalSession.status).toBe('preview');
+  }, 30000);
+
+  describe('JSON parsing robustness', () => {
+    test('extractJsonObject parses JSON prefixed with Kimi code-block header', () => {
+      const review = {
+        score: 72,
+        issues: [{ severity: 'error', message: 'Hero overflow' }],
+        suggestions: ['Fix it'],
+        passed: false,
+      };
+      const text = `JSON\n${JSON.stringify(review)}`;
+      const parsed = lpGenerationService.extractJsonObject(text);
+      expect(parsed).toEqual(review);
+    });
+
+    test('extractJsonObject parses JSON inside markdown code block', () => {
+      const review = { score: 90, issues: [], suggestions: [], passed: true };
+      const text = `\`\`\`json\n${JSON.stringify(review)}\n\`\`\``;
+      const parsed = lpGenerationService.extractJsonObject(text);
+      expect(parsed).toEqual(review);
+    });
+
+    test('extractJsonObject parses plain JSON', () => {
+      const review = { score: 85, issues: [], suggestions: [], passed: false };
+      const parsed = lpGenerationService.extractJsonObject(JSON.stringify(review));
+      expect(parsed).toEqual(review);
+    });
+
+    test('extractJsonObject parses JSON wrapped in explanatory text', () => {
+      const review = {
+        score: 72,
+        issues: [{ severity: 'error', message: 'Mobile menu lacks aria attributes' }],
+        suggestions: ['Add aria-label'],
+        passed: false,
+      };
+      const text = `Aqui está o review solicitado:\n${JSON.stringify(review)}\nEspero que ajude.`;
+      const parsed = lpGenerationService.extractJsonObject(text);
+      expect(parsed).toEqual(review);
+    });
+
+    test('safeJsonParse returns fallback when no JSON is found', () => {
+      const fallback = { score: 0, issues: [] };
+      const parsed = lpGenerationService.safeJsonParse('just plain text without json', fallback);
+      expect(parsed).toEqual(fallback);
+    });
+
+    test('extractJsonObject parses JSON with trailing commas', () => {
+      const text = `{\n  "score": 72,\n  "issues": [{\n    "severity": "error",\n    "message": "Broken link",\n  },],\n  "passed": false,\n}`;
+      const parsed = lpGenerationService.extractJsonObject(text);
+      expect(parsed.score).toBe(72);
+      expect(parsed.issues).toHaveLength(1);
+      expect(parsed.issues[0].message).toBe('Broken link');
+    });
+
+    test('extractJsonObject picks the review-like object among multiple JSON objects', () => {
+      const small = JSON.stringify({ ok: true });
+      const review = JSON.stringify({
+        score: 55,
+        issues: [{ severity: 'critical', message: 'Truncated HTML' }],
+        suggestions: ['Fix it'],
+        passed: false,
+      });
+      const text = `${small}\n${review}\n${small}`;
+      const parsed = lpGenerationService.extractJsonObject(text);
+      expect(parsed.score).toBe(55);
+      expect(parsed.issues).toHaveLength(1);
+    });
+
+    test('extractJsonObject normalizes old {ok, corrections} schema', () => {
+      const text = JSON.stringify({
+        ok: false,
+        corrections: ['Fix div', 'Add alt text'],
+        metadata: { category: 'saas' },
+      });
+      const parsed = lpGenerationService.extractJsonObject(text);
+      expect(parsed.passed).toBe(false);
+      expect(parsed.issues).toHaveLength(2);
+      expect(parsed.issues[0].severity).toBe('warning');
+    });
+
+    test('extractJsonObject parses a top-level issues array', () => {
+      const issues = [{ severity: 'warning', message: 'Low contrast' }];
+      const parsed = lpGenerationService.extractJsonObject(JSON.stringify(issues));
+      expect(parsed.issues).toEqual(issues);
+    });
+  });
+
+  test('sends real review issues to fix prompt when Kimi response includes a header', async () => {
+    const session = await createSession();
+    sessionId = session.id;
+
+    const realIssues = [
+      { severity: 'error', message: 'Hero phone mockup board overflows container' },
+      { severity: 'warning', message: 'Viewport meta prevents zoom' },
+    ];
+
+    let fixPromptReceived = null;
+
+    BridgeAdapter.sendMessage.mockImplementation(async (_context, prompt, options = {}) => {
+      switch (options.phase) {
+        case 'intention':
+          return {
+            content: JSON.stringify({
+              title: 'Coffee Shop',
+              description: 'Fresh coffee landing page',
+              sections: ['hero', 'features', 'cta'],
+              style: {
+                tone: 'modern',
+                colors: { primary: '#3B82F6', secondary: '#1E293B', accent: '#10B981' },
+                typography: 'modern',
+              },
+              target: { audience: 'general', purpose: 'branding' },
+            }),
+          };
+        case 'structure':
+          return {
+            content: JSON.stringify({
+              layout: 'single-page',
+              sections: [
+                { id: 'hero', type: 'hero-section', components: ['heading', 'subheading'], order: 1 },
+                { id: 'features', type: 'features-section', components: ['feature-cards'], order: 2 },
+                { id: 'cta', type: 'cta-section', components: ['cta-button'], order: 3 },
+              ],
+              navigation: true,
+              responsive_breakpoints: ['mobile', 'tablet', 'desktop'],
+            }),
+          };
+        case 'code': {
+          if (prompt.includes('PHASE: Rebuild / Fix')) {
+            fixPromptReceived = prompt;
+            return {
+              content: '```html\n<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Fixed</title></head><body><h1>Coffee Shop</h1><button type="button">Click</button></body></html>\n```',
+            };
+          }
+          return {
+            content: '```html\n<!DOCTYPE html><html><body><h1>Coffee Shop</h1><button>Click</button></body></html>\n```',
+          };
+        }
+        case 'review':
+          return {
+            content: `JSON\n${JSON.stringify({
+              score: 72,
+              issues: realIssues,
+              suggestions: ['Fix overflow', 'Allow zoom'],
+              passed: false,
+            })}`,
+          };
+        default:
+          return { content: '' };
+      }
+    });
+
+    await lpGenerationService.startGeneration(
+      sessionId,
+      'A landing page for my coffee shop',
+      'react-tailwind',
+      { userId }
+    );
+
+    expect(fixPromptReceived).not.toBeNull();
+    expect(fixPromptReceived).toContain('Hero phone mockup board overflows container');
+    expect(fixPromptReceived).toContain('Viewport meta prevents zoom');
+    expect(fixPromptReceived).not.toContain('No images detected');
+  }, 30000);
+
+  test('retries review prompt and fails generation when review response stays unparseable', async () => {
+    const session = await createSession();
+    sessionId = session.id;
+
+    const EXPECTED_REVIEW_CALLS = 2; // initial + one retry
+
+    BridgeAdapter.sendMessage.mockImplementation(async (_context, prompt, options = {}) => {
+      switch (options.phase) {
+        case 'intention':
+          return {
+            content: JSON.stringify({
+              title: 'Coffee Shop',
+              description: 'Fresh coffee landing page',
+              sections: ['hero', 'features', 'cta'],
+              style: { tone: 'modern', colors: { primary: '#3B82F6' }, typography: 'modern' },
+              target: { audience: 'general', purpose: 'branding' },
+            }),
+          };
+        case 'structure':
+          return {
+            content: JSON.stringify({
+              layout: 'single-page',
+              sections: [{ id: 'hero', type: 'hero-section', components: ['heading'], order: 1 }],
+              navigation: true,
+              responsive_breakpoints: ['mobile', 'tablet', 'desktop'],
+            }),
+          };
+        case 'code':
+          return {
+            content: '```html\n<!DOCTYPE html><html><body><h1>Coffee Shop</h1><button>Click</button></body></html>\n```',
+          };
+        case 'review':
+          // Persistently return a response that cannot be parsed as JSON
+          return {
+            content: 'I think the page looks good overall, but there are a few minor improvements we could make.',
+          };
+        default:
+          return { content: '' };
+      }
+    });
+
+    await lpGenerationService.startGeneration(
+      sessionId,
+      'A landing page for my coffee shop',
+      'react-tailwind',
+      { userId }
+    );
+
+    const finalSession = await SessionRepository.findById(sessionId);
+    expect(finalSession.status).toBe('failed');
+
+    // Initial review + retry (no bug-detector fallback)
+    const reviewCalls = BridgeAdapter.sendMessage.mock.calls.filter(([, , opts]) => opts && opts.phase === 'review');
+    expect(reviewCalls.length).toBe(EXPECTED_REVIEW_CALLS);
+
+    // Retry prompts should ask for strict JSON and include the previous raw response
+    const retryPrompts = reviewCalls.slice(1).map((call) => call[1]);
+    for (const retryPrompt of retryPrompts) {
+      expect(retryPrompt).toContain('JSON');
+      expect(retryPrompt).toContain('I think the page looks good overall');
+    }
+  }, 30000);
 });

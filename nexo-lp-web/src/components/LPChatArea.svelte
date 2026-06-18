@@ -11,6 +11,7 @@
   import ModeSelector from './ModeSelector.svelte';
   import GenerationPhaseCards from './GenerationPhaseCards.svelte';
   import LPPhaseInfoCard from './LPPhaseInfoCard.svelte';
+  import LPConfirmationModal from './LPConfirmationModal.svelte';
 
   let inputValue = '';
   let chatContainer;
@@ -20,6 +21,8 @@
   let isTyping = false;
   let scrollToBottomTimeout;
   let responseBuffer = '';
+  let activeEventSource = null;
+  let showCancelModal = false;
 
   function syncContextStores() {
     kimiChatUrl.set(lpClient.getKimiChatUrl());

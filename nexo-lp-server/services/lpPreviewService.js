@@ -182,15 +182,74 @@ class PreviewService {
   }
 
   /**
+   * Build a deterministic fallback image URL. Tries LoremFlickr with a keyword
+   * derived from the image alt text; falls back to Lorem Picsum otherwise.
+   */
+  buildFallbackImageUrl(originalUrl, keyword = '') {
+    const unsplashMatch = originalUrl.match(/https:\/\/images\.unsplash\.com\/photo-?-?[^?]*(\?[^\s"'`()]*)?/i);
+    if (!unsplashMatch) return originalUrl;
+
+    const query = originalUrl.match(/\?([^\s"'`()]*)$/)?.[1] || '';
+    const params = new URLSearchParams(query);
+    const w = parseInt(params.get('w'), 10) || 800;
+    const h = parseInt(params.get('h'), 10) || Math.round(w * 0.625);
+
+    const cleanKeyword = (keyword || 'nexo')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, ',')
+      .replace(/,{2,}/g, ',')
+      .replace(/^,|,$/g, '')
+      .toLowerCase()
+      .slice(0, 60);
+
+    if (cleanKeyword && cleanKeyword !== 'nexo') {
+      const prompt = cleanKeyword.replace(/,/g, ' ');
+      return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${w}&height=${h}&nologo=true`;
+    }
+
+    const seed = originalUrl.replace(/[^a-zA-Z0-9]/g, '').slice(-20) || 'nexo';
+    return `https://picsum.photos/seed/${seed}/${w}/${h}`;
+  }
+
+  /**
+   * Replace unreliable Unsplash URLs (often invented by the LLM) with real
+   * fallback images. <img> tags use their alt text as a LoremFlickr keyword;
+   * background images and missing alts fall back to Lorem Picsum.
+   */
+  normalizeImageUrls(html) {
+    if (!html || typeof html !== 'string') return html;
+
+    // Handle <img> tags with alt text
+    let normalized = html.replace(/<img\b[^>]*>/gi, (tag) => {
+      const srcMatch = tag.match(/src\s*=\s*["'](https:\/\/images\.unsplash\.com\/[^"']+)["']/i);
+      if (!srcMatch) return tag;
+
+      const altMatch = tag.match(/alt\s*=\s*["']([^"']*)["']/i);
+      const keyword = altMatch ? altMatch[1] : '';
+      const fallbackUrl = this.buildFallbackImageUrl(srcMatch[1], keyword);
+      return tag.replace(srcMatch[1], fallbackUrl);
+    });
+
+    // Handle remaining Unsplash URLs (background-image, etc.)
+    const unsplashRegex = /https:\/\/images\.unsplash\.com\/photo-?-?[^?\s"'`()]+(\?[^\s"'`()]*)?/gi;
+    normalized = normalized.replace(unsplashRegex, (match) => this.buildFallbackImageUrl(match));
+
+    return normalized;
+  }
+
+  /**
    * Wrap raw HTML body in a complete HTML document
    * @param {string} html - Raw HTML content
    * @param {object} assets - { css, js }
    * @returns {string} Complete HTML document
    */
   wrapHtml(html, assets = {}) {
-    // If already a full HTML document, return as-is
-    if (html.trim().toLowerCase().startsWith('<!doctype') || html.trim().toLowerCase().startsWith('<html')) {
-      return html;
+    const normalizedHtml = this.normalizeImageUrls(html);
+
+    // If already a full HTML document, normalize and return as-is
+    if (normalizedHtml.trim().toLowerCase().startsWith('<!doctype') || normalizedHtml.trim().toLowerCase().startsWith('<html')) {
+      return normalizedHtml;
     }
 
     const cssBlock = assets.css ? `<style>\n${assets.css}\n</style>` : '';
@@ -211,7 +270,7 @@ class PreviewService {
   ${cssBlock}
 </head>
 <body>
-${html}
+${normalizedHtml}
 ${jsBlock}
 </body>
 </html>`;

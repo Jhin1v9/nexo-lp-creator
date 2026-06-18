@@ -3,83 +3,61 @@ const TemplateRepository = require('../models/repositories/TemplateRepository');
 const PreviewService = require('./lpPreviewService');
 const TemplateScreenshotService = require('./lpTemplateScreenshotService');
 const BridgeAdapter = require('./lpBridgeAdapter.cjs');
+const { ResponseParser } = require('./luna/ResponseParser.cjs');
+const {
+  sanitizePrompt,
+  sanitizeRetryPrompt,
+  sanitizeReviewPrompt,
+  sanitizeRefinePrompt,
+} = require('./prompts/nexoPromptPack');
 
-const HYBRID_SANITIZE_PROMPT = `You are a strict HTML sanitizer and frontend optimizer for the NEXO Digital landing page store (https://www.nexo-digital.app/pt).
-
-TASK: Sanitize, debug, and lightly improve the landing page HTML below.
-
-RULES:
-1. Remove all brand names, personal names, emails, phone numbers, addresses, and real business data.
-2. Replace removed data with neutral placeholder content for NEXO Digital:
-   - Brand name: NEXO Digital
-   - Site: https://www.nexo-digital.app/pt
-   - Slogan: We create digital experiences that convert.
-   - Email: contato@nexo-digital.app
-   - Primary colors: #6366F1 and #8B5CF6
-3. Fix any obvious HTML/CSS/JS bugs while preserving layout, structure, and Tailwind classes.
-4. Keep images as generic placeholders (Unsplash generic keywords or SVG placeholders).
-5. Lightly improve copy and spacing if it improves conversion, but do NOT add new sections.
-6. Return ONLY the complete, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanations, no comments outside the code.
-
-HTML to sanitize and improve:`;
-
-const REVIEW_PROMPT = `Review the sanitized landing page HTML below for the NEXO Digital template store.
-
-Your job is to:
-1. Decide if the HTML is technically correct, safe, and ready to publish.
-2. Verify the HTML starts with <!DOCTYPE html> and ends with </html> and has no truncated tags.
-3. Propose corrections if anything is wrong.
-4. Categorize the template and generate rich marketplace metadata.
-
-Reply ONLY with a JSON object matching this exact schema (no markdown, no explanations):
-{
-  "ok": true,
-  "corrections": [],
-  "metadata": {
-    "category": "saas",
-    "subcategory": "b2b-saas",
-    "tags": ["modern", "clean", "pricing"],
-    "niche": "B2B SaaS",
-    "audience": "Startup founders and product teams",
-    "difficulty": "beginner",
-    "features": ["Hero section", "Pricing table", "Testimonials", "CTA"],
-    "colors": ["#6366F1", "#8B5CF6", "#0F172A"],
-    "style": "modern minimal",
-    "seoKeywords": ["saas landing page", "b2b software"],
-    "badges": ["Trending"],
-    "whyBuy": "High-converting B2B layout with clear pricing and social proof.",
-    "useCases": ["Product launch", "SaaS signup", "Feature announcement"]
-  }
-}
-
-If corrections are needed, set ok to false and list them:
-{
-  "ok": false,
-  "corrections": ["Fix broken closing div", "Replace remaining brand name"],
-  "metadata": { ...same schema... }
-}
-
-HTML to review:`;
-
-const REFINE_PROMPT = `You are a strict HTML sanitizer and frontend optimizer for the NEXO Digital landing page store.
-
-Apply the corrections below to the provided HTML.
-
-RULES:
-1. Keep the NEXO Digital placeholders already applied.
-2. Fix all listed issues.
-3. Return ONLY the complete, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanations, no comments outside the code.
-
-Corrections:`;
+const buildSanitizePrompt = (originalHtml) => sanitizePrompt(originalHtml);
+const buildSanitizeRetryPrompt = (originalHtml) => sanitizeRetryPrompt(originalHtml);
+const buildReviewPrompt = (html) => sanitizeReviewPrompt(html);
+const buildRefinePrompt = (html, corrections) => sanitizeRefinePrompt(html, corrections);
 
 class SanitizationOrchestrator extends EventEmitter {
   constructor() {
     super();
     this.setMaxListeners(50);
+    const concurrency = parseInt(process.env.SANITIZE_CONCURRENCY, 10);
+    this.concurrency = Number.isNaN(concurrency) ? 3 : concurrency;
+    this.running = 0;
+    this.queue = [];
+    this.lastKimiRequestAt = 0;
+    const delay = parseInt(process.env.SANITIZE_KIMI_DELAY_MS, 10);
+    this.kimiRequestDelayMs = Number.isNaN(delay) ? 3000 : delay;
+  }
+
+  async _enqueue(work) {
+    return new Promise((resolve, reject) => {
+      this.queue.push({ work, resolve, reject });
+      this._drain();
+    });
+  }
+
+  async _drain() {
+    if (this.running >= this.concurrency || this.queue.length === 0) return;
+
+    const { work, resolve, reject } = this.queue.shift();
+    this.running += 1;
+
+    try {
+      const result = await work();
+      resolve(result);
+    } catch (err) {
+      reject(err);
+    } finally {
+      this.running -= 1;
+      setImmediate(() => this._drain());
+    }
   }
 
   /**
    * Start the automatic sanitization pipeline.
+   * Requests are queued so that at most SANITIZE_CONCURRENCY (default 3)
+   * sanitizations run simultaneously, preventing Chrome from spawning too
+   * many pages at once.
    * @param {string} sessionId
    * @param {string} originalHtml
    * @param {string} originalPrompt
@@ -87,6 +65,10 @@ class SanitizationOrchestrator extends EventEmitter {
    * @param {string} userId
    */
   async startSanitization(sessionId, originalHtml, originalPrompt, kimiChatUrl, userId) {
+    return this._enqueue(() => this._runSanitization(sessionId, originalHtml, originalPrompt, kimiChatUrl, userId));
+  }
+
+  async _runSanitization(sessionId, originalHtml, originalPrompt, kimiChatUrl, userId) {
     const template = await TemplateRepository.findBySessionId(sessionId);
     if (!template) {
       throw new Error(`Template not found for session ${sessionId}`);
@@ -111,16 +93,35 @@ class SanitizationOrchestrator extends EventEmitter {
       let step1Result = null;
       for (let attempt = 1; attempt <= 2; attempt += 1) {
         const prompt = attempt === 1
-          ? `${HYBRID_SANITIZE_PROMPT}\n\n${originalHtml}`
-          : `The HTML you returned previously was incomplete or truncated. Please return the COMPLETE, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>. No markdown fences, no explanations.\n\nHTML to sanitize and improve:\n\n${originalHtml}`;
+          ? buildSanitizePrompt(originalHtml)
+          : buildSanitizeRetryPrompt(originalHtml);
 
         step1Result = await this._sendToKimi(
           context,
           prompt,
-          { mode: 'instant', phase: 'sanitize', newChat: attempt === 1 }
+          { mode: 'instant', phase: 'sanitize' }
         );
 
         currentHtml = this._extractHtml(step1Result.content);
+
+        // Fallback: Kimi sometimes returns a downloadable HTML file instead of
+        // pasting the code. Try to fetch the attached file from the chat page.
+        if (!this._isValidHtml(currentHtml) && this._looksLikeFileResponse(step1Result.content)) {
+          const attachedHtml = await BridgeAdapter.fetchAttachedHtml(context, step1Result.content);
+          if (attachedHtml && this._isValidHtml(attachedHtml)) {
+            currentHtml = attachedHtml;
+            log.attempts.push({
+              step: 1,
+              mode: 'instant',
+              attempt,
+              note: 'HTML fetched from attached file',
+              finishedAt: new Date().toISOString(),
+              responseLength: currentHtml.length,
+              valid: true,
+            });
+          }
+        }
+
         log.attempts.push({
           step: 1,
           mode: 'instant',
@@ -144,7 +145,7 @@ class SanitizationOrchestrator extends EventEmitter {
 
       const step2Result = await this._sendToKimi(
         context,
-        `${REVIEW_PROMPT}\n\n${currentHtml}`,
+        buildReviewPrompt(currentHtml),
         { mode: 'thinking', phase: 'review' }
       );
 
@@ -163,7 +164,7 @@ class SanitizationOrchestrator extends EventEmitter {
         const correctionsText = review.corrections.map((c, i) => `${i + 1}. ${c}`).join('\n');
         const step3Result = await this._sendToKimi(
           context,
-          `${REFINE_PROMPT}\n${correctionsText}\n\nHTML to refine:\n${currentHtml}`,
+          buildRefinePrompt(currentHtml, correctionsText),
           { mode: 'thinking', phase: 'refine' }
         );
 
@@ -190,12 +191,10 @@ class SanitizationOrchestrator extends EventEmitter {
       // Merge metadata with defaults
       const metadata = this._normalizeMetadata(review.metadata);
 
-      // Finalize
+      // Finalize: unreviewed templates are promoted; sanitizing templates become available.
       await TemplateRepository.update(template.id, {
         sanitized_html: currentHtml,
         html: currentHtml,
-        status: 'available',
-        is_public: 1,
         category: metadata.category,
         subcategory: metadata.subcategory,
         tags: Array.isArray(metadata.tags) ? metadata.tags.join(',') : null,
@@ -204,6 +203,16 @@ class SanitizationOrchestrator extends EventEmitter {
       });
 
       await PreviewService.updatePublicPreview(template.public_preview_token, currentHtml);
+
+      if (template.status === 'unreviewed') {
+        const lpTemplateService = require('./lpTemplateService');
+        await lpTemplateService.promoteToReviewed(template.id);
+      } else {
+        await TemplateRepository.update(template.id, {
+          status: 'available',
+          is_public: 2,
+        });
+      }
 
       // Generate thumbnail in the background; never fail sanitization because of a screenshot.
       TemplateScreenshotService.captureTemplateScreenshot(template.id, template.public_preview_token)
@@ -222,17 +231,50 @@ class SanitizationOrchestrator extends EventEmitter {
     } catch (err) {
       log.error = err.message;
 
-      // Last-resort fallback: apply deterministic regex sanitization so the
-      // template is not left stuck in a failed state.
+      if (template.status === 'unreviewed') {
+        // Already unreviewed: keep it that way and just log the sanitization attempt.
+        try {
+          await TemplateRepository.update(template.id, {
+            sanitization_log: JSON.stringify(log),
+          });
+        } catch (updateErr) {
+          log.error = `${err.message}; log update failed: ${updateErr.message}`;
+        }
+        this.emit('sanitization:error', { sessionId, error: log.error });
+        return { success: false, error: log.error, log };
+      }
+
+      // Last-resort fallback for sanitizing templates: mark as unreviewed and sell at half price.
       const fallbackHtml = this._basicSanitizeFallback(originalHtml);
       try {
         await TemplateRepository.update(template.id, {
           sanitized_html: fallbackHtml,
           html: fallbackHtml,
-          status: 'available',
+          status: 'unreviewed',
           is_public: 1,
+          unreviewed_reason: 'sanitization-review-failed',
           sanitization_log: JSON.stringify(log),
         });
+
+        const originalPrices = {
+          stars: template.original_price_stars || template.price_stars,
+          suns: template.original_price_suns || template.price_suns,
+          moons: template.original_price_moons || template.price_moons,
+        };
+        const discountedPrices = {
+          stars: Math.max(1, Math.ceil(originalPrices.stars / 2)),
+          suns: Math.max(0, Math.ceil(originalPrices.suns / 2)),
+          moons: Math.max(0, Math.ceil(originalPrices.moons / 2)),
+        };
+        await TemplateRepository.update(template.id, {
+          price_stars: discountedPrices.stars,
+          price_suns: discountedPrices.suns,
+          price_moons: discountedPrices.moons,
+          original_price_stars: originalPrices.stars,
+          original_price_suns: originalPrices.suns,
+          original_price_moons: originalPrices.moons,
+        });
+
         await PreviewService.updatePublicPreview(template.public_preview_token, fallbackHtml);
 
         // Generate thumbnail for the fallback version as well.
@@ -252,21 +294,31 @@ class SanitizationOrchestrator extends EventEmitter {
       this.emit('sanitization:complete', {
         sessionId,
         templateId: template.id,
-        success: true,
+        success: false,
         htmlLength: fallbackHtml.length,
         metadata: this._normalizeMetadata(),
         fallback: true,
+        unreviewed: true,
         error: err.message,
       });
 
-      return { success: true, templateId: template.id, log, metadata: this._normalizeMetadata(), fallback: true, error: err.message };
+      return { success: false, templateId: template.id, log, metadata: this._normalizeMetadata(), fallback: true, unreviewed: true, error: err.message };
     }
   }
 
   async _sendToKimi(context, prompt, options = {}) {
+    // Slow down requests to avoid Kimi rate limits when sanitizing many templates.
+    const now = Date.now();
+    const elapsed = now - this.lastKimiRequestAt;
+    if (elapsed < this.kimiRequestDelayMs) {
+      await new Promise((resolve) => setTimeout(resolve, this.kimiRequestDelayMs - elapsed));
+    }
+    this.lastKimiRequestAt = Date.now();
+
     return BridgeAdapter.sendMessage(context, prompt, {
       mode: options.mode || 'instant',
-      newChat: false,
+      newChat: true,
+      hardRefresh: true,
       phaseTimeoutMs: 0,
       ...options,
     });
@@ -295,6 +347,23 @@ class SanitizationOrchestrator extends EventEmitter {
     return trimmed;
   }
 
+  /**
+   * Detect when Kimi responded with a downloadable file instead of pasted code.
+   */
+  _looksLikeFileResponse(text) {
+    if (!text || typeof text !== 'string') return false;
+    const lower = text.toLowerCase();
+    const hasHtmlRef = /[a-z0-9_-]+\.html/i.test(text);
+    return (
+      lower.includes('download') ||
+      lower.includes('download:') ||
+      lower.includes('anexo') ||
+      lower.includes('attached') ||
+      lower.includes('arquivo') ||
+      (hasHtmlRef && lower.includes('file'))
+    );
+  }
+
   _isValidHtml(html) {
     if (!html || html.length < 200) return false;
     const lower = html.toLowerCase();
@@ -314,19 +383,32 @@ class SanitizationOrchestrator extends EventEmitter {
   }
 
   _parseReview(text) {
-    if (!text) return { ok: false, corrections: ['Empty review response'] };
-    const trimmed = text.trim();
+    if (!text) return { ok: false, corrections: ['Empty review response'], metadata: {} };
 
-    const jsonMatch = trimmed.match(/\{[\s\S]*\}/);
+    // Use the same robust parser as the review phase to handle markdown fences,
+    // explanatory text, truncated JSON, and the {ok, corrections, metadata} schema.
+    const normalized = ResponseParser.extractJsonObject(text);
+    if (normalized && typeof normalized.passed === 'boolean') {
+      const corrections = Array.isArray(normalized.issues)
+        ? normalized.issues.map((i) => (typeof i === 'string' ? i : i.message || String(i)))
+        : (Array.isArray(normalized.suggestions) ? normalized.suggestions : []);
+      return {
+        ok: normalized.passed,
+        corrections,
+        metadata: normalized.metadata || {},
+      };
+    }
+
+    // Last-resort raw scan for the {ok, corrections, metadata} shape.
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       try {
         const parsed = JSON.parse(jsonMatch[0]);
-        if (parsed.ok === true) return { ok: true, corrections: [], metadata: parsed.metadata };
-        if (parsed.ok === false) {
+        if (typeof parsed.ok === 'boolean') {
           return {
-            ok: false,
-            corrections: Array.isArray(parsed.corrections) ? parsed.corrections : [String(parsed.corrections)],
-            metadata: parsed.metadata,
+            ok: parsed.ok,
+            corrections: Array.isArray(parsed.corrections) ? parsed.corrections : [],
+            metadata: parsed.metadata || {},
           };
         }
       } catch {
@@ -334,12 +416,12 @@ class SanitizationOrchestrator extends EventEmitter {
       }
     }
 
-    const lower = trimmed.toLowerCase();
+    const lower = text.trim().toLowerCase();
     if (lower.startsWith('ok') || lower === 'ok.') {
       return { ok: true, corrections: [], metadata: {} };
     }
 
-    return { ok: false, corrections: [trimmed.slice(0, 500)], metadata: {} };
+    return { ok: false, corrections: [text.trim().slice(0, 500)], metadata: {} };
   }
 
   _normalizeMetadata(metadata = {}) {

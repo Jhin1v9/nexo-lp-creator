@@ -97,4 +97,29 @@ describe('lpPreviewService - public previews', () => {
       previewService.updatePublicPreview(token, '<p>New</p>')
     ).rejects.toThrow(`Public preview not found: ${token}`);
   });
+
+  test('normalizeImageUrls replaces invalid Unsplash URLs with AI-generated fallback images', () => {
+    const html = '<img src="https://images.unsplash.com/photo--4d71bcdd2085?w=1920&q=80" alt="Café de especialidad"><div style="background-image:url(https://images.unsplash.com/photo-abc?w=600)"></div>';
+    const normalized = previewService.normalizeImageUrls(html);
+
+    expect(normalized).toContain('https://image.pollinations.ai/prompt/');
+    expect(normalized).toContain('https://picsum.photos/seed/');
+    expect(normalized).not.toContain('images.unsplash.com');
+  });
+
+  test('publishPublicPreview normalizes image URLs in saved HTML', async () => {
+    const token = previewService.generatePublicToken();
+    createdTokens.push(token);
+
+    await previewService.publishPublicPreview(
+      'sess-test',
+      '<img src="https://images.unsplash.com/photo--fake123?w=800">',
+      token
+    );
+
+    const filePath = previewService.getPublicPreviewPath(token);
+    const content = fs.readFileSync(filePath, 'utf-8');
+    expect(content).toContain('picsum.photos');
+    expect(content).not.toContain('images.unsplash.com');
+  });
 });

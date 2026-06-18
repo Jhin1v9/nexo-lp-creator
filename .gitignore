@@ -71,3 +71,9 @@ ecosystem.config.js.local
 # Screenshot worker output
 screenshots/
 .worktrees/
+
+# Playwright MCP / local test artifacts
+.playwright-mcp/
+.superpowers/
+e2e/test-results/
+e2e/playwright-report/

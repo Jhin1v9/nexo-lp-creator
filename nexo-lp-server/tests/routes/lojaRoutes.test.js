@@ -19,6 +19,9 @@ const TemplateRepository = require('../../models/repositories/TemplateRepository
 const TemplatePurchaseRepository = require('../../models/repositories/TemplatePurchaseRepository');
 const CurrencyRepository = require('../../models/repositories/CurrencyRepository');
 const PreviewService = require('../../services/lpPreviewService');
+const SanitizationOrchestrator = require('../../services/lpSanitizationOrchestrator');
+
+jest.spyOn(SanitizationOrchestrator, 'startSanitization').mockResolvedValue({ success: true });
 
 let app;
 
@@ -292,5 +295,56 @@ describe('LOJA Routes', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
+  });
+
+  test('POST /api/nexo-lp/sessions/:id/publish creates sanitizing template and starts background sanitization', async () => {
+    const userId = 'user-publish-routes';
+    const session = await createSession(userId);
+
+    const res = await request(app)
+      .post(`/api/nexo-lp/sessions/${session.id}/publish`)
+      .send({ userId });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+    expect(res.body.data.templateId).toMatch(/^tpl-/);
+    expect(res.body.data.status).toBe('sanitizing');
+    expect(res.body.data.direct).toBeUndefined();
+
+    const template = await TemplateRepository.findById(res.body.data.templateId);
+    expect(template).not.toBeNull();
+    expect(template.status).toBe('sanitizing');
+    expect(template.is_public).toBe(1);
+    expect(template.session_id).toBe(session.id);
+
+    expect(SanitizationOrchestrator.startSanitization).toHaveBeenCalledWith(
+      session.id,
+      session.current_html,
+      session.initial_prompt,
+      session.kimi_chat_url,
+      userId
+    );
+
+    createdPublicTokens.push(template.public_preview_token);
+  });
+
+  test('POST /api/nexo-lp/sessions/:id/publish ignores direct flag and still sanitizes', async () => {
+    const userId = 'user-publish-direct-routes';
+    const session = await createSession(userId);
+
+    const res = await request(app)
+      .post(`/api/nexo-lp/sessions/${session.id}/publish`)
+      .send({ userId, direct: true });
+
+    expect(res.status).toBe(201);
+    expect(res.body.success).toBe(true);
+
+    const template = await TemplateRepository.findById(res.body.data.templateId);
+    expect(template.status).toBe('sanitizing');
+    expect(template.is_public).toBe(1);
+
+    expect(SanitizationOrchestrator.startSanitization).toHaveBeenCalled();
+
+    createdPublicTokens.push(template.public_preview_token);
   });
 });

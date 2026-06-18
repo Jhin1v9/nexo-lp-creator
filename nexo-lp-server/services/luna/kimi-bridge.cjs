@@ -969,6 +969,32 @@ class KimiBridge {
       this.bgPollTimer = null;
     }
 
+    // Stop all DOM pollers first so they don't keep the event loop alive
+    // after the bridge is supposed to be torn down.
+    const pollerStopPromises = [];
+    for (const [userId] of this.userSessions) {
+      pollerStopPromises.push(
+        this._stopDomPoller(userId).catch((e) =>
+          log.warn(`[disconnect] Failed to stop DomPoller for ${hashUserId(userId)}: ${e.message}`)
+        )
+      );
+    }
+    await Promise.all(pollerStopPromises);
+
+    // Close all session pages (default-context tabs) to free tabs and CPU.
+    const pageClosePromises = [];
+    for (const [userId, session] of this.userSessions) {
+      if (session && session.page && !session.page.isClosed()) {
+        pageClosePromises.push(
+          Promise.race([
+            session.page.close(),
+            new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000)),
+          ]).catch((e) => log.warn(`[disconnect] Error closing page for ${hashUserId(userId)}: ${e.message}`))
+        );
+      }
+    }
+    await Promise.all(pageClosePromises);
+
     // Close all user contexts (which also closes their pages)
     for (const [userId, ctx] of this.userContexts) {
       try {
@@ -1831,6 +1857,19 @@ class KimiBridge {
       this._log(`Stream intercept extraction failed: ${e.message}`);
     }
 
+    // Strategy 0c: Extract JSON review objects directly from code blocks.
+    // Kimi often renders the review JSON inside a markdown code fence with a Copy button.
+    // This strategy grabs the complete JSON from those blocks before any other parsing.
+    try {
+      const reviewJson = await this._extractReviewJsonFromCodeBlocks(page);
+      if (reviewJson) {
+        log.success(`[v13.0] Extracted review JSON from code block: ${reviewJson.slice(0, 120)}...`);
+        return reviewJson.trim();
+      }
+    } catch (e) {
+      this._log(`Code-block JSON extraction failed: ${e.message}`);
+    }
+
     // v7.5: Strategy 1 — Unified DOM extraction (same as _pollThinkingAndResponse Layer 2.5)
     try {
       const domResult = await page.evaluate((prefIdx) => {
@@ -1997,6 +2036,83 @@ class KimiBridge {
     }
 
     throw new Error('EXTRACTION_FAILED: Nenhuma resposta encontrada');
+  }
+
+  /**
+   * v13.0: Extract a review JSON object from the last assistant message's code
+   * blocks. Kimi renders review JSON inside fenced code blocks; this method
+   * returns the raw JSON string so the caller can parse it.
+   *
+   * It tries, in order:
+   *   1. Click the code block's Copy button and read the clipboard.
+   *   2. Read the code block's text content from the DOM.
+   */
+  async _extractReviewJsonFromCodeBlocks(page) {
+    const jsonFromClipboard = await page.evaluate(async () => {
+      const assistants = document.querySelectorAll('.segment-assistant');
+      if (!assistants.length) return null;
+      const last = assistants[assistants.length - 1];
+
+      const codeBlocks = Array.from(last.querySelectorAll('.segment-code, pre code, [class*="code-block"]'));
+      for (const cb of codeBlocks) {
+        // Try to find a Copy button inside this code block or its header.
+        const copyBtn = cb.closest('.segment-code')?.querySelector('[aria-label="Copy"], button[title="Copy"], .segment-code-copy, [class*="copy"]');
+        if (!copyBtn) continue;
+
+        // Request clipboard permission and click copy.
+        try {
+          if (navigator.permissions) {
+            await navigator.permissions.query({ name: 'clipboard-read' }).catch(() => {});
+          }
+          copyBtn.click();
+          await new Promise((r) => setTimeout(r, 250));
+          const text = await navigator.clipboard.readText().catch(() => null);
+          if (text && text.trim().startsWith('{')) {
+            const parsed = JSON.parse(text.trim());
+            if (parsed && (Array.isArray(parsed.issues) || Array.isArray(parsed.corrections) || typeof parsed.score === 'number' || typeof parsed.passed === 'boolean')) {
+              return text.trim();
+            }
+          }
+        } catch {
+          // ignore and fall through to DOM extraction
+        }
+      }
+      return null;
+    });
+
+    if (jsonFromClipboard) return jsonFromClipboard;
+
+    // Fallback: read the JSON directly from the DOM.
+    return await page.evaluate(() => {
+      const assistants = document.querySelectorAll('.segment-assistant');
+      if (!assistants.length) return null;
+      const last = assistants[assistants.length - 1];
+
+      const candidates = [];
+      const codeBlocks = Array.from(last.querySelectorAll('.segment-code, pre code, [class*="code-block"]'));
+      for (const cb of codeBlocks) {
+        const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
+        const text = (contentEl.textContent || contentEl.innerText || '').trim();
+        if (!text || !text.startsWith('{')) continue;
+        try {
+          const parsed = JSON.parse(text);
+          if (parsed && (Array.isArray(parsed.issues) || Array.isArray(parsed.corrections) || typeof parsed.score === 'number' || typeof parsed.passed === 'boolean')) {
+            let score = 0;
+            if (Array.isArray(parsed.issues)) score += parsed.issues.length * 3;
+            if (Array.isArray(parsed.corrections)) score += parsed.corrections.length * 3;
+            if (typeof parsed.score === 'number') score += 2;
+            if (typeof parsed.passed === 'boolean') score += 2;
+            candidates.push({ text, score });
+          }
+        } catch {
+          // not valid JSON
+        }
+      }
+
+      if (candidates.length === 0) return null;
+      candidates.sort((a, b) => b.score - a.score);
+      return candidates[0].text;
+    });
   }
 
   /**

@@ -166,10 +166,42 @@ export class LPClient {
               this._finalize(streamCallback).then(resolve).catch(reject);
             }
           } else if (data.type === 'thinking_start') {
+            generationEvents.update((events) => {
+              // Mark any previous thinking event as done before starting a new one
+              const cleaned = events.map((e) =>
+                e.phase === 'thinking' && e.status === 'loading' ? { ...e, status: 'success' } : e
+              );
+              return [
+                ...cleaned,
+                {
+                  id: `thinking-${Date.now()}`,
+                  type: 'thinking',
+                  name: 'thinking',
+                  phase: 'thinking',
+                  message: data.message || 'Pensando...',
+                  description: data.message || 'Pensando...',
+                  status: 'loading',
+                  result: null,
+                  timestamp: Date.now(),
+                },
+              ];
+            });
             streamCallback({ type: 'thinking', status: 'start' });
           } else if (data.type === 'thinking_delta') {
+            generationEvents.update((events) =>
+              events.map((e) =>
+                e.phase === 'thinking' && e.status === 'loading'
+                  ? { ...e, message: 'Pensando...', description: data.text || 'Pensando...' }
+                  : e
+              )
+            );
             streamCallback({ type: 'thinking', status: 'delta', content: data.text || '' });
           } else if (data.type === 'response_delta') {
+            generationEvents.update((events) =>
+              events.map((e) =>
+                e.phase === 'thinking' && e.status === 'loading' ? { ...e, status: 'success', message: 'Pensamento finalizado' } : e
+              )
+            );
             streamCallback({ type: 'response', content: data.text || '' });
           } else if (data.type === 'action_continue') {
             generationEvents.update((events) =>

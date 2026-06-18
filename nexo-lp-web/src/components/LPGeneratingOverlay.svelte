@@ -3,6 +3,7 @@
   import { gsap } from 'gsap';
   import { isGenerating, generationEvents } from '../stores.js';
   import GenerationPhaseStack from './GenerationPhaseStack.svelte';
+  import LunaStarfield from './LunaStarfield.svelte';
 
   let contentEl;
   let titleEl;
@@ -54,6 +55,9 @@
 
 {#if $isGenerating}
   <div aria-busy="true" class="fixed inset-0 z-[60] flex flex-col items-center justify-center font-sans text-white overflow-hidden pointer-events-none">
+    <!-- Immersive starfield wallpaper behind the generating animation -->
+    <LunaStarfield active={true} className="overlay-starfield" />
+
     <!-- Center stage -->
     <div bind:this={contentEl} class="relative z-10 text-center w-full max-w-xl px-6 -mt-12">
       <div class="relative mb-8">
@@ -101,5 +105,14 @@
   @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+  }
+
+  :global(.overlay-starfield) {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 0 !important;
   }
 </style>

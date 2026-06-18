@@ -31,6 +31,7 @@
   } from '../lib/starAnimations.js';
 
   export let active = false;
+  export let className = '';
 
   let canvas;
   let ctx;
@@ -522,7 +523,7 @@
 
 <canvas
   bind:this={canvas}
-  class="luna-starfield"
+  class="luna-starfield {className}"
   class:visible={active}
   aria-hidden="true"
 ></canvas>

@@ -5,10 +5,11 @@
   import PhaseCardCode from './phase-cards/PhaseCardCode.svelte';
   import PhaseCardReview from './phase-cards/PhaseCardReview.svelte';
   import PhaseCardPreview from './phase-cards/PhaseCardPreview.svelte';
+  import PhaseCardGeneric from './phase-cards/PhaseCardGeneric.svelte';
 
   export let events = [];
 
-  // Keep only the latest event per phase
+  // Keep only the latest event per phase, preserving chronological order of first appearance
   $: latestByPhase = events.reduce((acc, event) => {
     if (!event.phase) return acc;
     const existing = acc[event.phase];
@@ -18,23 +19,29 @@
     return acc;
   }, {});
 
-  $: orderedPhases = ['intention', 'structure', 'code', 'review', 'preview'];
+  $: orderedPhases = Object.keys(latestByPhase).sort((a, b) => {
+    return latestByPhase[a].timestamp - latestByPhase[b].timestamp;
+  });
+
+  function isKnownPhase(phase) {
+    return ['intention', 'structure', 'code', 'review', 'preview'].includes(phase);
+  }
 </script>
 
 <div class="flex flex-col gap-2 w-full">
   {#each orderedPhases as phase}
-    {#if latestByPhase[phase]}
-      {#if phase === 'intention'}
-        <PhaseCardIntention event={latestByPhase[phase]} isGenerating={$isGenerating} />
-      {:else if phase === 'structure'}
-        <PhaseCardStructure event={latestByPhase[phase]} isGenerating={$isGenerating} />
-      {:else if phase === 'code'}
-        <PhaseCardCode event={latestByPhase[phase]} isGenerating={$isGenerating} />
-      {:else if phase === 'review'}
-        <PhaseCardReview event={latestByPhase[phase]} isGenerating={$isGenerating} />
-      {:else if phase === 'preview'}
-        <PhaseCardPreview event={latestByPhase[phase]} isGenerating={$isGenerating} />
-      {/if}
+    {#if phase === 'intention'}
+      <PhaseCardIntention event={latestByPhase[phase]} isGenerating={$isGenerating} />
+    {:else if phase === 'structure'}
+      <PhaseCardStructure event={latestByPhase[phase]} isGenerating={$isGenerating} />
+    {:else if phase === 'code'}
+      <PhaseCardCode event={latestByPhase[phase]} isGenerating={$isGenerating} />
+    {:else if phase === 'review'}
+      <PhaseCardReview event={latestByPhase[phase]} isGenerating={$isGenerating} />
+    {:else if phase === 'preview'}
+      <PhaseCardPreview event={latestByPhase[phase]} isGenerating={$isGenerating} />
+    {:else}
+      <PhaseCardGeneric event={latestByPhase[phase]} isGenerating={$isGenerating} />
     {/if}
   {/each}
 </div>

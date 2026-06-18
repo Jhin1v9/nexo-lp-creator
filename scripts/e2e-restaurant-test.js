@@ -18,7 +18,7 @@ const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');
 
-const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5174';
 const KIMI_CDP_URL = process.env.KIMI_CDP_URL || 'http://127.0.0.1:9226';
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3460';
 const API_BASE_URL = `${BACKEND_URL}/api/nexo-lp`;

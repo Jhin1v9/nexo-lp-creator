@@ -52,7 +52,9 @@ function persist() {
   fs.writeFileSync(DB_PATH, Buffer.from(data));
 }
 
-process.on('exit', () => { if (_db) persist(); });
+// NOTE: Do NOT persist on process.exit. Every write already calls persist(),
+// and persisting here would overwrite external changes made by other processes
+// (e.g., the cron backfill script) with this process's stale in-memory state.
 
 /**
  * Get the database instance (initializes sql.js on first call)

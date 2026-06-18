@@ -10,6 +10,14 @@
   $: sections = Array.isArray(data.sections) ? data.sections : [];
   $: style = data.style || {};
   $: target = data.target || {};
+
+  function sectionLabel(section) {
+    if (typeof section === 'string') return section;
+    if (section && typeof section === 'object') {
+      return section.type || section.id || section.name || JSON.stringify(section);
+    }
+    return String(section);
+  }
 </script>
 
 <PhaseCardBase title={title} message={event?.message || 'Analisando requisitos...'} status={event?.status} icon="🎯" {isGenerating}>
@@ -21,7 +29,7 @@
     <div class="mt-2 flex flex-wrap gap-1">
       {#each sections as section}
         <span class="px-2 py-0.5 rounded-full text-[10px] font-medium {isGenerating ? 'bg-white/20 text-white' : 'bg-indigo-50 text-indigo-700'}">
-          {section}
+          {sectionLabel(section)}
         </span>
       {/each}
     </div>

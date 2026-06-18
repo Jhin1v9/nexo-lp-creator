@@ -8,7 +8,30 @@
   let stageEl;
   let lastRenderedIds = [];
 
-  const orderedPhases = ['intention', 'structure', 'code', 'review', 'preview'];
+  const orderedPhases = ['thinking', 'intention', 'structure', 'code', 'review', 'preview'];
+
+  function phaseSortKey(phase) {
+    const base = {
+      thinking: -1,
+      intention: 0,
+      structure: 1,
+      code: 2,
+      review: 3,
+      preview: 100,
+    }[phase];
+    if (base !== undefined) return base;
+
+    const fixMatch = phase.match(/^fix-(\d+)$/);
+    if (fixMatch) return 3 + parseInt(fixMatch[1], 10) * 2 - 1;
+
+    const reReviewMatch = phase.match(/^re-review-(\d+)$/);
+    if (reReviewMatch) return 3 + parseInt(reReviewMatch[1], 10) * 2;
+
+    const reviewRetryMatch = phase.match(/^review-retry-(\d+)$/);
+    if (reviewRetryMatch) return 3 + parseInt(reviewRetryMatch[1], 10) * 2;
+
+    return 99;
+  }
 
   $: latestByPhase = events.reduce((acc, event) => {
     if (!event.phase) return acc;
@@ -19,18 +42,13 @@
     return acc;
   }, {});
 
-  $: visiblePhases = orderedPhases
-    .map((phase) => (latestByPhase[phase] ? { phase, event: latestByPhase[phase] } : null))
-    .filter(Boolean)
-    .slice(-4);
+  $: visiblePhases = Object.entries(latestByPhase)
+    .map(([phase, event]) => ({ phase, event }))
+    .sort((a, b) => phaseSortKey(a.phase) - phaseSortKey(b.phase))
+    .slice(-6);
 
-  $: latestPhaseIndex = visiblePhases.length > 0
-    ? orderedPhases.indexOf(visiblePhases[visiblePhases.length - 1].phase)
-    : -1;
-
-  function displayStatusFor(phase, eventStatus) {
-    const idx = orderedPhases.indexOf(phase);
-    if (idx < latestPhaseIndex) return 'success';
+  function displayStatusFor(index, eventStatus) {
+    if (index < visiblePhases.length - 1) return 'success';
     return eventStatus || 'loading';
   }
 
@@ -81,12 +99,12 @@
 </script>
 
 <div bind:this={stageEl} class="relative w-full max-w-md mx-auto min-h-[260px]">
-  {#each visiblePhases as { phase, event } (phase)}
+  {#each visiblePhases as { phase, event }, index (phase)}
     <div
       class="phase-card absolute left-0 right-0 rounded-2xl border border-white/[0.12] p-4 opacity-0"
       style="background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); box-shadow: 0 16px 50px rgba(0,0,0,0.35);"
     >
-      <GenerationPhaseCard event={{ ...event, status: displayStatusFor(phase, event.status) }} />
+      <GenerationPhaseCard event={{ ...event, status: displayStatusFor(index, event.status) }} />
     </div>
   {/each}
 </div>

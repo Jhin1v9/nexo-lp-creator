@@ -12,7 +12,9 @@ process.env.KIMI_CDP_URL = '';
 
 const mockScreenshot = jest.fn();
 const mockGoto = jest.fn();
-const mockWaitForTimeout = jest.fn();
+const mockEvaluate = jest.fn().mockResolvedValue({});
+const mockWaitForLoadState = jest.fn().mockResolvedValue({});
+const mockSetDefaultTimeout = jest.fn();
 const mockClose = jest.fn();
 const mockNewPage = jest.fn();
 const mockNewContext = jest.fn();
@@ -24,8 +26,10 @@ jest.mock('playwright', () => ({
     launch: jest.fn().mockResolvedValue({
       newContext: mockNewContext.mockResolvedValue({
         newPage: mockNewPage.mockResolvedValue({
+          setDefaultTimeout: mockSetDefaultTimeout,
           goto: mockGoto.mockResolvedValue({}),
-          waitForTimeout: mockWaitForTimeout.mockResolvedValue({}),
+          evaluate: mockEvaluate,
+          waitForLoadState: mockWaitForLoadState,
           screenshot: mockScreenshot.mockResolvedValue({}),
           close: mockClose.mockResolvedValue({}),
         }),
@@ -51,8 +55,11 @@ describe('lpTemplateScreenshotService', () => {
     expect(url).toBe(`/preview/thumbnails/${templateId}.png`);
     expect(mockGoto).toHaveBeenCalledWith(
       expect.stringContaining(`/preview/public/${token}.html`),
-      { waitUntil: 'networkidle', timeout: 60000 }
+      { waitUntil: 'networkidle', timeout: 0 }
     );
+    expect(mockSetDefaultTimeout).toHaveBeenCalledWith(0);
+    expect(mockEvaluate).toHaveBeenCalledWith(expect.any(Function));
+    expect(mockWaitForLoadState).toHaveBeenCalledWith('networkidle');
     expect(mockScreenshot).toHaveBeenCalledWith(
       expect.objectContaining({
         path: expect.stringContaining(`${templateId}.png`),

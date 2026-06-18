@@ -11,7 +11,8 @@ const ALLOWED_UPDATE_COLUMNS = [
   'is_public', 'created_by', 'status', 'original_html', 'sanitized_html',
   'sanitization_log', 'public_preview_token', 'prompt_hash', 'prompt_censored',
   'price_stars', 'price_suns', 'price_moons', 'session_id', 'kimi_chat_url',
-  'metadata_json'
+  'metadata_json', 'reviewed_at', 'unreviewed_reason',
+  'original_price_stars', 'original_price_suns', 'original_price_moons',
 ];
 
 class TemplateRepository {
@@ -31,8 +32,10 @@ class TemplateRepository {
         status, original_html, sanitized_html, sanitization_log,
         public_preview_token, prompt_hash, prompt_censored,
         price_stars, price_suns, price_moons,
-        session_id, kimi_chat_url, metadata_json
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        session_id, kimi_chat_url, metadata_json,
+        reviewed_at, unreviewed_reason,
+        original_price_stars, original_price_suns, original_price_moons
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         data.name,
@@ -66,6 +69,11 @@ class TemplateRepository {
         data.session_id || data.sessionId || null,
         data.kimi_chat_url || data.kimiChatUrl || null,
         data.metadata_json || (data.metadata ? JSON.stringify(data.metadata) : null),
+        data.reviewed_at || null,
+        data.unreviewed_reason || null,
+        data.original_price_stars || data.originalPriceStars || null,
+        data.original_price_suns || data.originalPriceSuns || null,
+        data.original_price_moons || data.originalPriceMoons || null,
       ]
     );
     return this.findById(id);
@@ -84,7 +92,7 @@ class TemplateRepository {
   }
 
   async findByCategory(category, options = {}) {
-    let sql = 'SELECT * FROM templates WHERE category = ? AND is_public = 1';
+    let sql = 'SELECT * FROM templates WHERE category = ? AND is_public >= 1';
     const params = [category];
 
     if (options.search) {
@@ -103,7 +111,7 @@ class TemplateRepository {
   }
 
   async findByStack(stack, options = {}) {
-    let sql = 'SELECT * FROM templates WHERE stack = ? AND is_public = 1';
+    let sql = 'SELECT * FROM templates WHERE stack = ? AND is_public >= 1';
     const params = [stack];
 
     if (options.search) {
@@ -122,14 +130,14 @@ class TemplateRepository {
   }
 
   _buildWhere(options = {}) {
-    const conditions = ['is_public = 1'];
+    const conditions = ['is_public >= 1'];
     const params = [];
 
     if (options.status) {
       conditions.push('status = ?');
       params.push(options.status);
     } else {
-      conditions.push("status IN ('sanitizing', 'available')");
+      conditions.push("status IN ('sanitizing', 'available', 'unreviewed')");
     }
 
     if (options.category) {
@@ -227,7 +235,7 @@ class TemplateRepository {
   }
 
   async approve(id) {
-    await run('UPDATE templates SET is_public = 1 WHERE id = ?', [id]);
+    await run('UPDATE templates SET is_public = 2 WHERE id = ?', [id]);
     return this.findById(id);
   }
 
@@ -238,13 +246,13 @@ class TemplateRepository {
 
   async getCategories() {
     const rows = await query(
-      'SELECT DISTINCT category FROM templates WHERE is_public = 1 ORDER BY category'
+      'SELECT DISTINCT category FROM templates WHERE is_public >= 1 ORDER BY category'
     );
     return rows.map(r => r.category);
   }
 
   async getSubcategories(category) {
-    let sql = 'SELECT DISTINCT subcategory FROM templates WHERE is_public = 1 AND subcategory IS NOT NULL';
+    let sql = 'SELECT DISTINCT subcategory FROM templates WHERE is_public >= 1 AND subcategory IS NOT NULL';
     const params = [];
     if (category) {
       sql += ' AND category = ?';
@@ -257,7 +265,7 @@ class TemplateRepository {
 
   async getPopular(limit = 10) {
     return query(
-      'SELECT * FROM templates WHERE is_public = 1 ORDER BY usage_count DESC, rating DESC LIMIT ?',
+      'SELECT * FROM templates WHERE is_public >= 1 ORDER BY usage_count DESC, rating DESC LIMIT ?',
       [limit]
     );
   }
@@ -271,7 +279,7 @@ class TemplateRepository {
   async search(query, options = {}) {
     const sql = `
       SELECT * FROM templates
-      WHERE is_public = 1
+      WHERE is_public >= 1
       AND (name LIKE ? OR description LIKE ? OR category LIKE ?)
       ORDER BY rating DESC, usage_count DESC
       LIMIT ? OFFSET ?

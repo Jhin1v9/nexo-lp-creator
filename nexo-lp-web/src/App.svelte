@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { fade, fly, slide } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
+  import { gsap } from 'gsap';
   import {
     currentView,
     notification,
@@ -25,7 +26,7 @@
   import { getSession, renameSession, deleteSession, getSessionDownloadUrl } from './api.js';
   import LandingPageCreator from './components/LandingPageCreator.svelte';
   import LPTemplateStore from './components/LPTemplateStore.svelte';
-  import LunaStarfield from './components/LunaStarfield.svelte';
+
   import LPGeneratingOverlay from './components/LPGeneratingOverlay.svelte';
 
   let sidebarCollapsed = false;
@@ -34,6 +35,76 @@
   let loadingSessions = false;
   let openMenuSessionId = null;
   let menuTriggerRect = null;
+  let sidebarEl;
+  let autoCollapsedByStore = false;
+  let sidebarWidth = 256;
+  let labelOpacity = 1;
+  let sidebarCollapsedBeforeGeneration = false;
+
+  const SIDEBAR_WIDTH_EXPANDED = 256; // w-64
+  const SIDEBAR_WIDTH_COLLAPSED = 64; // w-16
+
+  function setSidebarVisuals(collapsed, animate = false, duration = 0.7) {
+    const targetWidth = collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH_EXPANDED;
+    const targetOpacity = collapsed ? 0 : 1;
+
+    if (animate && sidebarEl) {
+      gsap.to(sidebarEl, {
+        width: targetWidth,
+        duration,
+        ease: 'power2.inOut',
+        overwrite: 'auto',
+        onComplete: () => {
+          sidebarCollapsed = collapsed;
+          sidebarWidth = targetWidth;
+          labelOpacity = targetOpacity;
+        },
+      });
+
+      const labels = sidebarEl.querySelectorAll('.sidebar-label');
+      gsap.to(labels, {
+        opacity: targetOpacity,
+        duration: duration * 0.6,
+        ease: 'power2.out',
+        stagger: 0.02,
+      });
+    } else {
+      sidebarCollapsed = collapsed;
+      sidebarWidth = targetWidth;
+      labelOpacity = targetOpacity;
+      if (sidebarEl) {
+        gsap.set(sidebarEl, { width: targetWidth, overwrite: true });
+        const labels = sidebarEl.querySelectorAll('.sidebar-label');
+        gsap.set(labels, { opacity: targetOpacity });
+      }
+    }
+  }
+
+  function animateSidebar(collapsed, duration = 0.7) {
+    setSidebarVisuals(collapsed, true, duration);
+  }
+
+  $: if (sidebarEl) {
+    if ($currentView === 'templates' && !sidebarCollapsed && !autoCollapsedByStore) {
+      autoCollapsedByStore = true;
+      animateSidebar(true, 0.8);
+    } else if ($currentView !== 'templates' && autoCollapsedByStore && sidebarCollapsed) {
+      autoCollapsedByStore = false;
+      animateSidebar(false, 0.8);
+    }
+  }
+
+  $: if (sidebarEl && $isGenerating && !sidebarCollapsedBeforeGeneration) {
+    sidebarCollapsedBeforeGeneration = true;
+    animateSidebar(true, 0.7);
+  }
+
+  $: if (sidebarEl && !$isGenerating && sidebarCollapsedBeforeGeneration) {
+    sidebarCollapsedBeforeGeneration = false;
+    if ($currentView !== 'templates') {
+      animateSidebar(false, 0.7);
+    }
+  }
 
   $: menuSession = recentSessions.find((s) => s.id === openMenuSessionId);
 
@@ -63,6 +134,9 @@
   }
 
   onMount(async () => {
+    // Initialize sidebar visuals without animation
+    setSidebarVisuals(sidebarCollapsed, false);
+
     await loadRecentSessions();
 
     // Support loading a specific session via URL query param
@@ -173,6 +247,38 @@
     menuTriggerRect = null;
   }
 
+  const MENU_WIDTH = 128;
+  const MENU_HEIGHT = 108; // 3 items ~ 36px each
+
+  function computeMenuStyle(rect) {
+    if (!rect) return '';
+
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+
+    // Horizontal: align right edge of menu with right edge of trigger
+    let left = rect.right - MENU_WIDTH;
+    // Keep inside viewport
+    if (left < 8) left = 8;
+    if (left + MENU_WIDTH > viewportWidth - 8) left = viewportWidth - MENU_WIDTH - 8;
+
+    // Vertical: prefer above trigger; fallback below if not enough space
+    const spaceAbove = rect.top;
+    const spaceBelow = viewportHeight - rect.bottom;
+    let top;
+    if (spaceAbove >= MENU_HEIGHT + 4 || spaceAbove >= spaceBelow) {
+      top = rect.top - MENU_HEIGHT - 4;
+      if (top < 8) top = 8;
+    } else {
+      top = rect.bottom + 4;
+      if (top + MENU_HEIGHT > viewportHeight - 8) top = viewportHeight - MENU_HEIGHT - 8;
+    }
+
+    return `top: ${top}px; left: ${left}px;`;
+  }
+
+  $: menuStyle = computeMenuStyle(menuTriggerRect);
+
   async function handleRenameSession(e, s) {
     e.stopPropagation();
     const newName = prompt('Rename project', s.projectName);
@@ -249,7 +355,7 @@
   }
 
   function toggleSidebar() {
-    sidebarCollapsed = !sidebarCollapsed;
+    animateSidebar(!sidebarCollapsed, 0.7);
   }
 
   function dismissNotification() {
@@ -279,9 +385,6 @@
 
 <svelte:window on:click={closeSessionMenu} />
 
-<!-- ===== IMMERSIVE STARFIELD BACKGROUND ===== -->
-<LunaStarfield active={$isGenerating} />
-
 <!-- ===== DARK OVERLAY DURING GENERATION ===== -->
 <div
   class="fixed inset-0 z-[5] pointer-events-none bg-black transition-opacity duration-700 ease-in-out"
@@ -297,22 +400,20 @@
 
   <!-- ===== LEFT SIDEBAR ===== -->
   <aside
-    class="flex-shrink-0 h-full bg-white border-r border-luna-border flex flex-col transition-all duration-500 ease-in-out overflow-hidden"
-    class:w-64={!sidebarCollapsed && !$isGenerating}
-    class:w-16={sidebarCollapsed && !$isGenerating}
-    class:w-0={$isGenerating}
-    class:opacity-0={$isGenerating}
+    bind:this={sidebarEl}
+    class="flex-shrink-0 h-full bg-white border-r border-luna-border flex flex-col overflow-hidden transition-opacity duration-700"
+    class:pointer-events-none={$isGenerating}
+    style:width="{$isGenerating ? 0 : sidebarWidth}px"
+    style:opacity="{$isGenerating ? 0 : 1}"
   >
     <!-- Logo Area -->
     <div class="flex items-center gap-3 px-4 h-16 border-b border-luna-border flex-shrink-0">
       <div class="flex items-center justify-center w-8 h-8 flex-shrink-0">
         {@html LogoIcon({ size: 28 })}
       </div>
-      {#if !sidebarCollapsed}
-        <div class="overflow-hidden" transition:fade={{ duration: 150 }}>
-          <span class="font-bold text-lg tracking-tight gradient-text">NEXO</span>
-        </div>
-      {/if}
+      <div class="overflow-hidden" style:width="{sidebarCollapsed ? 0 : 'auto'}" style:opacity={labelOpacity}>
+        <span class="sidebar-label font-bold text-lg tracking-tight gradient-text whitespace-nowrap">NEXO</span>
+      </div>
       <button
         class="ml-auto text-luna-text-muted hover:text-luna-text transition-colors p-1 rounded-lg hover:bg-luna-surface"
         class:ml-auto={!sidebarCollapsed}
@@ -346,20 +447,18 @@
           <span class="flex-shrink-0 flex items-center justify-center w-5 h-5">
             {@html item.icon({ size: 18 })}
           </span>
-          {#if !sidebarCollapsed}
-            <span class="truncate" transition:fade={{ duration: 150 }}>{item.label}</span>
-          {/if}
+          <span class="sidebar-label truncate whitespace-nowrap" style:opacity={labelOpacity}>{item.label}</span>
         </button>
       {/each}
 
       <!-- Divider -->
-      {#if !sidebarCollapsed}
+      {#if sidebarWidth > SIDEBAR_WIDTH_COLLAPSED + 10}
         <div class="pt-4 pb-2 px-3">
           <div class="h-px bg-luna-border"></div>
         </div>
       {:else}
         <div class="pt-4 pb-2 px-3">
-          <div class="h-px bg-luna-border mx-auto" class:w-6={sidebarCollapsed}></div>
+          <div class="h-px bg-luna-border mx-auto w-6"></div>
         </div>
       {/if}
 
@@ -387,18 +486,16 @@
         <span class="flex-shrink-0 flex items-center justify-center w-5 h-5">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
         </span>
-        {#if !sidebarCollapsed}
-          <span transition:fade={{ duration: 150 }}>New Project</span>
-        {/if}
+        <span class="sidebar-label truncate whitespace-nowrap" style:opacity={labelOpacity}>New Project</span>
       </button>
 
       <!-- Recent Projects -->
-      {#if !sidebarCollapsed}
+      {#if sidebarWidth > SIDEBAR_WIDTH_COLLAPSED + 10}
         <div class="pt-4 pb-2 px-3">
           <div class="h-px bg-luna-border"></div>
         </div>
         <div class="px-3 pb-2">
-          <span class="text-xs font-semibold text-luna-text-muted uppercase tracking-wider">Recent Projects</span>
+          <span class="sidebar-label text-xs font-semibold text-luna-text-muted uppercase tracking-wider">Recent Projects</span>
         </div>
         <div class="px-3 pb-2">
           <div class="relative">
@@ -457,8 +554,8 @@
         </div>
         {#if menuSession && menuTriggerRect}
           <div
-            class="fixed w-32 bg-white border border-luna-border rounded-lg shadow-lg py-1 z-50"
-            style="top: {menuTriggerRect.bottom + 4}px; left: {menuTriggerRect.right}px; transform: translateX(-100%);"
+            class="fixed w-32 bg-white border border-luna-border rounded-lg shadow-lg py-1 z-[100]"
+            style={menuStyle}
             role="menu"
             tabindex="-1"
             on:click|stopPropagation={() => {}}
@@ -492,7 +589,7 @@
 
     <!-- Bottom Section -->
     <div class="p-3 border-t border-luna-border flex-shrink-0">
-      {#if !sidebarCollapsed}
+      {#if sidebarWidth > SIDEBAR_WIDTH_COLLAPSED + 10}
         <div class="bg-gradient-to-br from-luna-primary/10 to-luna-purple/10 rounded-xl p-3 space-y-2">
           <div class="flex items-center gap-2">
             <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>

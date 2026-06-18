@@ -49,13 +49,18 @@ describe('lpTemplateService', () => {
     SanitizationOrchestrator.startSanitization.mockClear();
   });
 
+  function generateValidHtml() {
+    const filler = '<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</p>'.repeat(250);
+    return `<!DOCTYPE html><html><head><title>Test</title></head><body>${filler}<section>Hero</section></body></html>`;
+  }
+
   async function createSession(userId, overrides = {}) {
     return SessionRepository.create({
       user_id: userId,
       initial_prompt: 'A test landing page for my startup',
       stack: 'react-tailwind',
       status: 'preview',
-      current_html: '<h1>My Startup</h1><p>Welcome!</p>',
+      current_html: generateValidHtml(),
       kimi_chat_url: 'http://kimi.example.com/chat/test',
       ...overrides,
     });
@@ -92,7 +97,7 @@ describe('lpTemplateService', () => {
     expect(template.price_stars).toBe(5);
     expect(template.session_id).toBe(session.id);
     expect(template.public_preview_token).toMatch(/^pub-/);
-    expect(template.is_public).toBe(0);
+    expect(template.is_public).toBe(1);
 
     createdTokens.push(template.public_preview_token);
 
@@ -176,5 +181,53 @@ describe('lpTemplateService', () => {
     expect(result.unlocked).toBe(false);
     expect(result.censored).toBe(true);
     expect(result.prompt).toBe('[PROMPT BLOCKED]');
+  });
+
+  test('publishUnreviewedFromSession creates unreviewed template at half price', async () => {
+    const userId = 'user-unreviewed';
+    const session = await createSession(userId);
+
+    const template = await TemplateService.publishUnreviewedFromSession(session.id, userId, 'review-failed');
+
+    expect(template).toBeDefined();
+    expect(template.status).toBe('unreviewed');
+    expect(template.source).toBe('generated');
+    expect(template.price_stars).toBe(3); // default 5 / 2 rounded up
+    expect(template.original_price_stars).toBe(5);
+    expect(template.unreviewed_reason).toBe('review-failed');
+    expect(template.session_id).toBe(session.id);
+    expect(template.public_preview_token).toMatch(/^pub-/);
+    expect(template.is_public).toBe(1);
+
+    createdTokens.push(template.public_preview_token);
+
+    const filePath = PreviewService.getPublicPreviewPath(template.public_preview_token);
+    expect(fs.existsSync(filePath)).toBe(true);
+
+    // Sanitization should NOT be triggered automatically for unreviewed publishes.
+    expect(SanitizationOrchestrator.startSanitization).not.toHaveBeenCalled();
+  });
+
+  test('publishUnreviewedFromSession rejects invalid HTML', async () => {
+    const userId = 'user-invalid';
+    const session = await createSession(userId, { current_html: '<h1>Too short</h1>' });
+
+    await expect(TemplateService.publishUnreviewedFromSession(session.id, userId)).rejects.toThrow('Session does not contain valid HTML');
+  });
+
+  test('promoteToReviewed restores original price and status', async () => {
+    const userId = 'user-promote';
+    const session = await createSession(userId);
+    const template = await TemplateService.publishUnreviewedFromSession(session.id, userId, 'cron-backfill');
+    createdTokens.push(template.public_preview_token);
+
+    const promoted = await TemplateService.promoteToReviewed(template.id);
+
+    expect(promoted).toBeDefined();
+    expect(promoted.status).toBe('available');
+    expect(promoted.is_public).toBe(2);
+    expect(promoted.price_stars).toBe(template.original_price_stars);
+    expect(promoted.unreviewed_reason).toBeNull();
+    expect(promoted.reviewed_at).toBeTruthy();
   });
 });

@@ -1,0 +1,48 @@
+services:
+  - type: web
+    name: nexo-lp-creator
+    runtime: docker
+    plan: standard
+    region: oregon
+    branch: main
+    rootDir: .
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3460
+      - key: API_PREFIX
+        value: /api/nexo-lp
+      - key: DATABASE_PATH
+        value: /data/nexo-lp.db
+      - key: KIMI_BRIDGE_ENABLED
+        value: "true"
+      - key: KIMI_CDP_URL
+        value: http://127.0.0.1:9226
+      - key: KIMI_CDP_PORT
+        value: "9226"
+      - key: KIMI_AUTO_START_CHROME
+        value: "true"
+      - key: KIMI_CHROME_USER_DATA_DIR
+        value: /data/.luna/nexo-lp-chrome-profile
+      - key: PREVIEW_STORAGE_PATH
+        value: /data/previews
+      - key: MINING_OUTPUT_PATH
+        value: /data/mined-templates
+      - key: TEMPLATES_PATH
+        value: /data/templates
+      - key: LOG_FILE
+        value: /data/logs/nexo-lp.log
+      - key: PREVIEW_BASE_URL
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: GITHUB_OWNER
+        sync: false
+      - key: GITHUB_REPO
+        sync: false
+    disk:
+      name: nexo-lp-data
+      mountPath: /data
+      sizeGB: 5
