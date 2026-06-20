@@ -168,10 +168,13 @@ class BridgeAdapter {
     // Send system + user together in a single message, exactly like Luna Soul does.
     const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
 
+    // v4.1-fix: Respect an explicit newChat request (e.g. code phase) even when
+    // a chatUrl already exists. Otherwise default to reusing the existing chat.
+    const shouldStartNewChat = options.newChat === true ? true : (!context.chatUrl && options.newChat !== false);
     return this._sendSingleMessage(context, fullPrompt, {
       ...options,
       mode,
-      newChat: options.newChat !== false && !context.chatUrl,
+      newChat: shouldStartNewChat,
     });
   }
 
