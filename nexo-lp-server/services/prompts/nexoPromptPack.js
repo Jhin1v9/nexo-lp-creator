@@ -126,9 +126,10 @@ You can build: landing pages, interactive apps, canvas games, WebGL experiences,
 Use real, high-quality images from Unsplash/Pexels with direct image URLs. Never use placeholder boxes or meaningless icons.
 
 ABSOLUTE FINAL INSTRUCTION — READ CAREFULLY:
-- You MUST generate a COMPLETE, VALID HTML file. Not JSON. Not metadata. Not a summary. Not a partial code snippet.
+- The previous phases produced JSON briefs. THIS phase must output ONLY the actual HTML file.
+- You MUST generate a COMPLETE, VALID HTML file. Not JSON. Not metadata. Not a summary. Not a partial code snippet. Not another design brief.
 - The output MUST start with <!DOCTYPE html> and end with </html>.
-- Include ALL sections defined in the structure brief above: ${(structure.sections || []).join(', ')}.
+- Include ALL sections defined in the structure brief above: ${(structure.sections || []).map(s => s.id || s).join(', ')}.
 - Apply ALL design tokens, colors, typography, and CRO patterns from the intention and structure phases.
 - Do NOT omit any section, style, or script. Do NOT truncate. Do NOT send JSON instead of HTML.
 - If you are unsure, generate the full HTML anyway — partial or JSON responses will be rejected.

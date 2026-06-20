@@ -136,7 +136,7 @@ const PHASE_PROMPTS = {
   deploy: () => 'Prepare deployment configuration.',
 };
 
-const CONTINUE_PROMPT = 'continue';
+const CONTINUE_PROMPT = `You returned a design brief / metadata JSON instead of actual HTML code. STOP outputting JSON. Generate the complete, self-contained landing page HTML file now. Wrap the entire code in a markdown HTML code block (\`\`\`html ... \`\`\`). Start with <!DOCTYPE html> and end with </html>. No explanations, no JSON, no summaries.`;
 const MAX_REVIEW_RETRIES = 2;
 const MAX_CONTINUE_ATTEMPTS = 5;
 
@@ -155,8 +155,15 @@ function looksLikeMetadataJson(text) {
 
   try {
     const parsed = JSON.parse(trimmed);
-    const metadataKeys = ['preview', 'seo', 'assets', 'structure', 'performance'];
-    return metadataKeys.some((key) => parsed && typeof parsed[key] === 'object');
+    // Intermediate metadata objects that Kimi emits before the actual HTML
+    const metadataKeys = [
+      'preview', 'seo', 'assets', 'structure', 'performance',
+      'designTokens', 'responsiveBreakpoints', 'imageStrategy', 'croStrategy',
+    ];
+    const hasMetadataKeys = metadataKeys.some((key) => parsed && typeof parsed[key] !== 'undefined');
+    // Also catch a design-brief JSON that has layout + sections but no actual HTML
+    const looksLikeBrief = parsed && typeof parsed.layout === 'string' && Array.isArray(parsed.sections);
+    return hasMetadataKeys || looksLikeBrief;
   } catch {
     return false;
   }
