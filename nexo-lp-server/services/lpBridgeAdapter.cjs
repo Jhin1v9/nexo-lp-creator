@@ -189,13 +189,11 @@ class BridgeAdapter {
 
     let lastError = null;
     const maxRetries = options.maxRetries || 2;
-    const phaseTimeoutMs = options.phaseTimeoutMs || this.timeout || 5 * 60 * 1000;
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
       try {
         let fullContent = '';
         let thinkingContent = '';
-        const phaseStart = Date.now();
 
         const stream = bridge.sendMessageStream(userId, prompt, {
           mode,
@@ -204,12 +202,8 @@ class BridgeAdapter {
         });
 
         for await (const event of stream) {
-          // Absolute phase timeout guard — prevents infinite hangs in the bridge stream
-          if (Date.now() - phaseStart > phaseTimeoutMs) {
-            console.warn(`[BridgeAdapter][${sessionId}][${options.phase || 'generation'}] Phase timeout (${phaseTimeoutMs}ms) — forcing end`);
-            break;
-          }
-
+          // v12.0: No phase timeout — wait for Kimi to finish naturally.
+          // Completion is detected by DOM text stability in the bridge.
           switch (event.type) {
             case 'thinking_start':
               this.emitEvent({
