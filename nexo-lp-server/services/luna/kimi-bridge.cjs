@@ -5145,7 +5145,7 @@ class KimiBridge {
         responseStableSince: 0,
         lastIsGenerating: false,
         generatingStoppedAt: 0,
-        signals: { buttonSend: 0, noGeneratingFlag: 0, textStable: 0, networkIdle: 0, responseStable: 0 },
+        signals: { buttonSend: 0, noGeneratingFlag: 0, textStable: 0, networkIdle: 0, responseStable: 0, absoluteTextStable: 0 },
       };
     }
     const cs = session._completionState;
@@ -5195,6 +5195,15 @@ class KimiBridge {
       cs.signals.networkIdle = 0;
     }
 
+    // Signal 5: Absolute text stability — when response and thinking have not
+    // changed for a long time, Kimi is done regardless of UI button state.
+    // This is critical for thinking mode, where canSteer=false/isGenerating=true
+    // can persist even after the response is complete.
+    cs.signals.absoluteTextStable = 0;
+    if (responseLen > 0 && responseStableFor > 10000 && textStableFor > 10000) {
+      cs.signals.absoluteTextStable = 4; // strongest signal
+    }
+
     cs.lastText = text;
     cs.lastResponseLen = responseLen;
     cs.lastThinkingLen = thinkingLen;
@@ -5203,8 +5212,11 @@ class KimiBridge {
     // Vote: require sum >= 5 for completion, sustained for 800ms.
     // responseStable counts as a strong signal so a finished response completes
     // even if thinking keeps growing.
-    const totalSignal = cs.signals.textStable + cs.signals.noGeneratingFlag + cs.signals.buttonSend + cs.signals.networkIdle + cs.signals.responseStable;
-    if (totalSignal >= 5) {
+    // If absoluteTextStable is active, lower threshold to 3 because the text
+    // itself proves Kimi stopped generating.
+    const totalSignal = cs.signals.textStable + cs.signals.noGeneratingFlag + cs.signals.buttonSend + cs.signals.networkIdle + cs.signals.responseStable + cs.signals.absoluteTextStable;
+    const threshold = cs.signals.absoluteTextStable ? 3 : 5;
+    if (totalSignal >= threshold) {
       if (!cs.candidateSince) cs.candidateSince = now;
       else if (now - cs.candidateSince > 800) {
         // Emit completion candidate
