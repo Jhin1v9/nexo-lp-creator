@@ -136,7 +136,7 @@ const PHASE_PROMPTS = {
   deploy: () => 'Prepare deployment configuration.',
 };
 
-const CONTINUE_PROMPT = `You returned a design brief / metadata JSON instead of actual HTML code. STOP outputting JSON. Generate the complete, self-contained landing page HTML file now. Wrap the entire code in a markdown HTML code block (\`\`\`html ... \`\`\`). Start with <!DOCTYPE html> and end with </html>. No explanations, no JSON, no summaries.`;
+const CONTINUE_PROMPT = `You just output a plan/JSON instead of real HTML. STOP. Now generate the complete, self-contained landing page HTML file only. Wrap the entire code in one markdown HTML code block (\`\`\`html ... \`\`\`). It must start with <!DOCTYPE html> and end with </html>. No explanations, no JSON, no summaries, no design briefs.`;
 const MAX_REVIEW_RETRIES = 2;
 const MAX_CONTINUE_ATTEMPTS = 5;
 
@@ -327,9 +327,9 @@ class GenerationService {
 
         if (phase === 'code') {
           // Code phase may need auto-continue when Kimi emits intermediate metadata JSON.
-          // Start a fresh Kimi chat for code so Kimi is not stuck in brief/JSON-mode
-          // from the previous intention/structure messages.
-          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs, true);
+          // Keep the same chat context (intention + structure) so Kimi directly outputs
+          // the HTML file instead of restarting from scratch in a new chat.
+          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs, false);
         } else {
           response = await this.sendMessageWithoutHardTimeout(context, phasePrompt, {
             stack: selectedStack,
@@ -716,24 +716,32 @@ class GenerationService {
 
       const content = lastResponse.content || '';
       const extractedHtml = this.extractHtmlFromResponse(content);
+      const htmlLooksComplete =
+        hasRealCode(extractedHtml) &&
+        /<\/html\s*>/i.test(extractedHtml) &&
+        extractedHtml.length > 1000;
 
-      // If we got real code, we are done
-      if (hasRealCode(extractedHtml)) {
-        return lastResponse;
+      // If we got a complete HTML file, we are done
+      if (htmlLooksComplete) {
+        return { ...lastResponse, content: extractedHtml };
       }
 
-      // If the response looks like intermediate metadata JSON, ask Kimi to continue
-      if (looksLikeMetadataJson(content)) {
-        console.log(`[GenerationService][${sessionId}][code] metadata JSON detected (attempt ${attempt}), sending continue`);
+      // If the response looks like intermediate metadata JSON or incomplete HTML,
+      // ask Kimi to continue generating the actual complete HTML file.
+      if (looksLikeMetadataJson(content) || !hasRealCode(extractedHtml) || !/<\/html\s*>/i.test(extractedHtml)) {
+        const reason = looksLikeMetadataJson(content)
+          ? 'metadata JSON detected'
+          : (!hasRealCode(extractedHtml) ? 'no real HTML found' : 'HTML missing closing </html>');
+        console.log(`[GenerationService][${sessionId}][code] ${reason} (attempt ${attempt}), sending continue`);
         sendPhaseEvent(sessionId, 'action_continue', 'code', {
-          message: 'Continuing code generation...',
+          message: `Continuing code generation (${reason})...`,
           attempt,
         });
         prompt = CONTINUE_PROMPT;
         continue;
       }
 
-      // Neither real code nor metadata JSON; return what we have and let fallback handle it
+      // Fallback: return what we have
       return lastResponse;
     }
 
