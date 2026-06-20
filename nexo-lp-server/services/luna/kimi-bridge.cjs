@@ -3981,14 +3981,15 @@ class KimiBridge {
       }
     }
 
-    // Start visible Chrome
+    // Start visible Chrome — prefer Chromium for better Playwright/CDP stability
     const chromeCmds = [
-      'google-chrome',
-      'google-chrome-stable',
       'chromium',
       'chromium-browser',
-      '/usr/bin/google-chrome',
       '/usr/bin/chromium',
+      '/usr/bin/chromium-browser',
+      'google-chrome',
+      'google-chrome-stable',
+      '/usr/bin/google-chrome',
     ];
     let chromePath = null;
     for (const cmd of chromeCmds) {
@@ -3997,6 +3998,7 @@ class KimiBridge {
     if (!chromePath) {
       return { running: false, started: false, error: 'Chrome não encontrado. Instale google-chrome-stable ou chromium.' };
     }
+    log.info(`[checkChrome] Selected browser: ${chromePath}`);
 
     try {
       // Always use the persistent profile, never a temporary one
