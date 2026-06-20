@@ -107,8 +107,13 @@ TASK: Generate the complete landing page code from the structure below.
 ${IRON_RULES}
 ${CONVERSION_REFERENCE_DIRECTIVE}
 
-Structure brief:
+Structure brief (INPUT — read it, do NOT output it):
 ${JSON.stringify(structure, null, 2)}
+
+--- END OF INPUT BRIEF ---
+
+CODE PHASE: YOU MUST NOW OUTPUT ONLY THE ACTUAL HTML FILE.
+Do NOT continue the JSON above. Do NOT output another design brief, schema, or summary.
 
 CRITICAL CODE RULES:
 1. Return the FULL code INLINE in your message, wrapped in a markdown HTML code block (triple-backtick html ... triple-backtick).

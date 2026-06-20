@@ -151,7 +151,13 @@ const REVIEW_RETRY_PROMPT = (html, reason, rawResponse) =>
 function looksLikeMetadataJson(text) {
   if (!text || typeof text !== 'string') return false;
   const trimmed = text.trim();
-  if (!trimmed.startsWith('{')) return false;
+  if (!trimmed.startsWith('{') && !trimmed.startsWith('"')) return false;
+
+  // If it contains HTML code markers, it's real code — not metadata
+  const lower = trimmed.toLowerCase();
+  if (lower.includes('<!doctype') || lower.includes('<html') || lower.includes('<div') || lower.includes('<section')) {
+    return false;
+  }
 
   try {
     const parsed = JSON.parse(trimmed);
@@ -159,13 +165,16 @@ function looksLikeMetadataJson(text) {
     const metadataKeys = [
       'preview', 'seo', 'assets', 'structure', 'performance',
       'designTokens', 'responsiveBreakpoints', 'imageStrategy', 'croStrategy',
+      'layout', 'sections', 'navigation', 'typography', 'motion', 'croStrategy',
     ];
     const hasMetadataKeys = metadataKeys.some((key) => parsed && typeof parsed[key] !== 'undefined');
     // Also catch a design-brief JSON that has layout + sections but no actual HTML
     const looksLikeBrief = parsed && typeof parsed.layout === 'string' && Array.isArray(parsed.sections);
     return hasMetadataKeys || looksLikeBrief;
   } catch {
-    return false;
+    // Fragmented JSON that still looks like a design brief (no HTML markers above)
+    const fragmentMarkers = ['"layout"', '"designTokens"', '"sections"', '"responsiveBreakpoints"', '"croStrategy"', '"imageStrategy"'];
+    return fragmentMarkers.some((m) => trimmed.includes(m));
   }
 }
 
@@ -317,8 +326,10 @@ class GenerationService {
         let response;
 
         if (phase === 'code') {
-          // Code phase may need auto-continue when Kimi emits intermediate metadata JSON
-          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs);
+          // Code phase may need auto-continue when Kimi emits intermediate metadata JSON.
+          // Start a fresh Kimi chat for code so Kimi is not stuck in JSON-mode from
+          // the previous intention/structure messages.
+          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs, true);
         } else {
           response = await this.sendMessageWithoutHardTimeout(context, phasePrompt, {
             stack: selectedStack,
@@ -682,7 +693,7 @@ class GenerationService {
    * Run the code phase with auto-continue when Kimi emits intermediate metadata JSON.
    * This keeps the same chat context and sends "continue" until real code appears.
    */
-  async runCodePhaseWithContinue(sessionId, context, initialPrompt, selectedStack, phaseTimeoutMs) {
+  async runCodePhaseWithContinue(sessionId, context, initialPrompt, selectedStack, phaseTimeoutMs, startNewChat = false) {
     let prompt = initialPrompt;
     let lastResponse = null;
 
@@ -691,6 +702,7 @@ class GenerationService {
         stack: selectedStack,
         phase: 'code',
         phaseTimeoutMs,
+        newChat: startNewChat && attempt === 1,
       });
 
       const content = lastResponse.content || '';
