@@ -459,8 +459,11 @@ class GenerationService {
       }
     }
 
-    // If review failed, attempt to rebuild and re-review the code
-    if (context.review && !context.review.passed) {
+    // If review failed, attempt to rebuild and re-review the code.
+    // Skip the rebuild loop when the review itself could not be parsed — the
+    // HTML is already complete and we should publish it as unreviewed instead
+    // of asking Kimi to "fix" a parse error.
+    if (context.review && !context.review.passed && !context.review.metadata?.reviewParseFailed) {
       const maxRebuildAttempts = config.rebuild.maxAttempts || 3;
       for (let attempt = 1; attempt <= maxRebuildAttempts; attempt++) {
         const fixPhase = `fix-${attempt}`;
@@ -711,7 +714,8 @@ class GenerationService {
         stack: selectedStack,
         phase: 'code',
         phaseTimeoutMs,
-        newChat: startNewChat && attempt === 1,
+        // Keep the ongoing chat context (structure → code); do NOT start a new chat here.
+        newChat: false,
         // v12.3-fix: tell the bridge not to stop at metadata JSON; wait for </html>
         requiredHtmlClose: true,
       });
