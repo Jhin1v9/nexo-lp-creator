@@ -5,8 +5,8 @@
  * Manages the generation lifecycle: intention, structure, code,
  * review, preview, and deploy phases.
  *
- * Simulates AI generation flow with mock patterns that can be
- * replaced with real bridge integration.
+ * Uses the real Kimi bridge for all generation. Fallback helpers
+ * remain only as emergency safety nets when a phase fails.
  *
  * @module services/lpGenerationService
  * @version 3.0.0
@@ -196,7 +196,6 @@ function isConversationTooLong(text) {
 
 class GenerationService {
   constructor() {
-    this.mockMode = !config.kimiBridge.enabled;
     this.phases = ['intention', 'structure', 'code', 'review', 'preview', 'deploy'];
   }
 
@@ -243,12 +242,8 @@ class GenerationService {
       context.options = options;
       generationContexts.set(sessionId, context);
 
-      // Run generation phases
-      if (this.mockMode) {
-        await this.runMockGeneration(sessionId, prompt, stack);
-      } else {
-        await this.runRealGeneration(sessionId, prompt, stack, options);
-      }
+      // Run generation phases (always real Kimi bridge — mock mode removed)
+      await this.runRealGeneration(sessionId, prompt, stack, options);
     } catch (error) {
       console.error(`[GenerationService] Generation failed for session ${sessionId}:`, error.message, error.stack);
       sendPhaseEvent(sessionId, 'action_error', 'generation', {
@@ -258,130 +253,6 @@ class GenerationService {
       await SessionRepository.updateStatus(sessionId, 'failed');
     } finally {
       generationContexts.delete(sessionId);
-    }
-  }
-
-  /**
-   * Run mock generation (for testing without AI bridge)
-   * @param {string} sessionId
-   * @param {string} prompt
-   * @param {string} stack
-   */
-  async runMockGeneration(sessionId, prompt, stack) {
-    const selectedStack = stack || config.stacks.default;
-
-    // Phase 1: Intention
-    sendPhaseEvent(sessionId, 'action_start', 'intention', {
-      message: 'Analyzing your requirements...',
-    });
-    await sleep(800);
-
-    const intention = this.generateMockIntention(prompt);
-    sendPhaseEvent(sessionId, 'action_end', 'intention', {
-      message: 'Requirements analyzed',
-      result: intention,
-    });
-    await SessionRepository.updateStatus(sessionId, 'structure');
-
-    // Phase 2: Structure
-    sendPhaseEvent(sessionId, 'action_start', 'structure', {
-      message: 'Designing page structure...',
-    });
-    await sleep(800);
-
-    const structure = this.generateMockStructure(intention);
-    sendPhaseEvent(sessionId, 'action_end', 'structure', {
-      message: 'Page structure designed',
-      result: structure,
-    });
-    await SessionRepository.updateStatus(sessionId, 'code');
-
-    // Phase 3: Code
-    sendPhaseEvent(sessionId, 'action_start', 'code', {
-      message: `Generating ${selectedStack} code...`,
-    });
-    await sleep(1500);
-
-    const html = this.generateMockHtml(prompt, intention, selectedStack);
-    sendPhaseEvent(sessionId, 'action_end', 'code', {
-      message: 'Code generated',
-      result: { stack: selectedStack, fileCount: 1 },
-    });
-
-    // Save generated code
-    await SessionRepository.updateGeneratedCode(sessionId, { html, css: '', js: '' });
-    await SessionRepository.updateMetadata(sessionId, {
-      intention,
-      structure,
-      generatedAt: new Date().toISOString(),
-    });
-
-    // Phase 4: Review
-    sendPhaseEvent(sessionId, 'action_start', 'review', {
-      message: 'Reviewing generated code...',
-    });
-    await sleep(600);
-
-    const review = this.generateMockReview(html);
-    sendPhaseEvent(sessionId, 'action_end', 'review', {
-      message: 'Code review complete',
-      result: review,
-    });
-    await SessionRepository.updateStatus(sessionId, 'preview');
-
-    // Phase 5: Preview
-    sendPhaseEvent(sessionId, 'action_start', 'preview', {
-      message: 'Preparing preview...',
-    });
-    await sleep(500);
-
-    const preview = await PreviewService.savePreview(sessionId, html);
-    sendPhaseEvent(sessionId, 'action_end', 'preview', {
-      message: 'Preview ready',
-      result: {
-        previewUrl: preview.previewUrl,
-        fileSize: preview.filePath ? require('fs').statSync(preview.filePath).size : 0,
-      },
-    });
-
-    // Phase 6: Deploy (optional)
-    sendPhaseEvent(sessionId, 'action_start', 'deploy', {
-      message: 'Preparing deployment options...',
-    });
-    await sleep(400);
-
-    sendPhaseEvent(sessionId, 'action_end', 'deploy', {
-      message: 'Ready for deployment',
-      result: {
-        canDeploy: true,
-        targets: ['github-pages', 'zip-download'],
-      },
-    });
-
-    // Final completion event
-    const completionMessage = 'Generation complete! Your landing page is ready.';
-    await lpSessionService.addMessage(sessionId, {
-      role: 'assistant',
-      content: completionMessage,
-      type: 'text',
-      metadata: { previewUrl: preview.previewUrl },
-    });
-
-    const session = await SessionRepository.findById(sessionId);
-    const contextInfo = await lpSessionService.getContextInfo(session);
-
-    sendPhaseEvent(sessionId, 'action_end', 'generation', {
-      message: completionMessage,
-      completed: true,
-      previewUrl: preview.previewUrl,
-      ...contextInfo,
-    });
-
-    // Persist a version snapshot for rollback / history
-    try {
-      await lpVersionService.snapshot(sessionId, 'generation');
-    } catch (err) {
-      console.error(`[GenerationService][${sessionId}] version snapshot failed:`, err.message);
     }
   }
 
@@ -794,23 +665,10 @@ class GenerationService {
   }
 
   /**
-   * Send a message to the bridge. If phaseTimeoutMs is 0, no hard timeout is applied.
+   * Send a message to the bridge. No hard timeout — waits for Kimi to finish naturally.
    */
   async sendMessageWithoutHardTimeout(context, prompt, options) {
-    const sendPromise = BridgeAdapter.sendMessage(context, prompt, options);
-
-    if (!options.phaseTimeoutMs || options.phaseTimeoutMs <= 0) {
-      return sendPromise;
-    }
-
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => {
-        BridgeAdapter.cancelStream(context, false).catch(() => {});
-        reject(new Error(`Phase ${options.phase} timed out after ${options.phaseTimeoutMs}ms`));
-      }, options.phaseTimeoutMs);
-    });
-
-    return Promise.race([sendPromise, timeoutPromise]);
+    return BridgeAdapter.sendMessage(context, prompt, options);
   }
 
   /**
@@ -1328,41 +1186,6 @@ ${body}
     <p class="text-gray-600 text-center max-w-2xl mx-auto">This is the ${section} section of your landing page.</p>
   </div>
 </section>`;
-  }
-
-  /**
-   * Generate mock review result
-   * @param {string} html
-   * @returns {object}
-   */
-  generateMockReview(html) {
-    const hasStructure = html.includes('<section') || html.includes('<div');
-    const hasHeadings = html.includes('<h1') || html.includes('<h2');
-    const hasImages = html.includes('<img');
-    const hasButtons = html.includes('<button');
-
-    let score = 85;
-    const issues = [];
-
-    if (!hasImages) {
-      score -= 5;
-      issues.push({ severity: 'info', message: 'No images detected' });
-    }
-    if (!hasHeadings) {
-      score -= 10;
-      issues.push({ severity: 'warning', message: 'No heading structure' });
-    }
-    if (!hasButtons) {
-      score -= 5;
-      issues.push({ severity: 'info', message: 'No CTA buttons detected' });
-    }
-
-    return {
-      score: Math.max(0, score),
-      issues,
-      suggestions: ['Add more visual elements', 'Consider adding animations'],
-      passed: score >= 90 && issues.every((i) => i.severity !== 'critical' && i.severity !== 'error'),
-    };
   }
 
   /**
