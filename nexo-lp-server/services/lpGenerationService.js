@@ -712,6 +712,8 @@ class GenerationService {
         phase: 'code',
         phaseTimeoutMs,
         newChat: startNewChat && attempt === 1,
+        // v12.3-fix: tell the bridge not to stop at metadata JSON; wait for </html>
+        requiredHtmlClose: true,
       });
 
       const content = lastResponse.content || '';

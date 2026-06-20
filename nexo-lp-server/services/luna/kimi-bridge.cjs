@@ -7160,6 +7160,13 @@ class KimiBridge {
 
             case 'completion_candidate': {
               log.info(`[sendMessageStream] Completion candidate received (signals=${JSON.stringify(ev.signals)})`);
+              // v12.3-fix: for code generation, don't trust completion until we see
+              // a real closing </html> tag. Kimi often pauses after a metadata JSON
+              // block and then continues with the actual HTML file.
+              if (options.requiredHtmlClose && !/<\/html\s*>/i.test(lastResponse)) {
+                log.info(`[sendMessageStream] Ignoring completion candidate — </html> not present yet (response=${lastResponse.length} chars)`);
+                break;
+              }
               isComplete = true;
               break;
             }

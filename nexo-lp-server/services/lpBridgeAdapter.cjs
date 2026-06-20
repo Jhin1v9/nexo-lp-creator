@@ -171,10 +171,17 @@ class BridgeAdapter {
     // v4.1-fix: Respect an explicit newChat request (e.g. code phase) even when
     // a chatUrl already exists. Otherwise default to reusing the existing chat.
     const shouldStartNewChat = options.newChat === true ? true : (!context.chatUrl && options.newChat !== false);
+    const bridgeParams = {
+      ...(options.bridgeParams || {}),
+      // v4.3-fix: forward a content-based completion guard to the bridge so code
+      // generation waits for a real </html> instead of stopping at metadata JSON.
+      requiredHtmlClose: options.requiredHtmlClose === true,
+    };
     return this._sendSingleMessage(context, fullPrompt, {
       ...options,
       mode,
       newChat: shouldStartNewChat,
+      bridgeParams,
     });
   }
 

@@ -144,54 +144,43 @@ function reviewPrompt(html) {
   return `${BASE_PERSONA}
 
 PHASE: QA Review
-TASK: Review the HTML below like a strict conversion engineer. Score it across seven dimensions and decide if it is ready to publish or needs a rebuild.
+TASK: Review the HTML landing page below and return ONLY a JSON review.
 
 ${IRON_RULES}
 
 HTML to review:
 ${html}
 
-Evaluate these seven dimensions. Be concrete; vague praise is useless.
-1. a11y — color contrast, focus states, alt text, semantic headings, keyboard usability.
-2. codeQuality — valid HTML/CSS, no truncated tags, no broken attributes, single self-contained file.
-3. seo — title, meta description, semantic headings, alt text, canonical intent.
-4. performance — no render-blocking custom fonts, no huge inline scripts, minimal external requests.
-5. cro — outcome-first hero, single conversion goal, repeated CTA, social proof near CTA, no exit navigation.
-6. security — no inline user input, no exposed secrets, no dangerous eval/innerHTML patterns.
-7. visualImpact — stunning animations and imagery, cinematic feel, award-worthy design.
+Evaluate: a11y, codeQuality, seo, performance, cro, security, visualImpact.
 
-Return ONLY a single JSON object inside a json code block (no explanations outside the block):
+Return ONLY a json code block with this exact schema — no extra text:
 
+\`\`\`json
 {
   "score": 87,
   "passed": true,
-  "issues": [
-    { "severity": "error", "message": "Missing alt text on hero image" }
-  ],
-  "suggestions": [
-    "Add a testimonials section above the final CTA"
-  ],
+  "issues": [{ "severity": "error", "message": "Concrete issue" }],
+  "suggestions": ["Actionable suggestion"],
   "metadata": {
     "dimensions": {
-      "a11y": { "score": 90, "notes": "good contrast" },
-      "codeQuality": { "score": 85, "notes": "one unclosed span" },
-      "seo": { "score": 80, "notes": "missing meta description" },
-      "performance": { "score": 95, "notes": "lightweight" },
-      "cro": { "score": 88, "notes": "hero could be more outcome-focused" },
-      "security": { "score": 100, "notes": "clean" },
-      "visualImpact": { "score": 95, "notes": "stunning animations and imagery" }
+      "a11y": { "score": 90, "notes": "brief" },
+      "codeQuality": { "score": 85, "notes": "brief" },
+      "seo": { "score": 80, "notes": "brief" },
+      "performance": { "score": 95, "notes": "brief" },
+      "cro": { "score": 88, "notes": "brief" },
+      "security": { "score": 100, "notes": "brief" },
+      "visualImpact": { "score": 95, "notes": "brief" }
     },
     "rebuildNeeded": false,
     "rebuildInstructions": []
   }
 }
+\`\`\`
 
-CRITICAL RULES:
-- "passed" is true if score >= 75 AND there are no critical issues AND the page is complete.
-- If the page is complete, functional, and visually impressive, prefer PASSING with suggestions over FAILING with rebuilds. Do not be a perfectionist — be pragmatic.
-- If "passed" is false, "issues" MUST contain at least one concrete issue explaining why.
-- "rebuildNeeded" must be true if any critical/error issue exists or score < 80.
-- Put the most important fix instructions in "rebuildInstructions" as a list of strings.`;
+RULES:
+- passed = true if score >= 75, no critical issues, and the HTML is complete.
+- If passed = false, issues MUST explain why and metadata.rebuildInstructions MUST list the fixes.
+- Be pragmatic; don't fail a good page for minor polish.`;
 }
 
 function fixPrompt(html, instructions) {
