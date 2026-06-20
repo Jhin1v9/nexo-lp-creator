@@ -327,7 +327,9 @@ class GenerationService {
 
         if (phase === 'code') {
           // Code phase may need auto-continue when Kimi emits intermediate metadata JSON.
-          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs);
+          // Start a fresh Kimi chat for code so Kimi is not stuck in brief/JSON-mode
+          // from the previous intention/structure messages.
+          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs, true);
         } else {
           response = await this.sendMessageWithoutHardTimeout(context, phasePrompt, {
             stack: selectedStack,
@@ -691,7 +693,7 @@ class GenerationService {
    * Run the code phase with auto-continue when Kimi emits intermediate metadata JSON.
    * This keeps the same chat context and sends "continue" until real code appears.
    */
-  async runCodePhaseWithContinue(sessionId, context, initialPrompt, selectedStack, phaseTimeoutMs) {
+  async runCodePhaseWithContinue(sessionId, context, initialPrompt, selectedStack, phaseTimeoutMs, startNewChat = false) {
     let prompt = initialPrompt;
     let lastResponse = null;
 
@@ -700,6 +702,7 @@ class GenerationService {
         stack: selectedStack,
         phase: 'code',
         phaseTimeoutMs,
+        newChat: startNewChat && attempt === 1,
       });
 
       const content = lastResponse.content || '';

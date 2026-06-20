@@ -102,48 +102,45 @@ Return ONLY a single JSON object matching this exact schema (no markdown fences,
 }
 
 function codePrompt(structure, stack) {
+  // v5.0-fix: Keep the code prompt short and authoritative. Long prompts
+  // with huge JSON inputs make Kimi fall back to producing another design
+  // brief instead of the actual HTML file.
+  const sectionList = (structure.sections || []).map(s => {
+    const id = s.id || s;
+    const type = s.type || `${id}-section`;
+    return `- ${id} (${type})`;
+  }).join('\n');
+  const colors = structure.designTokens?.colors || structure.colors || {};
+  const colorHint = Object.keys(colors).length
+    ? `Colors: ${Object.entries(colors).map(([k, v]) => `${k}=${v}`).join(', ')}.`
+    : '';
+
   return `${BASE_PERSONA}
 
-PHASE: Code Generation
+PHASE: Code Generation (FINAL OUTPUT)
 STACK: ${stack}
-TASK: Generate the complete landing page code from the structure below.
+GOAL: Produce the complete, self-contained landing page HTML file.
 
 ${IRON_RULES}
-${CONVERSION_REFERENCE_DIRECTIVE}
 
-Structure brief (INPUT — read it, do NOT output it):
-${JSON.stringify(structure, null, 2)}
+Sections to build:
+${sectionList || '- hero\n- features\n- testimonials\n- cta\n- footer'}
 
---- END OF INPUT BRIEF ---
+${colorHint}
 
-CODE PHASE: YOU MUST NOW OUTPUT ONLY THE ACTUAL HTML FILE.
-Do NOT continue the JSON above. Do NOT output another design brief, schema, or summary.
+OUTPUT RULES — READ CAREFULLY:
+1. Return ONLY one markdown HTML code block: \`\`\`html ... \`\`\`.
+2. Inside the code block there must be a complete, valid HTML file starting with <!DOCTYPE html> and ending with </html>.
+3. Use Tailwind CSS via CDN. Mobile-first, responsive, semantic HTML5.
+4. Include <title>, viewport, charset and Open Graph meta tags.
+5. ONE conversion goal — repeat the main CTA 2-3 times; no competing links.
+6. Cinematic scroll-driven animations, parallax, hover micro-interactions. The page must feel alive and premium.
+7. Use real Unsplash/Pexels image URLs; never gray placeholders.
+8. Every headline/bullet must communicate a clear benefit (no lorem ipsum).
+9. The user may request any library (GSAP, Three.js, Lottie, Lenis, Swiper, etc.) via CDN. Everything must stay in a SINGLE HTML file.
+10. DO NOT output JSON, design briefs, schemas, summaries, explanations, or partial snippets. ONLY the HTML code block.
 
-CRITICAL CODE RULES:
-1. Return the FULL code INLINE in your message, wrapped in a markdown HTML code block (triple-backtick html ... triple-backtick).
-2. Output must be a single, self-contained HTML file starting with <!DOCTYPE html> and ending with </html>.
-3. Mobile-first, responsive design using Tailwind CSS utility classes via CDN.
-4. Semantic HTML5 elements (<header>, <main>, <section>, <footer>, etc.).
-5. Include <title>, viewport meta, charset, and Open Graph meta tags.
-6. ONE primary conversion goal — repeat the main CTA 2-3 times; no competing links.
-7. Animations must be cinematic: scroll-driven, parallax, morphing, particles, 3D transforms. The page must feel ALIVE.
-8. Replace every real business detail with neutral placeholders.
-9. No generic "lorem ipsum" or meaningless feature icons. Every headline and bullet must communicate a clear benefit.
-10. DEPENDENCIES: The user may request ANY library (GSAP, Three.js, Lottie, Lenis, Swiper, PixiJS, p5.js, D3, etc.). If the user asks for it, include it via CDN. If you think a lib will make the page more stunning, suggest it. The ONLY hard rule: everything must be in a SINGLE, SELF-CONTAINED HTML file with inline scripts/styles.
-
-You can build: landing pages, interactive apps, canvas games, WebGL experiences, CSS art, or any single-file web experience.
-Use real, high-quality images from Unsplash/Pexels with direct image URLs. Never use placeholder boxes or meaningless icons.
-
-ABSOLUTE FINAL INSTRUCTION — READ CAREFULLY:
-- The previous phases produced JSON briefs. THIS phase must output ONLY the actual HTML file.
-- You MUST generate a COMPLETE, VALID HTML file. Not JSON. Not metadata. Not a summary. Not a partial code snippet. Not another design brief.
-- The output MUST start with <!DOCTYPE html> and end with </html>.
-- Include ALL sections defined in the structure brief above: ${(structure.sections || []).map(s => s.id || s).join(', ')}.
-- Apply ALL design tokens, colors, typography, and CRO patterns from the intention and structure phases.
-- Do NOT omit any section, style, or script. Do NOT truncate. Do NOT send JSON instead of HTML.
-- If you are unsure, generate the full HTML anyway — partial or JSON responses will be rejected.
-
-Return ONLY the complete HTML code. No explanations outside the code block.`;
+Start writing the HTML now.`;
 }
 
 function reviewPrompt(html) {
