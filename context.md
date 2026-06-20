@@ -1,52 +1,98 @@
 # Contexto do Problema — Loop Infinito de Revisão
 
 ## Data: 2026-06-18
-## Status: 🔴 CRÍTICO — Em investigação
+## Status: 🟡 EM IMPLEMENTAÇÃO — Abordagem Híbrida
 
 ---
 
-## Problema Raiz
+## Checkpoint Git
 
-O **prompt do agente revisor não está extraindo o JSON de fixes** que a Kimi gera. Os fixes chegam **vazios** ao executor, criando ciclo eterno:
+- **Commit:** `6b0354c` — `checkpoint(pre-fix-loop)`
+- **Push:** `main → origin` ✅
+- **URL:** https://github.com/Jhin1v9/nexo-lp-creator/commit/6b0354c
 
+---
+
+## Problema Raiz (Confirmado)
+
+O **prompt do fixer não recebe instruções focadas** — recebe o JSON de review inteiro (500+ linhas) e a Kimi não consegue extrair o que realmente precisa consertar. Resultado: HTML devolvido é igual ou quase igual ao original → loop eterno de rebuild.
+
+---
+
+## Abordagem Escolhida: Híbrida (Foco + HTML Completo)
+
+**Princípio:** A Kimi continua gerando HTML inteiro corrigido, mas recebe instruções **muito mais focadas e estruturadas** em vez do review JSON gigante.
+
+### Mudança 1: Prompt do Fixer (`nexoPromptPack.js`)
+
+**ANTES:**
 ```
-Análise → Fix vazio → Build → Análise → Fix vazio → Build → ... (loop eterno)
+QA review result: {JSON gigante com 500 linhas}
+Current HTML: {HTML completo}
+Conserta tudo.
 ```
 
-**NÃO é problema de limite de tentativas** (maxAttempts=3). É problema de **parsing do JSON de fixes** na pipeline.
+**DEPOIS:**
+```
+INSTRUÇÕES DE CORREÇÃO (aplicar nesta ordem):
+1. [CRÍTICO] Adicionar aria-label na section "Features"
+2. [AVISO] Trocar div por nav no menu  
+3. [SUGESTÃO] Melhorar contraste do botão CTA
+
+HTML ATUAL:
+{HTML completo}
+
+REGRAS:
+- Aplique TODAS as instruções acima
+- Devolva o HTML COMPLETO corrigido
+- Não omita nenhuma seção
+- Preserve designTokens, cores e Tailwind classes
+```
+
+### Mudança 2: Parser (`lpGenerationService.js`)
+
+Extrair `rebuildInstructions.specificFixes` do review e passar **só as instruções** pro fixer, não o review inteiro.
+
+Linha afetada: 579
+```js
+// ANTES:
+const fixPrompt = PHASE_PROMPTS.fix(currentHtml, context.review);
+
+// DEPOIS:
+const fixInstructions = extractFixInstructions(context.review);
+const fixPrompt = PHASE_PROMPTS.fix(currentHtml, fixInstructions);
+```
+
+### Mudança 3: Verificação de Progresso
+
+Comparar HTML antes/depois do fix. Se não mudou nada, parar o loop e reportar "fix não aplicado".
 
 ---
 
-## Cadeia de Falha Suspeita
+## Arquivos a Modificar
 
-1. **Prompt do revisor** — Como instrui a Kimi a formatar o JSON de fixes?
-2. **Parser de resposta** — Como o backend extrai o JSON da resposta da Kimi?
-3. **Prompt do fixer** — O que o agente fixer recebe quando os fixes estão vazios?
-
----
-
-## Arquivos a Investigar
-
-| Arquivo | Propósito | Status |
-|---------|-----------|--------|
-| `prompts/reviewer-prompt.md` ou similar | Instruções de formato JSON para fixes | ⏳ Não lido |
-| `services/lpGenerationService.js` | Parser de resposta do revisor | ⏳ Não lido |
-| `prompts/fixer-prompt.md` ou similar | O que o fixer recebe como input | ⏳ Não lido |
-| `config/nexo-lp-config.js` | Config de maxAttempts (já confirmado = 3) | ✅ Lido |
+| Ordem | Arquivo | Mudança | Status |
+|-------|---------|---------|--------|
+| 1 | `nexo-lp-server/services/prompts/nexoPromptPack.js` | Novo prompt do fixer com instruções focadas | ⏳ Pendente |
+| 2 | `nexo-lp-server/services/lpGenerationService.js` | Extrair specificFixes e passar pro fixer | ⏳ Pendente |
+| 3 | `nexo-lp-server/services/lpGenerationService.js` | Verificação de progresso (HTML mudou?) | ⏳ Pendente |
 
 ---
 
 ## Próximos Passos
 
-1. Ler prompt do revisor → verificar instrução de formato JSON
-2. Ler parser em lpGenerationService.js → verificar regex/extração de JSON
-3. Ler prompt do fixer → verificar se aceita array vazio
-4. Corrigir o ponto de falha na cadeia
+1. ✅ Checkpoint salvo no GitHub
+2. ⏳ Implementar novo prompt do fixer
+3. ⏳ Implementar parser de specificFixes
+4. ⏳ Implementar verificação de progresso
+5. ⏳ Testar com geração real de LP
+6. ⏳ Commit e push das mudanças
 
 ---
 
 ## Notas
 
-- Limite de rebuild já confirmado: `maxAttempts = 3` (config) → `maxRebuildAttempts = 3` (service)
-- O loop "morre" após 3 tentativas, mas o problema real é que **nenhuma tentativa produz fix válido**
-- Aumentar maxAttempts para 5 NÃO resolve — só prolonga o loop vazio
+- Schema do revisor (`04-qa.md`) NÃO será alterado — já tem `rebuildInstructions.specificFixes`
+- A Kimi continua gerando HTML completo (requisito do usuário)
+- Foco é em **qualidade das instruções** que ela recebe, não no formato de saída
+- Se a abordagem híbrida não funcionar, considerar: (a) aumentar maxAttempts, (b) usar local rebuild engine como primário, (c) revisar prompt do revisor para gerar fixes mais específicos

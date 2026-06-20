@@ -112,7 +112,10 @@
     deployProgress = 20;
     addLog('Preparing HTML file...');
 
-    const html = $preview.html || lpClient.getHtml();
+    let html = $preview.html;
+    if (!html) {
+      html = await lpClient.fetchHtml();
+    }
     if (!html) {
       throw new Error('No HTML content to download');
     }
@@ -160,7 +163,10 @@
     deployProgress = 30;
     addLog('Copying code to clipboard...');
 
-    const html = $preview.html;
+    let html = $preview.html;
+    if (!html) {
+      html = await lpClient.fetchHtml();
+    }
     if (!html) {
       throw new Error('No HTML content to copy');
     }

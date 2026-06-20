@@ -111,8 +111,8 @@ Structure brief:
 ${JSON.stringify(structure, null, 2)}
 
 CRITICAL CODE RULES:
-1. Return the FULL code INLINE in your message, wrapped in a markdown HTML code block.
-2. Output must be a single, self-contained file starting with <!DOCTYPE html> and ending with </html>.
+1. Return the FULL code INLINE in your message, wrapped in a markdown HTML code block (triple-backtick html ... triple-backtick).
+2. Output must be a single, self-contained HTML file starting with <!DOCTYPE html> and ending with </html>.
 3. Mobile-first, responsive design using Tailwind CSS utility classes via CDN.
 4. Semantic HTML5 elements (<header>, <main>, <section>, <footer>, etc.).
 5. Include <title>, viewport meta, charset, and Open Graph meta tags.
@@ -125,7 +125,15 @@ CRITICAL CODE RULES:
 You can build: landing pages, interactive apps, canvas games, WebGL experiences, CSS art, or any single-file web experience.
 Use real, high-quality images from Unsplash/Pexels with direct image URLs. Never use placeholder boxes or meaningless icons.
 
-Return ONLY the complete code. No explanations outside the code block.`;
+ABSOLUTE FINAL INSTRUCTION — READ CAREFULLY:
+- You MUST generate a COMPLETE, VALID HTML file. Not JSON. Not metadata. Not a summary. Not a partial code snippet.
+- The output MUST start with <!DOCTYPE html> and end with </html>.
+- Include ALL sections defined in the structure brief above: ${(structure.sections || []).join(', ')}.
+- Apply ALL design tokens, colors, typography, and CRO patterns from the intention and structure phases.
+- Do NOT omit any section, style, or script. Do NOT truncate. Do NOT send JSON instead of HTML.
+- If you are unsure, generate the full HTML anyway — partial or JSON responses will be rejected.
+
+Return ONLY the complete HTML code. No explanations outside the code block.`;
 }
 
 function reviewPrompt(html) {
@@ -182,32 +190,36 @@ CRITICAL RULES:
 - Put the most important fix instructions in "rebuildInstructions" as a list of strings.`;
 }
 
-function fixPrompt(html, review) {
-  const reviewJson = JSON.stringify(review || {}, null, 2);
+function fixPrompt(html, instructions) {
+  // instructions = array de strings com fixes específicos do revisor
+  const instructionsText = Array.isArray(instructions) && instructions.length > 0
+    ? instructions.map((fix, i) => `${i + 1}. ${fix}`).join("\n")
+    : "No specific fix instructions provided. Review the HTML and apply any necessary improvements.";
+  
   return `${BASE_PERSONA}
 
 PHASE: Rebuild / Fix
-TASK: Fix every issue in the QA review below and return the complete corrected HTML.
+TASK: Apply the specific correction instructions below to the HTML and return the complete corrected HTML.
 
 ${IRON_RULES}
 ${CONVERSION_REFERENCE_DIRECTIVE}
 
-QA review result:
-${reviewJson}
+INSTRUCTIONS TO APPLY (apply all in order):
+${instructionsText}
 
-Current HTML:
+CURRENT HTML:
 ${html}
 
-FIX CHECKLIST:
-1. Address every issue and rebuild instruction from the review.
-2. Preserve the existing designTokens, colors, and Tailwind classes unless they are part of the problem.
-3. Keep the single conversion goal and CRO patterns.
+FIX RULES:
+1. Apply EVERY instruction listed above. None can be skipped.
+2. Preserve existing designTokens, colors, and Tailwind classes unless the instruction explicitly changes them.
+3. Keep the single conversion goal and all CRO patterns intact.
 4. Return the FULL corrected HTML INLINE in a markdown HTML code block.
-5. Do not explain the changes outside the code block.
+5. Do not explain changes outside the code block.
+6. The output must be a complete, valid, self-contained HTML file.
 
 Return ONLY the complete corrected code.`;
 }
-
 function reviewRetryPrompt(html, reason, rawResponse) {
   return `${BASE_PERSONA}
 

@@ -427,6 +427,23 @@ export class LPClient {
   }
 
   /**
+   * Fetch current HTML from the server (source of truth)
+   */
+  async fetchHtml() {
+    if (!this.sessionId) return null;
+    try {
+      const session = await api.getSession(this.sessionId);
+      if (session.current_html) {
+        this.currentHtml = session.current_html;
+        return session.current_html;
+      }
+    } catch (error) {
+      console.error("[LPClient] fetchHtml failed:", error);
+    }
+    return this.currentHtml || null;
+  }
+
+  /**
    * Get Kimi chat URL
    */
   getKimiChatUrl() {

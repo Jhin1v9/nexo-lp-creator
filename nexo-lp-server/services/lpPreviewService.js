@@ -103,9 +103,10 @@ class PreviewService {
       fs.writeFileSync(path.join(assetsPath, 'script.js'), assets.js, 'utf-8');
     }
 
-    // Update session with preview URL
+    // Update session with preview URL AND current HTML
     const previewUrl = `${this.baseUrl}/preview/${sessionId}.html`;
     await SessionRepository.updatePreviewUrl(sessionId, previewUrl);
+    await SessionRepository.updateGeneratedCode(sessionId, { html });
 
     return {
       sessionId,

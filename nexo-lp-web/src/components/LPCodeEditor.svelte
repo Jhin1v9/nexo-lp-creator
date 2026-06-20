@@ -3,6 +3,7 @@
   import { fade, slide } from 'svelte/transition';
   import { preview } from '../stores.js';
   import { formatHtml } from '../lib/previewBuilder.js';
+  import { lpClient } from '../lib/lpClient.js';
 
   let formattedCode = '';
   let copied = false;
@@ -16,14 +17,22 @@
     { id: 'preview', label: 'Minified', icon: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>' },
   ];
 
-  $: {
-    if ($preview.html) {
+  async function refreshCode(previewHtml) {
+    let htmlContent = previewHtml;
+    if (!htmlContent) {
+      try {
+        htmlContent = await lpClient.fetchHtml();
+      } catch (error) {
+        console.error('Failed to fetch HTML:', error);
+      }
+    }
+    if (htmlContent) {
       if (activeTab === 'html') {
-        formattedCode = formatHtml($preview.html);
+        formattedCode = formatHtml(htmlContent);
       } else if (activeTab === 'css') {
-        formattedCode = extractCSS($preview.html);
+        formattedCode = extractCSS(htmlContent);
       } else {
-        formattedCode = $preview.html;
+        formattedCode = htmlContent;
       }
       const lines = formattedCode.split('\n');
       lineCount = lines.length;
@@ -34,6 +43,8 @@
       charCount = formattedCode.length;
     }
   }
+
+  $: refreshCode($preview.html);
 
   function extractCSS(html) {
     const styleMatches = html.match(/<style[^>]*>([\s\S]*?)<\/style>/gi) || [];

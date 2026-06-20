@@ -126,7 +126,7 @@
 
   function syncContextStores() {
     kimiChatUrl.set(lpClient.getKimiChatUrl());
-    contextWarning.set(lpClient.getContextWarning());
+    contextWarning.set(lpClient.contextWarning);
     contextInfo.set(lpClient.getContextInfo());
   }
 

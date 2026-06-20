@@ -576,7 +576,8 @@ class GenerationService {
           previousReview: context.review,
         });
         try {
-          const fixPrompt = PHASE_PROMPTS.fix(currentHtml, context.review);
+          const fixInstructions = this.extractFixInstructions(context.review);
+          const fixPrompt = PHASE_PROMPTS.fix(currentHtml, fixInstructions);
           const fixResponse = await this.runCodePhaseWithContinue(sessionId, context, fixPrompt, selectedStack, phaseTimeoutMs);
           if (isConversationTooLong(fixResponse.content || '')) {
             console.warn(`[GenerationService][${sessionId}] Kimi reported conversation too long; stopping rebuild loop`);
@@ -586,6 +587,7 @@ class GenerationService {
             });
             stopRebuild = true;
           } else {
+            const htmlBeforeFix = currentHtml;
             const fixedHtml = this.extractHtmlFromResponse(fixResponse.content || '');
             if (hasRealCode(fixedHtml)) {
               currentHtml = fixedHtml;
@@ -594,6 +596,14 @@ class GenerationService {
                 lastValidHtml = currentHtml;
               }
               console.log(`[GenerationService][${sessionId}] AI fix attempt ${attempt} applied, html length=${currentHtml.length}`);
+              if (htmlBeforeFix === currentHtml) {
+                console.warn(`[GenerationService][${sessionId}] WARNING: Fix attempt ${attempt} produced NO CHANGES. Stopping rebuild loop to avoid infinite cycle.`);
+                sendPhaseEvent(sessionId, "action_error", fixPhase, {
+                  error: `Fix attempt ${attempt} produced no changes. The AI returned identical HTML.`,
+                  recoverable: false,
+                });
+                stopRebuild = true;
+              }
             }
           }
         } catch (fixErr) {
@@ -721,7 +731,8 @@ class GenerationService {
     // Publish to LOJA
     console.info(`[GenerationService][${sessionId}] Publishing to LOJA...`);
     try {
-      const userId = context.userId || options.userId;
+      const session = await SessionRepository.findById(sessionId);
+      const userId = session?.user_id || context.userId || options.userId;
       const reviewPassed = !!context.review?.passed;
 
       if (reviewPassed) {
@@ -1459,6 +1470,47 @@ ${body}
    */
   extractHtmlFromResponse(response) {
     return ResponseParser.extractHtmlFromResponse(response);
+  }
+
+  /**
+   * Extract fix instructions from review result.
+   * Prioritizes rebuildInstructions.specificFixes, falls back to issues[].fix.
+   * @param {object} review
+   * @returns {string[]}
+   */
+  extractFixInstructions(review) {
+    if (!review || typeof review !== "object") {
+      return [];
+    }
+    
+    // Priority 1: rebuildInstructions.specificFixes (from QA agent 04-qa.md)
+    const specificFixes = review.metadata?.rebuildInstructions?.specificFixes ||
+                        review.rebuildInstructions?.specificFixes ||
+                        [];
+    if (Array.isArray(specificFixes) && specificFixes.length > 0) {
+      return specificFixes.filter(f => typeof f === "string" && f.trim().length > 0);
+    }
+    
+    // Priority 2: issues[].fix (from review dimensions), fallback to issues[].message
+    const allIssues = review.issues || [];
+    const issueFixes = allIssues
+      .filter(issue => {
+        const text = issue.fix || issue.message;
+        return text && typeof text === "string" && text.trim().length > 0;
+      })
+      .map(issue => `[${issue.severity?.toUpperCase() || "FIX"}] ${issue.fix || issue.message}`);
+    
+    if (issueFixes.length > 0) {
+      return issueFixes;
+    }
+    
+    // Priority 3: suggestions
+    const suggestions = review.suggestions || [];
+    if (Array.isArray(suggestions) && suggestions.length > 0) {
+      return suggestions.filter(s => typeof s === "string" && s.trim().length > 0);
+    }
+    
+    return [];
   }
 }
 

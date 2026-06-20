@@ -214,7 +214,6 @@
           title="Landing Page Preview"
           class="w-full h-full border-0"
           style="min-height: 600px;"
-          sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
           loading="lazy"
         ></iframe>
       </div>
