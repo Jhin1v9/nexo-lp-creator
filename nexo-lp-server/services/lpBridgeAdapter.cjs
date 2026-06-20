@@ -432,55 +432,11 @@ class BridgeAdapter {
    * @returns {string}
    */
   buildSystemPrompt(options = {}) {
-    const stack = options.stack || config.stacks.default;
-
-    const baseWaitInstruction = `INSTRUÇÃO CRÍTICA: AGUARDE O PROMPT DO USUÁRIO. NÃO gere nenhum site, código ou resposta até receber o pedido do usuário abaixo. Depois que o prompt do usuário aparecer, siga as regras do template escolhido.`;
-
-    const prompts = {
-      'react-tailwind': `${baseWaitInstruction}
-You are an expert React and Tailwind CSS developer. Generate clean, modern landing page code.
-Rules:
-- Use functional components with hooks
-- Use Tailwind CSS utility classes
-- Ensure responsive design
-- Return ONLY the code, no explanations
-- Use semantic HTML5 elements`,
-
-      'vue-tailwind': `${baseWaitInstruction}
-You are an expert Vue.js and Tailwind CSS developer. Generate clean, modern landing page code.
-Rules:
-- Use Vue 3 Composition API
-- Use Tailwind CSS utility classes
-- Ensure responsive design
-- Return ONLY the code, no explanations`,
-
-      'html-css': `${baseWaitInstruction}
-You are an expert HTML and CSS developer. Generate clean, modern landing page code.
-Rules:
-- Use semantic HTML5
-- Use inline CSS for simplicity
-- Ensure responsive design with media queries
-- Return ONLY the code, no explanations`,
-
-      'nextjs-tailwind': `${baseWaitInstruction}
-You are an expert Next.js and Tailwind CSS developer. Generate clean, modern landing page code.
-Rules:
-- Use Next.js App Router structure
-- Use Tailwind CSS utility classes
-- Ensure responsive design
-- Return ONLY the code, no explanations`,
-
-      'static-html-tailwind': `${baseWaitInstruction}
-You are an expert HTML and Tailwind CSS developer. Generate clean, modern landing page code.
-Rules:
-- Return a single self-contained HTML file
-- Use Tailwind CSS utility classes via CDN
-- Ensure responsive design
-- Return ONLY the HTML code, no explanations
-- Use semantic HTML5 elements`,
-    };
-
-    return prompts[stack] || prompts['static-html-tailwind'];
+    // v4.0-fix: The per-phase prompts already contain full persona, stack rules,
+    // and output format instructions. A generic system prompt here only adds
+    // conflicting instructions (e.g. "wait for user prompt") and confuses Kimi.
+    // Returning empty keeps each phase prompt self-contained and authoritative.
+    return '';
   }
 
   /**
