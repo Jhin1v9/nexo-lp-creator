@@ -412,7 +412,16 @@ class GenerationService {
               sendPhaseEvent(sessionId, 'action_error', `review-retry-${MAX_REVIEW_RETRIES}`, {
                 error: lastReviewError.message,
               });
-              throw lastReviewError;
+              // v4.2-fix: Don't fail the whole generation just because Kimi didn't
+              // return a parseable review JSON. Publish as unreviewed instead.
+              console.warn(`[GenerationService][${sessionId}] Review parse failed after retries — publishing as unreviewed`);
+              context.review = {
+                score: 70,
+                passed: false,
+                issues: [{ severity: 'warning', message: `Review response was not parseable: ${lastReviewError.reason || lastReviewError.message}` }],
+                suggestions: ['Re-run manual QA when convenient'],
+                metadata: { rebuildNeeded: false, rebuildInstructions: [], reviewParseFailed: true },
+              };
             }
             this.normalizeReviewResult(context.review, currentHtml);
             break;
