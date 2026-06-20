@@ -6902,6 +6902,8 @@ class KimiBridge {
       let stopConsuming = false;
       let pollCount = 0;
       let textHasChanged = false;
+      let lastResponseChange = Date.now();
+      const REQUIRED_HTML_CLOSE_STABLE_MS = 30000; // give Kimi 30s of stability before we accept a non-HTML response
 
       // v9.4-fix: JSON Accumulation Buffer state
       let jsonAccumulator = '';
@@ -7090,6 +7092,7 @@ class KimiBridge {
                   }
                 }
                 lastResponse = r;
+                lastResponseChange = Date.now();
               }
 
               // Yield steer availability
@@ -7164,8 +7167,12 @@ class KimiBridge {
               // a real closing </html> tag. Kimi often pauses after a metadata JSON
               // block and then continues with the actual HTML file.
               if (options.requiredHtmlClose && !/<\/html\s*>/i.test(lastResponse)) {
-                log.info(`[sendMessageStream] Ignoring completion candidate — </html> not present yet (response=${lastResponse.length} chars)`);
-                break;
+                const stableMs = Date.now() - lastResponseChange;
+                if (stableMs < REQUIRED_HTML_CLOSE_STABLE_MS) {
+                  log.info(`[sendMessageStream] Ignoring completion candidate — </html> not present yet (response=${lastResponse.length} chars, stable=${stableMs}ms)`);
+                  break;
+                }
+                log.warn(`[sendMessageStream] No </html> after ${stableMs}ms of stability — returning partial response to caller`);
               }
               isComplete = true;
               break;
