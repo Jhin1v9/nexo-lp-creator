@@ -21,6 +21,8 @@ const CONVERSION_REFERENCE_DIRECTIVE = `REFERENCE STANDARD — Ground every choi
 function intentionPrompt(userPrompt) {
   return `${BASE_PERSONA}
 
+META: We are building a single, self-contained landing page HTML file. This is phase 1 of 4: Intention → Structure → Code → Review. Output ONLY structured briefs now; the actual HTML code will be generated in the Code phase.
+
 PHASE: Intention Extraction
 TASK: Analyze the landing-page request below and extract a structured creative brief.
 
@@ -58,6 +60,8 @@ Use high-quality images from Unsplash, Pexels, or similar with direct URLs. NEVE
 
 function structurePrompt(intention) {
   return `${BASE_PERSONA}
+
+META: We are building a single, self-contained landing page HTML file. This is phase 2 of 4: Intention → Structure → Code → Review. Output ONLY structured briefs now; the actual HTML code will be generated in the Code phase.
 
 PHASE: Structure & Design
 TASK: Convert the intention brief below into a high-converting page structure.
