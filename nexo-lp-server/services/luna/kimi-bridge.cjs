@@ -3981,7 +3981,8 @@ class KimiBridge {
       }
     }
 
-    // Start visible Chrome — prefer Chromium for better Playwright/CDP stability
+    // Start visible Chrome — prefer Chromium for better Playwright/CDP stability,
+    // but only if the binary actually runs (some distros ship a stub wrapper).
     const chromeCmds = [
       'chromium',
       'chromium-browser',
@@ -3993,7 +3994,20 @@ class KimiBridge {
     ];
     let chromePath = null;
     for (const cmd of chromeCmds) {
-      try { execSync(`which ${cmd}`, { stdio: 'ignore' }); chromePath = cmd; break; } catch (e) { log.debug(`[checkChrome] ${cmd} not found: ${e.message}`); }
+      try {
+        execSync(`which ${cmd}`, { stdio: 'ignore' });
+        // v12.1-fix: validate the binary is real and not a snap stub
+        const version = execSync(`${cmd} --version`, { encoding: 'utf8', timeout: 5000 }).trim();
+        if (!version || version.toLowerCase().includes('requires the chromium snap')) {
+          log.debug(`[checkChrome] ${cmd} is not a usable browser: ${version}`);
+          continue;
+        }
+        chromePath = cmd;
+        log.info(`[checkChrome] Verified browser ${cmd}: ${version}`);
+        break;
+      } catch (e) {
+        log.debug(`[checkChrome] ${cmd} not usable: ${e.message}`);
+      }
     }
     if (!chromePath) {
       return { running: false, started: false, error: 'Chrome não encontrado. Instale google-chrome-stable ou chromium.' };
