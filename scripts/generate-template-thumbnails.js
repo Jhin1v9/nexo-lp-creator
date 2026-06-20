@@ -50,9 +50,11 @@ async function main() {
 
   const data = await apiGet('/templates?limit=200');
   const templates = data.templates || [];
-  const availableTemplates = templates.filter((t) => t.status === 'available' && t.is_public >= 1);
+  const candidates = templates.filter(
+    (t) => (t.status === 'available' || t.status === 'unreviewed') && t.is_public >= 1
+  );
 
-  console.log(`[THUMBNAILS] Found ${availableTemplates.length} public templates`);
+  console.log(`[THUMBNAILS] Found ${candidates.length} public templates (available + unreviewed)`);
 
   const browser = await chromium.connectOverCDP(CDP_URL);
   const context = browser.contexts()[0] || await browser.newContext();
@@ -61,8 +63,8 @@ async function main() {
   let skipped = 0;
   let failed = 0;
 
-  for (let i = 0; i < availableTemplates.length; i++) {
-    const template = availableTemplates[i];
+  for (let i = 0; i < candidates.length; i++) {
+    const template = candidates[i];
     const result = { templateId: template.id, success: false, path: null, error: null };
     const screenshotPath = path.join(THUMBNAIL_DIR, `${template.id}.png`);
 
@@ -74,12 +76,12 @@ async function main() {
       // Skip templates that already have a thumbnail file on disk.
       if (fs.existsSync(screenshotPath)) {
         skipped += 1;
-        console.log(`[${i + 1}/${availableTemplates.length}] Skipping ${template.id} — thumbnail already exists`);
+        console.log(`[${i + 1}/${candidates.length}] Skipping ${template.id} — thumbnail already exists`);
         continue;
       }
 
       const previewUrl = `${BACKEND_URL}/preview/public/${template.public_preview_token}.html`;
-      console.log(`[${i + 1}/${availableTemplates.length}] Capturing ${previewUrl}`);
+      console.log(`[${i + 1}/${candidates.length}] Capturing ${previewUrl}`);
 
       const page = await context.newPage({ viewport: { width: 1920, height: 1080 } });
       try {
@@ -107,7 +109,7 @@ async function main() {
 
   await browser.close().catch(() => {});
 
-  console.log(`[THUMBNAILS] Done: ${captured} captured, ${skipped} skipped, ${failed} failed (total ${availableTemplates.length})`);
+  console.log(`[THUMBNAILS] Done: ${captured} captured, ${skipped} skipped, ${failed} failed (total ${candidates.length})`);
 }
 
 main()

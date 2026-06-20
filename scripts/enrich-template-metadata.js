@@ -36,8 +36,10 @@ async function apiPost(url, body) {
 
 async function main() {
   const data = await apiGet('/templates?limit=200');
-  const templates = (data.templates || []).filter((t) => t.status === 'available' && t.is_public === 1);
-  console.log(`[ENRICH] Found ${templates.length} public templates`);
+  const templates = (data.templates || []).filter(
+    (t) => (t.status === 'available' || t.status === 'unreviewed') && t.is_public >= 1
+  );
+  console.log(`[ENRICH] Found ${templates.length} public templates (available + unreviewed)`);
 
   let ok = 0;
   for (let i = 0; i < templates.length; i++) {
