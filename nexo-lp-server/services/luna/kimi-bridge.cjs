@@ -1702,6 +1702,35 @@ class KimiBridge {
    * - DOM structure changes
    * - Index shifting
    */
+  /**
+   * v13.1-fix: Extract only the FINAL response text from an assistant segment,
+   * ignoring the thinking/planning block that Kimi now renders as a sibling.
+   */
+  _extractFinalResponseFromAssistant(contentBox) {
+    if (!contentBox) return '';
+    // Skip the thinking container and its sibling planning block
+    const thinkingContainer = contentBox.querySelector('.toolcall-container.thinking-container');
+    let text = '';
+    // Prefer the last markdown-container that is NOT inside the thinking container
+    const markdownContainers = Array.from(contentBox.querySelectorAll('.markdown-container'))
+      .filter((md) => !thinkingContainer || !thinkingContainer.contains(md));
+    const finalMd = markdownContainers[markdownContainers.length - 1];
+    if (finalMd) {
+      const codeBlocks = finalMd.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
+      for (const cb of codeBlocks) {
+        const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
+        const t = (contentEl.textContent || contentEl.innerText || '').trim();
+        if (t) text += t + '\n\n';
+      }
+      const paragraphs = finalMd.querySelectorAll('.paragraph, p, [class*="text"]');
+      for (const p of paragraphs) {
+        const t = (p.innerText || p.textContent || '').trim();
+        if (t) text += t + '\n\n';
+      }
+    }
+    return text.trim();
+  }
+
   async _extractResponseDiff(page, preSendSnapshot = []) {
     if (!preSendSnapshot || preSendSnapshot.length === 0) {
       // Fallback: no snapshot, use last assistant
@@ -1712,27 +1741,30 @@ class KimiBridge {
       const postSnapshot = await page.evaluate(() => {
         const assistants = document.querySelectorAll('.segment-assistant');
         return Array.from(assistants).map((el, i) => {
-          // Extract all meaningful text from this assistant
-          let text = '';
           const contentBox = el.querySelector('.segment-content-box');
-          if (contentBox) {
-            const codeBlocks = contentBox.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
-            for (const cb of codeBlocks) {
-              const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
-              const t = (contentEl.textContent || contentEl.innerText || '').trim();
-              if (t) text += t + '\n\n';
+          const text = (() => {
+            // Use the same extraction helper logic
+            const thinkingContainer = contentBox?.querySelector('.toolcall-container.thinking-container');
+            let t = '';
+            const markdownContainers = Array.from(contentBox?.querySelectorAll('.markdown-container') || [])
+              .filter((md) => !thinkingContainer || !thinkingContainer.contains(md));
+            const finalMd = markdownContainers[markdownContainers.length - 1];
+            if (finalMd) {
+              const codeBlocks = finalMd.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
+              for (const cb of codeBlocks) {
+                const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
+                const txt = (contentEl.textContent || contentEl.innerText || '').trim();
+                if (txt) t += txt + '\n\n';
+              }
+              const paragraphs = finalMd.querySelectorAll('.paragraph, p, [class*="text"]');
+              for (const p of paragraphs) {
+                const txt = (p.innerText || p.textContent || '').trim();
+                if (txt) t += txt + '\n\n';
+              }
             }
-            const paragraphs = contentBox.querySelectorAll('.paragraph, p, [class*="text"]');
-            for (const p of paragraphs) {
-              const t = (p.innerText || p.textContent || '').trim();
-              if (t) text += t + '\n\n';
-            }
-          }
-          return {
-            index: i,
-            text: text.trim(),
-            textLength: text.trim().length,
-          };
+            return t.trim();
+          })();
+          return { index: i, text, textLength: text.length };
         });
       });
 
@@ -1783,24 +1815,29 @@ class KimiBridge {
   }
 
   /**
-   * v7.7: Capture a snapshot of all assistant texts before sending.
+   * v7.7: Capture a snapshot of all assistant response texts before sending.
    * This snapshot is used by _extractResponseDiff to compute the difference.
+   * v13.1-fix: Captures only the final response (skips thinking blocks).
    */
   async _capturePreSendSnapshot(page) {
     try {
       const snapshot = await page.evaluate(() => {
         const assistants = document.querySelectorAll('.segment-assistant');
         return Array.from(assistants).map((el) => {
-          let text = '';
           const contentBox = el.querySelector('.segment-content-box');
-          if (contentBox) {
-            const codeBlocks = contentBox.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
+          const thinkingContainer = contentBox?.querySelector('.toolcall-container.thinking-container');
+          let text = '';
+          const markdownContainers = Array.from(contentBox?.querySelectorAll('.markdown-container') || [])
+            .filter((md) => !thinkingContainer || !thinkingContainer.contains(md));
+          const finalMd = markdownContainers[markdownContainers.length - 1];
+          if (finalMd) {
+            const codeBlocks = finalMd.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
             for (const cb of codeBlocks) {
               const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
               const t = (contentEl.textContent || contentEl.innerText || '').trim();
               if (t) text += t + '\n\n';
             }
-            const paragraphs = contentBox.querySelectorAll('.paragraph, p, [class*="text"]');
+            const paragraphs = finalMd.querySelectorAll('.paragraph, p, [class*="text"]');
             for (const p of paragraphs) {
               const t = (p.innerText || p.textContent || '').trim();
               if (t) text += t + '\n\n';
@@ -1826,19 +1863,6 @@ class KimiBridge {
     // v7.5: Unified DOM extraction using the SAME logic as _pollThinkingAndResponse Layer 2.5
     // This ensures consistency between the DOM poller and final extraction.
     const { preferAssistantIndex, userId } = options;
-
-    // v7.5: Strategy 0 — Network Interceptor (PRIMARY, server-side)
-    // Uses Playwright's native page.on('response') — immune to page anti-tampering.
-    if (userId) {
-      const interceptor = this.networkInterceptors.get(userId);
-      if (interceptor) {
-        const data = interceptor.getData();
-        if (data.response && data.response.trim().length > 0) {
-          log.success(`[v7.5] Extracted via network-intercept: ${data.response.slice(0, 80)}...`);
-          return data.response.trim();
-        }
-      }
-    }
 
     // Strategy 0b: Legacy JS-injected stream interceptor (DEPRECATED)
     try {
@@ -1896,12 +1920,15 @@ class KimiBridge {
         const contentBox = assistant.querySelector('.segment-content-box');
         if (!contentBox) return null;
 
-        // Extract from markdown containers
-        const markdownContainers = contentBox.querySelectorAll('.markdown-container');
+        // v13.1-fix: Kimi renders planning/thinking in the first markdown container(s)
+        // and the final answer in the last markdown container. Use only the last
+        // markdown container that is NOT inside the thinking container.
+        const markdownContainers = Array.from(contentBox.querySelectorAll('.markdown-container'))
+          .filter((md) => !thinkContainer || !thinkContainer.contains(md));
+        const finalMd = markdownContainers[markdownContainers.length - 1];
         let rawResponse = '';
-        for (const md of markdownContainers) {
-          if (thinkContainer && md.closest('.toolcall-container.thinking-container')) continue;
-          const codeBlocks = md.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
+        if (finalMd) {
+          const codeBlocks = finalMd.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
           for (const cb of codeBlocks) {
             const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
             const text = (contentEl.textContent || contentEl.innerText || '').trim();
@@ -1914,7 +1941,7 @@ class KimiBridge {
               }
             }
           }
-          const paragraphs = md.querySelectorAll('.paragraph, p, [class*="text"]');
+          const paragraphs = finalMd.querySelectorAll('.paragraph, p, [class*="text"]');
           for (const p of paragraphs) {
             const text = (p.innerText || p.textContent || '').trim();
             if (text) rawResponse += text + '\n\n';
@@ -1993,6 +2020,20 @@ class KimiBridge {
       }
     } catch (e) {
       this._log(`DOM unified extraction failed: ${e.message}`);
+    }
+
+    // v13.1-fix: Network interceptor is now a fallback. It sometimes accumulates
+    // stale conversation content or thinking text, while DOM extraction targets
+    // the latest assistant response more reliably.
+    if (userId) {
+      const interceptor = this.networkInterceptors.get(userId);
+      if (interceptor) {
+        const data = interceptor.getData();
+        if (data.response && data.response.trim().length > 0) {
+          log.success(`[v7.5] Extracted via network-intercept fallback: ${data.response.slice(0, 80)}...`);
+          return data.response.trim();
+        }
+      }
     }
 
     // v7.5: Strategy 2 — Try previous assistant if last one looks like a confirmation
