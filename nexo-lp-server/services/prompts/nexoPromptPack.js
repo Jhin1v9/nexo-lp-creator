@@ -102,42 +102,50 @@ Return ONLY a single JSON object matching this exact schema (no markdown fences,
 }
 
 function codePrompt(structure, stack) {
-  // v6.0-fix: The code prompt must be laser-focused on producing the actual
-  // HTML file. Any mention of JSON/schema makes Kimi output another brief.
+  // v5.0-fix: Keep the code prompt short and authoritative. Long prompts
+  // with huge JSON inputs make Kimi fall back to producing another design
+  // brief instead of the actual HTML file.
   const sectionList = (structure.sections || []).map(s => {
     const id = s.id || s;
-    return `- ${id}`;
-  }).join('\n');
+    const type = s.type || `${id}-section`;
+    return `- ${id} (${type})`;
+  }).join('
+');
   const colors = structure.designTokens?.colors || structure.colors || {};
   const colorHint = Object.keys(colors).length
-    ? `Palette: ${Object.entries(colors).map(([k, v]) => `${k} ${v}`).join(', ')}.`
+    ? `Colors: ${Object.entries(colors).map(([k, v]) => `${k}=${v}`).join(', ')}.`
     : '';
 
   return `${BASE_PERSONA}
 
-PHASE: Code Generation — FINAL OUTPUT. No more planning. No more JSON. Just code.
+PHASE: Code Generation (FINAL OUTPUT)
 STACK: ${stack}
+GOAL: Produce the complete, self-contained landing page HTML file.
 
 ${IRON_RULES}
 
-Build these sections:
-${sectionList || '- hero\n- features\n- testimonials\n- cta\n- footer'}
+Sections to build:
+${sectionList || '- hero
+- features
+- testimonials
+- cta
+- footer'}
 
 ${colorHint}
 
-OUTPUT RULES — OBEY EXACTLY:
-1. Return ONE markdown HTML code block: \`\`\`html ... \`\`\`.
-2. The code block must contain a COMPLETE, VALID, SINGLE-FILE HTML page.
-3. It MUST start with <!DOCTYPE html> and end with </html>.
-4. Load Tailwind CSS via CDN. Semantic HTML5, mobile-first, responsive.
-5. Include <title>, charset, viewport and OG meta tags.
-6. ONE conversion goal, CTA repeated 2-3 times, no competing exit links.
-7. Cinematic animations, parallax, hover micro-interactions. Premium feel.
-8. Real Unsplash/Pexels images only. No gray placeholders.
-9. Benefit-driven copy. No lorem ipsum.
-10. ONLY the HTML code block. No JSON, no briefs, no explanations, no partial snippets.
+OUTPUT RULES — READ CAREFULLY:
+1. Return ONLY one markdown HTML code block: \`\`\`html ... \`\`\`.
+2. Inside the code block there must be a complete, valid HTML file starting with <!DOCTYPE html> and ending with </html>.
+3. Use Tailwind CSS via CDN. Mobile-first, responsive, semantic HTML5.
+4. Include <title>, viewport, charset and Open Graph meta tags.
+5. ONE conversion goal — repeat the main CTA 2-3 times; no competing links.
+6. Cinematic scroll-driven animations, parallax, hover micro-interactions. The page must feel alive and premium.
+7. Use real Unsplash/Pexels image URLs; never gray placeholders.
+8. Every headline/bullet must communicate a clear benefit (no lorem ipsum).
+9. The user may request any library (GSAP, Three.js, Lottie, Lenis, Swiper, etc.) via CDN. Everything must stay in a SINGLE HTML file.
+10. DO NOT output JSON, design briefs, schemas, summaries, explanations, or partial snippets. ONLY the HTML code block.
 
-Write the complete HTML now.`;
+Start writing the HTML now.`;
 }
 
 function reviewPrompt(html) {
