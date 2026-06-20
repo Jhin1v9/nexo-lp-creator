@@ -141,25 +141,23 @@ Write the complete HTML now.`;
 }
 
 function reviewPrompt(html) {
-  return `${BASE_PERSONA}
+  return `PHASE: QA Review — Return ONLY JSON.
 
-PHASE: QA Review
-TASK: Review the HTML landing page below and return ONLY a JSON review.
+Review the HTML below for: a11y, codeQuality, seo, performance, cro, security, visualImpact.
 
-${IRON_RULES}
-
-HTML to review:
+HTML TO REVIEW:
+\`\`\`html
 ${html}
+\`\`\`
 
-Evaluate: a11y, codeQuality, seo, performance, cro, security, visualImpact.
+RETURN ONLY ONE JSON CODE BLOCK. NO explanations, NO regenerated HTML, NO summaries.
 
-Return ONLY a json code block with this exact schema — no extra text:
-
+Schema:
 \`\`\`json
 {
   "score": 87,
   "passed": true,
-  "issues": [{ "severity": "error", "message": "Concrete issue" }],
+  "issues": [{ "severity": "error", "message": "Concrete issue text" }],
   "suggestions": ["Actionable suggestion"],
   "metadata": {
     "dimensions": {
@@ -178,9 +176,9 @@ Return ONLY a json code block with this exact schema — no extra text:
 \`\`\`
 
 RULES:
-- passed = true if score >= 75, no critical issues, and the HTML is complete.
-- If passed = false, issues MUST explain why and metadata.rebuildInstructions MUST list the fixes.
-- Be pragmatic; don't fail a good page for minor polish.`;
+- "passed": true if score >= 75, no critical issues, and HTML is complete.
+- If "passed": false, "issues" MUST explain why and "metadata.rebuildInstructions" MUST list fixes.
+- Do NOT output the HTML again. Do NOT output markdown outside the JSON block.`;
 }
 
 function fixPrompt(html, instructions) {
@@ -214,38 +212,34 @@ FIX RULES:
 Return ONLY the complete corrected code.`;
 }
 function reviewRetryPrompt(html, reason, rawResponse) {
-  return `${BASE_PERSONA}
+  return `PHASE: QA Review Retry — Your previous response was not valid JSON.
 
-PHASE: QA Review Retry
-TASK: Your previous QA review response was invalid. Review the HTML again and return ONLY a valid JSON object.
+Reason: ${reason}
 
-${IRON_RULES}
-
-Invalid response reason: ${reason}
-
-Your invalid response (truncated):
-${String(rawResponse || "").slice(0, 4000)}
+Invalid response (truncated):
+${String(rawResponse || "").slice(0, 2000)}
 
 HTML to review:
+\`\`\`html
 ${html}
+\`\`\`
 
-Return ONLY a json code block with this exact schema:
+RETURN ONLY ONE JSON CODE BLOCK. NO explanations, NO regenerated HTML.
 
+Schema:
+\`\`\`json
 {
   "score": 85,
   "passed": false,
-  "issues": [
-    { "severity": "error", "message": "Concrete issue here" }
-  ],
+  "issues": [{ "severity": "error", "message": "Concrete issue" }],
   "suggestions": ["Actionable fix"],
   "metadata": {
-    "dimensions": { "codeQuality": { "score": 70, "notes": "broken tag" }, "visualImpact": { "score": 90, "notes": "good" } },
+    "dimensions": { "codeQuality": { "score": 70, "notes": "brief" }, "visualImpact": { "score": 90, "notes": "brief" } },
     "rebuildNeeded": true,
-    "rebuildInstructions": ["Close the broken tag"]
+    "rebuildInstructions": ["Fix instruction"]
   }
 }
-
-If "passed" is false, "issues" MUST contain at least one concrete issue.`;
+\`\`\``;
 }
 
 function sanitizePrompt(originalHtml) {
