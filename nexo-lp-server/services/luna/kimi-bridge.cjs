@@ -1922,6 +1922,56 @@ class KimiBridge {
     return currentHtml;
   }
 
+  /**
+   * v14.1-fix: For code generation we must return the WHOLE HTML document from the
+   * last assistant. Kimi sometimes pauses and shows a "Continue" button, or renders
+   * the HTML lazily after the stream signals completion. This helper keeps clicking
+   * Continue and re-reading the last assistant until </html> is present or we give up.
+   */
+  async _ensureCompleteHtmlFromLastAssistant(page, initialHtml = '', maxAttempts = 15) {
+    if (!page || page.isClosed()) return initialHtml;
+    let currentHtml = initialHtml || '';
+    let stableCount = 0;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      let fullLast = '';
+      try {
+        fullLast = await this._extractLastAssistantFullText(page);
+      } catch (e) {
+        log.debug(`[_ensureCompleteHtml] extraction error: ${e.message}`);
+      }
+      if (fullLast && fullLast.length > currentHtml.length) {
+        currentHtml = fullLast;
+        stableCount = 0;
+      } else {
+        stableCount += 1;
+      }
+
+      const lower = currentHtml.toLowerCase();
+      const hasHtmlStart = lower.includes('<!doctype html>') || lower.includes('<html');
+      const hasHtmlEnd = /<\/html\s*>/i.test(currentHtml);
+
+      if (hasHtmlStart && hasHtmlEnd) {
+        log.success(`[_ensureCompleteHtml] Complete HTML captured (${currentHtml.length} chars)`);
+        return currentHtml;
+      }
+
+      if (hasHtmlStart && !hasHtmlEnd) {
+        log.info(`[_ensureCompleteHtml] HTML detected but incomplete (${currentHtml.length} chars), attempt ${attempt}/${maxAttempts}`);
+        const clicked = await this._clickContinuationButtons(page);
+        if (!clicked && stableCount >= 3) {
+          log.warn(`[_ensureCompleteHtml] HTML still incomplete and no Continue button after ${attempt} attempts`);
+          break;
+        }
+      }
+
+      // Wait for Kimi to render/continue the response
+      await new Promise((r) => setTimeout(r, 2500));
+    }
+
+    return currentHtml;
+  }
+
   async _extractResponseDiff(page, preSendSnapshot = []) {
     if (!preSendSnapshot || preSendSnapshot.length === 0) {
       // Fallback: no snapshot, use last assistant
@@ -3684,6 +3734,16 @@ class KimiBridge {
    * handler on Kimi's landing page; native KeyboardEvent does.
    */
   async _pressEnterOnInput(inputLocator) {
+    // v12.6-fix: Kimi's Lexical editor reliably sends on Playwright's native
+    // Enter keypress. Synthetic KeyboardEvents alone leave the send button
+    // disabled, so use the real keypress first and fall back to synthetic events.
+    try {
+      await inputLocator.press('Enter');
+      return;
+    } catch (pressErr) {
+      log.warn(`_pressEnterOnInput native press failed: ${pressErr.message}, falling back to synthetic events`);
+    }
+
     try {
       const el = await inputLocator.elementHandle();
       if (el) {
@@ -3703,10 +3763,10 @@ class KimiBridge {
         return;
       }
     } catch (e) {
-      log.warn(`_pressEnterOnInput dispatch failed: ${e.message}`);
+      log.warn(`_pressEnterOnInput synthetic dispatch failed: ${e.message}`);
     }
-    // Fallback to Playwright's press if element handle is unavailable
-    await inputLocator.press('Enter');
+
+    throw new Error('Unable to press Enter on Kimi input');
   }
 
   async sendMessage(userId, text, options = {}) {
@@ -6862,12 +6922,17 @@ class KimiBridge {
       await inputLocator.fill(text);
       await page.waitForTimeout(300);
 
-      // Click send or press Enter
-      const clickedSend = await this._clickSendButtonDirectly(page);
-      if (clickedSend) {
-        log.info(`Steer injected via direct send button click`);
-      } else {
+      // v12.6-fix: Prefer Enter; click only if Enter fails.
+      try {
         await this._pressEnterOnInput(inputLocator);
+        log.info(`Steer injected via Enter`);
+      } catch (steerSendErr) {
+        const clickedSend = await this._clickSendButtonDirectly(page);
+        if (clickedSend) {
+          log.info(`Steer injected via direct send button click`);
+        } else {
+          throw new Error(`Steer injection failed: ${steerSendErr.message}`);
+        }
       }
 
       log.success(`Steer injected for user ${hashUserId(userId)}`);
@@ -6879,13 +6944,14 @@ class KimiBridge {
   }
 
   /**
-   * v12.5-fix: Click Kimi's send button by finding the real DOM element and calling
+   * v12.6-fix: Click Kimi's send button by finding the real DOM element and calling
    * click() directly inside the page. This bypasses Playwright locator timeouts when
    * the page is heavy/laggy and works on the exact rendered element.
+   * Returns a plain boolean so callers don't treat an object as truthy.
    */
   async _clickSendButtonDirectly(page) {
     if (!page) return false;
-    return await page.evaluate(() => {
+    const result = await page.evaluate(() => {
       const selectors = [
         '.send-button-container',
         '[class*="send-button"]',
@@ -6893,7 +6959,13 @@ class KimiBridge {
       ];
       for (const sel of selectors) {
         const el = document.querySelector(sel);
-        if (el && !el.disabled) {
+        if (!el) continue;
+        const cls = (typeof el.className === 'string' ? el.className : '').toLowerCase();
+        const isDisabled =
+          el.disabled === true ||
+          cls.includes('disabled') ||
+          cls.includes('stop');
+        if (!isDisabled) {
           el.scrollIntoView({ behavior: 'instant', block: 'center' });
           el.click();
           return { clicked: true, selector: sel };
@@ -6901,6 +6973,7 @@ class KimiBridge {
       }
       return { clicked: false };
     });
+    return !!(result && result.clicked);
   }
 
   /**
@@ -7081,15 +7154,22 @@ class KimiBridge {
       });
       await page.waitForTimeout(500);
 
-      // v12.2-fix: Prefer clicking the enabled send button directly via DOM;
-      // fall back to Enter. Direct element click bypasses Playwright locator
-      // timeouts on heavy/laggy pages.
-      const clickedSend = await this._clickSendButtonDirectly(page);
-      if (clickedSend) {
-        log.info(`[sendMessageStream] Message sent via direct send button click`);
-      } else {
+      // v12.5-fix: Kimi's Lexical editor on the landing page only registers a
+      // real send when Playwright presses Enter on the focused contenteditable.
+      // The visible send button stays disabled until the app sees native input,
+      // so clicking it directly usually fails. Use Enter first; fall back to a
+      // direct click only if Enter throws.
+      try {
         await this._pressEnterOnInput(inputLocator);
         log.info(`[sendMessageStream] Message sent via Enter`);
+      } catch (sendErr) {
+        log.warn(`[sendMessageStream] Enter send failed (${sendErr.message}), trying direct button click`);
+        const clickedSend = await this._clickSendButtonDirectly(page);
+        if (clickedSend) {
+          log.info(`[sendMessageStream] Message sent via direct send button click`);
+        } else {
+          throw new Error('Failed to send message: neither Enter nor send button worked');
+        }
       }
 
       // v7.7: Keep assistant detection for logging/compatibility, but extraction
@@ -7457,16 +7537,34 @@ class KimiBridge {
 
       try {
         fullLast = await this._extractLastAssistantFullText(page);
-        const looksLikeHtml = fullLast && (
-          (fullLast.toLowerCase().includes('<!doctype') || fullLast.toLowerCase().includes('<html'))
+      } catch (e) {
+        log.debug(`[sendMessageStream] Full last-assistant extraction failed: ${e.message}`);
+      }
+
+      // v14.1-fix: For code generation the stream poller may signal completion
+      // before the full HTML is rendered or before Kimi shows the Continue button.
+      // Read the last assistant directly from the DOM and keep expanding until we
+      // have a complete </html>.
+      if (options.requiredHtmlClose && fullLast && fullLast.trim().length > 0) {
+        const ensured = await this._ensureCompleteHtmlFromLastAssistant(page, fullLast);
+        const looksLikeHtml = ensured && (
+          ensured.toLowerCase().includes('<!doctype') || ensured.toLowerCase().includes('<html')
         );
-        if (fullLast && fullLast.trim().length > 0 && looksLikeHtml) {
+        if (looksLikeHtml) {
+          finalResponse = ensured.trim();
+          extractionSource = /<\/html\s*>/i.test(finalResponse) ? 'last-assistant-full-complete' : 'last-assistant-full-partial';
+          log.success(`[sendMessageStream] Captured last assistant HTML: ${finalResponse.length} chars (${extractionSource})`);
+        }
+      }
+
+      // Standard HTML capture for non-code phases or when requiredHtmlClose is off.
+      if (!finalResponse && fullLast && fullLast.trim().length > 0) {
+        const looksLikeHtml = fullLast.toLowerCase().includes('<!doctype') || fullLast.toLowerCase().includes('<html');
+        if (looksLikeHtml) {
           finalResponse = fullLast.trim();
           extractionSource = 'last-assistant-full';
           log.success(`[sendMessageStream] Captured full last assistant HTML: ${finalResponse.length} chars`);
         }
-      } catch (e) {
-        log.debug(`[sendMessageStream] Full last-assistant extraction failed: ${e.message}`);
       }
 
       // If the captured HTML looks truncated, click Kimi's "Continue >" button

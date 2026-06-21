@@ -102,28 +102,34 @@ Return ONLY a single JSON object matching this exact schema (no markdown fences,
 }
 
 function codePrompt(structure, stack) {
-  // v7.0-fix: Give Kimi the full design brief and a fresh context so it outputs
-  // the actual HTML file instead of another planning JSON. The output must be
-  // the complete HTML document wrapped in a markdown code block.
+  // v8.0-fix: Lead with the HTML mandate and keep the design brief as reference.
+  // Putting a large JSON block at the top of the prompt confuses Kimi into
+  // emitting another JSON structure instead of the actual HTML file.
   const sectionList = (structure.sections || []).map(s => {
     const id = s.id || s;
-    return `- ${id}`;
+    const purpose = s.purpose ? ` (${s.purpose})` : '';
+    return `- ${id}${purpose}`;
   }).join('\n');
   const colors = structure.designTokens?.colors || structure.colors || {};
   const colorHint = Object.keys(colors).length
     ? `Palette: ${Object.entries(colors).map(([k, v]) => `${k} ${v}`).join(', ')}.`
     : '';
+  const title = structure.title || structure.designTokens?.title || 'Landing Page';
+  const description = structure.description || structure.designTokens?.description || '';
+  const goal = structure.goal || structure.croStrategy || 'Drive the primary conversion';
 
   return `${BASE_PERSONA}
 
-PHASE: Code Generation — FINAL OUTPUT. This is the CODE phase. Stop planning. Stop writing briefs. Generate the actual HTML file now.
-STACK: ${stack}
-
 ${IRON_RULES}
 
-DESIGN BRIEF TO IMPLEMENT:
-${JSON.stringify(structure, null, 2)}
+STACK: ${stack}
 
+YOU ARE IN THE CODE PHASE. YOUR ONLY JOB IS TO OUTPUT THE COMPLETE HTML FILE.
+DO NOT output JSON. DO NOT output a design brief. DO NOT explain. DO NOT summarize.
+
+PAGE TO BUILD: ${title}
+${description ? `DESCRIPTION: ${description}` : ''}
+GOAL: ${goal}
 ${colorHint}
 
 SECTIONS TO INCLUDE:
@@ -140,6 +146,9 @@ OUTPUT RULES — OBEY EXACTLY:
 8. Real Unsplash/Pexels images only. No gray placeholders.
 9. Benefit-driven copy. No lorem ipsum.
 10. ONLY the HTML code block. No JSON, no briefs, no explanations, no partial snippets.
+
+DESIGN BRIEF (REFERENCE ONLY — DO NOT REPEAT AS JSON):
+${JSON.stringify(structure, null, 2)}
 
 Write the complete HTML now.`;
 }

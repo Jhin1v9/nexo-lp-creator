@@ -341,17 +341,19 @@ class GenerationService {
 
         if (phase === 'code') {
           // Code phase may need auto-continue when Kimi emits intermediate metadata JSON.
-          // Start a fresh Kimi chat for code so Kimi is not stuck in brief/JSON-mode
-          // from the previous intention/structure messages.
+          // We keep the same Kimi chat because the code prompt now carries the full
+          // design brief, and creating a new chat has been unreliable (transient
+          // ?chat_enter_method=new_chat page never renders the response).
+          // v14.2-fix: Start a fresh Kimi chat for the code phase. Reusing the
+          // intention/structure chat leaves Kimi in JSON/brief mode, so it keeps
+          // emitting structure metadata instead of the actual HTML file. A clean
+          // context with the full brief in the prompt makes HTML output reliable.
           response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs, true);
         } else {
           response = await this.sendMessageWithoutHardTimeout(context, phasePrompt, {
             stack: selectedStack,
             phase,
             phaseTimeoutMs,
-            // Start every generation with a fresh Kimi chat. This avoids inheriting
-            // stale HTML/JSON from previous sessions in the same browser page.
-            newChat: phase === 'intention',
           });
         }
 
