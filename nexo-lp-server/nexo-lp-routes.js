@@ -39,6 +39,7 @@ const lpTemplateService = require('./services/lpTemplateService');
 const lpMiningService = require('./services/lpMiningService');
 const lpVersionService = require('./services/lpVersionService');
 const lpCurrencyService = require('./services/lpCurrencyService');
+const adminRoutes = require('./routes/adminRoutes');
 
 /**
  * Helper: Async handler wrapper to catch errors in async route handlers
@@ -952,5 +953,15 @@ router.post('/stacks/validate', asyncHandler(async (req, res) => {
 
   res.status(200).json(successResponse(result, 'Stack validation completed'));
 }));
+
+// ============================================================
+// ADMIN ROUTES
+// ============================================================
+
+/**
+ * Mount admin routes under /admin.
+ * Admin authentication middleware is expected to set req.userId.
+ */
+router.use('/admin', adminRoutes);
 
 module.exports = router;

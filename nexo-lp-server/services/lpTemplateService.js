@@ -17,6 +17,7 @@ const MessageRepository = require('../models/repositories/MessageRepository');
 const CurrencyRepository = require('../models/repositories/CurrencyRepository');
 const PreviewService = require('./lpPreviewService');
 const SanitizationOrchestrator = require('./lpSanitizationOrchestrator');
+const userService = require('./lpUserService');
 const config = require('../config/nexo-lp-config');
 
 class TemplateService {
@@ -113,6 +114,8 @@ class TemplateService {
     if (!session) throw new Error('Session not found');
     if (session.user_id !== userId) throw new Error('Unauthorized');
 
+    await userService.ensureExists(userId);
+
     const existing = await TemplateRepository.findBySessionId(sessionId);
     if (existing) return existing;
 
@@ -172,6 +175,8 @@ class TemplateService {
     const session = await SessionRepository.findById(sessionId);
     if (!session) throw new Error('Session not found');
     if (session.user_id !== userId) throw new Error('Unauthorized');
+
+    await userService.ensureExists(userId);
 
     const html = session.current_html || '';
     if (!this._isValidHtml(html)) {
@@ -273,6 +278,8 @@ class TemplateService {
     const template = await TemplateRepository.findById(templateId);
     if (!template) throw new Error('Template not found');
     if (template.status !== 'available') throw new Error('Template is not available yet');
+
+    await userService.ensureExists(userId);
 
     const alreadyPurchased = await TemplatePurchaseRepository.findByTemplateAndUser(templateId, userId);
     if (alreadyPurchased) return alreadyPurchased;

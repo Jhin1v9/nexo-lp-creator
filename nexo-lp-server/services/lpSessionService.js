@@ -5,6 +5,7 @@
 
 const SessionRepository = require('../models/repositories/SessionRepository');
 const MessageRepository = require('../models/repositories/MessageRepository');
+const userService = require('./lpUserService');
 
 class SessionService {
   constructor() {
@@ -15,6 +16,8 @@ class SessionService {
     if (!data.userId) {
       throw new Error('userId is required to create a session');
     }
+
+    await userService.ensureExists(data.userId);
 
     const session = await this.repository.create({
       userId: data.userId,

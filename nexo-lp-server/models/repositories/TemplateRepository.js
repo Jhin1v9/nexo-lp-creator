@@ -130,14 +130,17 @@ class TemplateRepository {
   }
 
   _buildWhere(options = {}) {
-    const conditions = ['is_public >= 1'];
+    const conditions = [];
     const params = [];
 
-    if (options.status) {
-      conditions.push('status = ?');
-      params.push(options.status);
-    } else {
-      conditions.push("status IN ('sanitizing', 'available', 'unreviewed')");
+    if (!options.includeAllStatuses) {
+      conditions.push('is_public >= 1');
+      if (options.status) {
+        conditions.push('status = ?');
+        params.push(options.status);
+      } else {
+        conditions.push("status IN ('sanitizing', 'available', 'unreviewed')");
+      }
     }
 
     if (options.category) {
@@ -153,6 +156,11 @@ class TemplateRepository {
     if (options.stack) {
       conditions.push('stack = ?');
       params.push(options.stack);
+    }
+
+    if (options.createdBy || options.created_by) {
+      conditions.push('created_by = ?');
+      params.push(options.createdBy || options.created_by);
     }
 
     if (options.search) {
