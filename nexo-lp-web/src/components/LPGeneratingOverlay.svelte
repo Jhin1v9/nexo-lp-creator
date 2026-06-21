@@ -1,11 +1,10 @@
 <script>
   import { onMount, onDestroy } from 'svelte';
+  import { fade } from 'svelte/transition';
   import { gsap } from 'gsap';
-  import { isGenerating, generationEvents } from '../stores.js';
+  import { isGenerating, generationEvents, generationOverlayMinimized } from '../stores.js';
   import GenerationPhaseStack from './GenerationPhaseStack.svelte';
   import LunaStarfield from './LunaStarfield.svelte';
-
-  export let minimized = false;
 
   let contentEl;
   let titleEl;
@@ -22,7 +21,23 @@
 
   $: activeMessage = messages[Math.min($generationEvents.length, messages.length - 1)] || messages[0];
 
+  let wasGenerating = false;
+  $: {
+    if ($isGenerating && !wasGenerating) {
+      generationOverlayMinimized.set(false);
+    }
+    wasGenerating = $isGenerating;
+  }
+
+  function handleKeydown(event) {
+    if (event.key === 'Escape' && !$generationOverlayMinimized) {
+      generationOverlayMinimized.set(true);
+    }
+  }
+
   onMount(() => {
+    window.addEventListener('keydown', handleKeydown);
+
     timeline = gsap.timeline({ repeat: -1 });
 
     timeline
@@ -50,20 +65,32 @@
   });
 
   onDestroy(() => {
+    window.removeEventListener('keydown', handleKeydown);
     if (timeline) timeline.kill();
     gsap.killTweensOf([progressEl, titleEl, contentEl]);
   });
 </script>
 
-{#if $isGenerating && !minimized}
-  <div aria-busy="true" class="fixed inset-0 z-[60] flex flex-col items-center justify-center font-sans text-white overflow-hidden pointer-events-none">
+{#if $isGenerating && !$generationOverlayMinimized}
+  <div
+    aria-busy="true"
+    class="fixed inset-0 z-[60] flex flex-col items-center justify-center font-sans text-white overflow-hidden pointer-events-none"
+    transition:fade={{ duration: 700 }}
+  >
+    <!-- Dark backdrop that fades in smoothly -->
+    <div
+      class="absolute inset-0 bg-black/80 z-0"
+      in:fade={{ duration: 700 }}
+      out:fade={{ duration: 500 }}
+    ></div>
+
     <!-- Immersive starfield wallpaper behind the generating animation -->
     <LunaStarfield active={true} className="overlay-starfield" />
 
     <!-- Minimize button -->
     <button
       type="button"
-      on:click={() => minimized = true}
+      on:click={() => generationOverlayMinimized.set(true)}
       class="pointer-events-auto absolute top-5 right-5 z-30 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/10 text-[11px] text-white/80 backdrop-blur-md transition-colors"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
@@ -110,14 +137,14 @@
   </div>
 {/if}
 
-{#if $isGenerating && minimized}
+{#if $isGenerating && $generationOverlayMinimized}
   <button
     type="button"
-    on:click={() => minimized = false}
+    on:click={() => generationOverlayMinimized.set(false)}
     class="fixed bottom-6 right-6 z-[60] flex items-center gap-2 px-4 py-2.5 rounded-full bg-gradient-to-r from-luna-primary to-luna-purple text-white text-sm font-medium shadow-[0_0_30px_rgba(99,102,241,0.45)] hover:shadow-[0_0_40px_rgba(99,102,241,0.6)] hover:scale-105 transition-all pointer-events-auto"
   >
     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-    <span>Voltar pro universo</span>
+    <span>Voltar pro universo LP</span>
   </button>
 {/if}
 

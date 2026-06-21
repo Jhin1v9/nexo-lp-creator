@@ -1,78 +1,93 @@
 #!/usr/bin/env node
-/**
- * One-off script: sanitize all current 'unreviewed' templates sequentially.
- * Processes one template at a time with a short pause between them so the
- * Kimi bridge is not overwhelmed.
- */
-
-const path = require('path');
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
+process.env.SANITIZE_CONCURRENCY = '1';
+process.env.SANITIZE_KIMI_DELAY_MS = '5000';
 
 const { initializeDatabase, closeDatabase, query } = require('../nexo-lp-server/models/sqlite');
 const SessionRepository = require('../nexo-lp-server/models/repositories/SessionRepository');
-const SanitizationOrchestrator = require('../nexo-lp-server/services/lpSanitizationOrchestrator');
+const orchestrator = require('../nexo-lp-server/services/lpSanitizationOrchestrator');
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+const targetId = process.argv.find((arg) => arg.startsWith('--template-id='))?.split('=')[1];
+const forceMode = process.argv.includes('--force');
+
+async function sanitizeTemplate(tpl) {
+  const prefix = `[${tpl.id}]`;
+  console.log(`\n${prefix} Starting full sanitization combo`);
+
+  const session = await SessionRepository.findById(tpl.session_id);
+  // Prefer the original (un-sanitized) HTML so we don't feed a previously
+  // duplicated or broken sanitized_html back into the sanitizer.
+  const originalHtml = tpl.original_html || tpl.html || session?.current_html || '';
+  if (!originalHtml) {
+    console.warn(`${prefix} No HTML, skipping`);
+    return { success: false, error: 'No HTML' };
+  }
+
+  const result = await orchestrator.startSanitization(
+    tpl.session_id,
+    originalHtml,
+    session?.prompt || '',
+    session?.kimi_chat_url || null,
+    `sanitize-${tpl.id}`
+  );
+
+  if (result.success) {
+    console.log(`${prefix} OK — htmlLength=${result.htmlLength}, metadata=${JSON.stringify(result.metadata).substring(0, 120)}`);
+  } else {
+    console.error(`⚠️  ${prefix} FAILED: ${result.error}`);
+  }
+  return result;
 }
 
 async function main() {
   await initializeDatabase();
 
-  const templates = await query(
-    `SELECT id, session_id, html FROM templates WHERE status = 'unreviewed' ORDER BY created_at ASC`
-  );
-  console.log(`[SANITIZE] Found ${templates.length} unreviewed template(s)`);
+  let rows;
+  if (targetId) {
+    rows = await query(
+      forceMode
+        ? 'SELECT id, session_id, html, original_html, status FROM templates WHERE id = ?'
+        : 'SELECT id, session_id, html, original_html, status FROM templates WHERE id = ? AND status = ?',
+      forceMode ? [targetId] : [targetId, 'unreviewed']
+    );
+  } else {
+    rows = await query(`
+      SELECT id, session_id, html, original_html, status
+      FROM templates
+      WHERE status = 'unreviewed'
+      ORDER BY created_at
+    `);
+  }
 
-  let success = 0;
-  let failed = 0;
+  console.log(`Found ${rows.length} unreviewed template(s)`);
 
-  for (const tpl of templates) {
-    const session = await SessionRepository.findById(tpl.session_id);
-    if (!session) {
-      console.warn(`[SANITIZE] Session not found for ${tpl.session_id}`);
-      failed += 1;
-      continue;
-    }
-    const html = tpl.html || session.current_html || '';
-    if (!html) {
-      console.warn(`[SANITIZE] No HTML for ${tpl.id}`);
-      failed += 1;
-      continue;
-    }
+  if (rows.length === 0) {
+    closeDatabase();
+    console.log('Nothing to do.');
+    process.exit(0);
+  }
 
-    console.log(`[SANITIZE] Starting ${tpl.id} (session ${tpl.session_id})`);
+  const failed = [];
+  for (const tpl of rows) {
     try {
-      const result = await SanitizationOrchestrator.startSanitization(
-        tpl.session_id,
-        html,
-        session.initial_prompt || '',
-        session.kimi_chat_url || null,
-        session.user_id
-      );
-      if (result && result.success) {
-        console.log(`[SANITIZE] Finished ${tpl.id}: success`);
-        success += 1;
-      } else {
-        console.error(`[SANITIZE] Finished ${tpl.id}: ${result?.error || 'unknown failure'}`);
-        failed += 1;
-      }
+      const result = await sanitizeTemplate(tpl);
+      if (!result.success) failed.push({ id: tpl.id, error: result.error });
     } catch (err) {
-      console.error(`[SANITIZE] Failed ${tpl.id}:`, err.message);
-      failed += 1;
+      console.error(`⚠️  [${tpl.id}] ERROR: ${err.message}`);
+      failed.push({ id: tpl.id, error: err.message });
     }
-
-    // Brief pause to keep the bridge stable before the next template.
-    await sleep(5000);
   }
 
   closeDatabase();
-  console.log(`[SANITIZE] Done: ${success} succeeded, ${failed} failed (total ${templates.length})`);
+
+  if (failed.length > 0) {
+    console.error('\n⚠️  FAILED TEMPLATES:');
+    failed.forEach((f) => console.error(`  - ${f.id}: ${f.error}`));
+    process.exit(1);
+  }
+
+  console.log('\nDone: all unreviewed templates sanitized');
+  process.exit(0);
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((err) => {
-    console.error('[SANITIZE] Fatal error:', err.message);
-    process.exit(1);
-  });
+main().catch((err) => { console.error(err); process.exit(1); });

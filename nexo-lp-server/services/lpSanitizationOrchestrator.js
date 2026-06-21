@@ -7,13 +7,15 @@ const { ResponseParser } = require('./luna/ResponseParser.cjs');
 const {
   sanitizePrompt,
   sanitizeRetryPrompt,
-  sanitizeReviewPrompt,
+  sanitizeQaPrompt,
+  sanitizeMetadataPrompt,
   sanitizeRefinePrompt,
 } = require('./prompts/nexoPromptPack');
 
 const buildSanitizePrompt = (originalHtml) => sanitizePrompt(originalHtml);
 const buildSanitizeRetryPrompt = (originalHtml) => sanitizeRetryPrompt(originalHtml);
-const buildReviewPrompt = (html) => sanitizeReviewPrompt(html);
+const buildQaPrompt = (html) => sanitizeQaPrompt(html);
+const buildMetadataPrompt = (html) => sanitizeMetadataPrompt(html);
 const buildRefinePrompt = (html, corrections) => sanitizeRefinePrompt(html, corrections);
 
 class SanitizationOrchestrator extends EventEmitter {
@@ -99,7 +101,7 @@ class SanitizationOrchestrator extends EventEmitter {
         step1Result = await this._sendToKimi(
           context,
           prompt,
-          { mode: 'instant', phase: 'sanitize' }
+          { mode: 'instant', phase: 'sanitize', newChat: true }
         );
 
         currentHtml = this._extractHtml(step1Result.content);
@@ -140,28 +142,29 @@ class SanitizationOrchestrator extends EventEmitter {
         throw new Error(`Step 1 failed to produce valid HTML after retries (length=${currentHtml.length})`);
       }
 
-      // Step 2: thinking review + metadata
+      // Step 2: QA review — check if HTML is technically sound.
       this.emit('sanitization:step', { sessionId, step: 2, mode: 'thinking' });
 
-      const step2Result = await this._sendToKimi(
+      const qaResult = await this._sendToKimi(
         context,
-        buildReviewPrompt(currentHtml),
-        { mode: 'thinking', phase: 'review' }
+        buildQaPrompt(currentHtml),
+        { mode: 'thinking', phase: 'qa' }
       );
 
-      const review = this._parseReview(step2Result.content);
+      const qa = this._parseQaReview(qaResult.content);
       log.attempts.push({
         step: 2,
         mode: 'thinking',
+        phase: 'qa',
         finishedAt: new Date().toISOString(),
-        response: JSON.stringify(review).slice(0, 1000),
+        response: JSON.stringify(qa).slice(0, 1000),
       });
 
-      // Step 3: thinking refinement if corrections needed
-      if (!review.ok && Array.isArray(review.corrections) && review.corrections.length > 0) {
+      // Step 3: refine if QA found real issues.
+      if (!qa.ok && Array.isArray(qa.corrections) && qa.corrections.length > 0) {
         this.emit('sanitization:step', { sessionId, step: 3, mode: 'thinking' });
 
-        const correctionsText = review.corrections.map((c, i) => `${i + 1}. ${c}`).join('\n');
+        const correctionsText = qa.corrections.map((c, i) => `${i + 1}. ${c}`).join('\n');
         const step3Result = await this._sendToKimi(
           context,
           buildRefinePrompt(currentHtml, correctionsText),
@@ -188,10 +191,29 @@ class SanitizationOrchestrator extends EventEmitter {
         }
       }
 
-      // Merge metadata with defaults
-      const metadata = this._normalizeMetadata(review.metadata);
+      // Step 4: metadata extraction — separate prompt so Kimi doesn't confuse
+      // JSON metadata with the large HTML response.
+      this.emit('sanitization:step', { sessionId, step: 4, mode: 'thinking' });
 
-      // Finalize: unreviewed templates are promoted; sanitizing templates become available.
+      const metadataResult = await this._sendToKimi(
+        context,
+        buildMetadataPrompt(currentHtml),
+        { mode: 'thinking', phase: 'metadata' }
+      );
+
+      const metadataPayload = this._parseMetadata(metadataResult.content);
+      log.attempts.push({
+        step: 4,
+        mode: 'thinking',
+        phase: 'metadata',
+        finishedAt: new Date().toISOString(),
+        response: JSON.stringify(metadataPayload).slice(0, 1000),
+      });
+
+      // Merge metadata with defaults
+      const metadata = this._normalizeMetadata(metadataPayload);
+
+      // Finalize: successful sanitization means the template is approved for sale.
       await TemplateRepository.update(template.id, {
         sanitized_html: currentHtml,
         html: currentHtml,
@@ -209,7 +231,7 @@ class SanitizationOrchestrator extends EventEmitter {
         await lpTemplateService.promoteToReviewed(template.id);
       } else {
         await TemplateRepository.update(template.id, {
-          status: 'available',
+          status: 'approved',
           is_public: 2,
         });
       }
@@ -303,6 +325,14 @@ class SanitizationOrchestrator extends EventEmitter {
       });
 
       return { success: false, templateId: template.id, log, metadata: this._normalizeMetadata(), fallback: true, unreviewed: true, error: err.message };
+    } finally {
+      // v12.5-fix: Free the Chrome page immediately after sanitization so batch
+      // jobs don't accumulate one tab per template.
+      if (context?.userId) {
+        BridgeAdapter.closeUserPage(context.userId).catch((err) =>
+          console.warn(`[SANITIZE] Failed to close user page for ${context.userId}:`, err.message)
+        );
+      }
     }
   }
 
@@ -317,8 +347,11 @@ class SanitizationOrchestrator extends EventEmitter {
 
     return BridgeAdapter.sendMessage(context, prompt, {
       mode: options.mode || 'instant',
-      newChat: true,
-      hardRefresh: true,
+      // Only force a fresh Kimi chat for the first prompt of this template.
+      // Subsequent prompts (QA, metadata, refine) reuse the same chat/tab so
+      // we don't keep creating/closing tabs inside a single sanitization.
+      newChat: options.newChat ?? !context.chatUrl,
+      hardRefresh: false,
       phaseTimeoutMs: 0,
       ...options,
     });
@@ -327,18 +360,32 @@ class SanitizationOrchestrator extends EventEmitter {
   _extractHtml(text) {
     if (!text) return '';
 
-    // Prefer fenced code blocks when present
+    // Prefer fenced code blocks when present, then run the same document
+    // extraction so trailing markdown/explanations are discarded.
     const fenceMatch = text.match(/```(?:html)?\s*([\s\S]*?)```/i);
-    if (fenceMatch) return fenceMatch[1].trim();
+    if (fenceMatch) return this._extractHtmlDocument(fenceMatch[1].trim());
 
-    const trimmed = text.trim();
+    return this._extractHtmlDocument(text.trim());
+  }
 
-    // Extract the full HTML document if delimiters exist
-    const docMatch = trimmed.match(/(<!DOCTYPE\s+html[\s\S]*<\/html>)/i);
+  _extractHtmlDocument(trimmed) {
+    // Extract the first full HTML document only. Kimi sometimes returns the
+    // original HTML followed by the sanitized copy; a greedy match would
+    // concatenate both documents, so we stop at the first </html>.
+    const docMatch = trimmed.match(/(<!DOCTYPE\s+html[\s\S]*?<\/html\s*>)/i);
     if (docMatch) return docMatch[1].trim();
 
-    const htmlMatch = trimmed.match(/(<html[\s\S]*<\/html>)/i);
+    const htmlMatch = trimmed.match(/(<html[\s\S]*?<\/html\s*>)/i);
     if (htmlMatch) return htmlMatch[1].trim();
+
+    // Fallback: find the first </html> and slice from the document start.
+    // This handles responses where extra text appears after the closing tag.
+    const lower = trimmed.toLowerCase();
+    const htmlCloseIdx = lower.indexOf('</html>');
+    if (htmlCloseIdx !== -1) {
+      const startIdx = lower.indexOf('<!doctype html>');
+      return trimmed.slice(startIdx >= 0 ? startIdx : 0, htmlCloseIdx + 7).trim();
+    }
 
     // Fallback: largest contiguous block that starts with a common tag
     const blockMatch = trimmed.match(/(<(?:section|div|header|footer|nav|main|body|head)[\s\S]*)/i);
@@ -366,12 +413,12 @@ class SanitizationOrchestrator extends EventEmitter {
 
   _isValidHtml(html) {
     if (!html || html.length < 200) return false;
-    const lower = html.toLowerCase();
+    const lower = html.toLowerCase().trim();
     const hasDocType = lower.includes('<!doctype html>');
-    const hasHtml = lower.includes('<html') && lower.includes('</html>');
+    const hasHtml = lower.includes('<html');
+    const hasClosingHtml = lower.includes('</html>');
     const hasBody = lower.includes('<body') || lower.includes('<main') || lower.includes('<section');
-    const endsProperly = lower.trim().endsWith('</html>');
-    return (hasDocType || hasHtml) && hasBody && endsProperly;
+    return (hasDocType || hasHtml) && hasBody && hasClosingHtml;
   }
 
   _basicSanitizeFallback(originalHtml) {
@@ -424,8 +471,109 @@ class SanitizationOrchestrator extends EventEmitter {
     return { ok: false, corrections: [text.trim().slice(0, 500)], metadata: {} };
   }
 
+  _parseQaReview(text) {
+    if (!text) return { ok: false, corrections: ['Empty QA response'] };
+
+    const normalized = ResponseParser.extractJsonObject(text);
+    if (normalized && typeof normalized.ok === 'boolean') {
+      return {
+        ok: normalized.ok,
+        corrections: Array.isArray(normalized.corrections) ? normalized.corrections : [],
+      };
+    }
+
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (typeof parsed.ok === 'boolean') {
+          return {
+            ok: parsed.ok,
+            corrections: Array.isArray(parsed.corrections) ? parsed.corrections : [],
+          };
+        }
+      } catch {
+        // fall through
+      }
+    }
+
+    const lower = text.trim().toLowerCase();
+    if (lower.startsWith('ok') || lower === 'ok.') {
+      return { ok: true, corrections: [] };
+    }
+
+    return { ok: false, corrections: [text.trim().slice(0, 500)] };
+  }
+
+  _parseMetadata(text) {
+    if (!text) return {};
+
+    const normalized = ResponseParser.extractJsonObject(text);
+    if (normalized && normalized.metadata && typeof normalized.metadata === 'object') {
+      return normalized.metadata;
+    }
+    if (normalized && typeof normalized.category === 'string') {
+      // Flat metadata object (no wrapping "metadata" key)
+      return normalized;
+    }
+
+    // Robust scan: find the first balanced JSON object that looks like metadata.
+    const codeBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    const payload = codeBlockMatch ? codeBlockMatch[1] : text;
+    for (let i = 0; i < payload.length; i += 1) {
+      if (payload[i] !== '{') continue;
+      let depth = 0;
+      let inString = false;
+      let escape = false;
+      for (let j = i; j < payload.length; j += 1) {
+        const char = payload[j];
+        if (inString) {
+          if (escape) escape = false;
+          else if (char === '\\') escape = true;
+          else if (char === '"') inString = false;
+        } else if (char === '"') {
+          inString = true;
+        } else if (char === '{') {
+          depth += 1;
+        } else if (char === '}') {
+          depth -= 1;
+          if (depth === 0) {
+            const candidate = payload.slice(i, j + 1);
+            try {
+              const parsed = JSON.parse(candidate);
+              if (parsed && typeof parsed === 'object') {
+                if (parsed.metadata && typeof parsed.metadata === 'object') return parsed.metadata;
+                if (typeof parsed.category === 'string' || Array.isArray(parsed.tags)) return parsed;
+              }
+            } catch {
+              // keep scanning
+            }
+            break;
+          }
+        }
+      }
+    }
+
+    return {};
+  }
+
+  _normalizeCategory(input) {
+    const allowed = ['business', 'startup', 'portfolio', 'ecommerce', 'saas', 'agency', 'personal', 'event', 'landing', 'other'];
+    const normalized = String(input || 'landing').toLowerCase().trim();
+    if (allowed.includes(normalized)) return normalized;
+    if (normalized.includes('saas')) return 'saas';
+    if (normalized.includes('agency')) return 'agency';
+    if (normalized.includes('restaurant') || normalized.includes('food') || normalized.includes('service')) return 'business';
+    if (normalized.includes('shop') || normalized.includes('store') || normalized.includes('ecommerce') || normalized.includes('e-commerce')) return 'ecommerce';
+    if (normalized.includes('portfolio')) return 'portfolio';
+    if (normalized.includes('event')) return 'event';
+    if (normalized.includes('personal')) return 'personal';
+    if (normalized.includes('startup')) return 'startup';
+    return 'landing';
+  }
+
   _normalizeMetadata(metadata = {}) {
-    const category = metadata.category || 'landing';
+    const category = this._normalizeCategory(metadata.category);
     return {
       category,
       subcategory: metadata.subcategory || category,

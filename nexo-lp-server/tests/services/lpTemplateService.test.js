@@ -224,7 +224,7 @@ describe('lpTemplateService', () => {
     const promoted = await TemplateService.promoteToReviewed(template.id);
 
     expect(promoted).toBeDefined();
-    expect(promoted.status).toBe('available');
+    expect(promoted.status).toBe('approved');
     expect(promoted.is_public).toBe(2);
     expect(promoted.price_stars).toBe(template.original_price_stars);
     expect(promoted.unreviewed_reason).toBeNull();

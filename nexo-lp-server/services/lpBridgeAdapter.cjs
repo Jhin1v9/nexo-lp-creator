@@ -273,8 +273,10 @@ class BridgeAdapter {
               });
               break;
             case 'done':
-              // Stream complete — capture final response if deltas were not emitted
-              if (event.response && !fullContent) {
+              // Stream complete — the bridge's final extracted response is the
+              // authoritative source of truth (snapshot-diff extraction). Use it
+              // whenever available, even if we already collected some deltas.
+              if (event.response) {
                 fullContent = event.response;
               }
               break;
@@ -496,6 +498,21 @@ class BridgeAdapter {
       return true;
     } catch (err) {
       console.warn('[BridgeAdapter] cancelStream failed:', err.message);
+      return false;
+    }
+  }
+
+  /**
+   * Close a user's page immediately to free a Chrome slot.
+   */
+  async closeUserPage(userId) {
+    const bridge = await this.ensureBridge();
+    if (!bridge || !userId) return false;
+    try {
+      await bridge.closeUserPage(userId);
+      return true;
+    } catch (err) {
+      console.warn('[BridgeAdapter] closeUserPage failed:', err.message);
       return false;
     }
   }

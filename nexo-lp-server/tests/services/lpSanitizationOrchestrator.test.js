@@ -12,6 +12,7 @@ process.env.SANITIZE_KIMI_DELAY_MS = '0';
 
 jest.mock('../../services/lpBridgeAdapter.cjs', () => ({
   sendMessage: jest.fn(),
+  closeUserPage: jest.fn().mockResolvedValue(true),
 }));
 
 jest.mock('../../services/lpPreviewService', () => ({
@@ -91,6 +92,11 @@ describe('lpSanitizationOrchestrator', () => {
         success: true,
         content: JSON.stringify({ ok: true, corrections: [], metadata }),
         mode: 'thinking',
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        content: JSON.stringify({ metadata }),
+        mode: 'thinking',
       });
 
     const result = await SanitizationOrchestrator.startSanitization(
@@ -106,7 +112,7 @@ describe('lpSanitizationOrchestrator', () => {
     expect(result.metadata.category).toBe('saas');
 
     const updated = await TemplateRepository.findById(template.id);
-    expect(updated.status).toBe('available');
+    expect(updated.status).toBe('approved');
     expect(updated.is_public).toBe(2);
     expect(updated.sanitized_html).toBe(sanitizedHtml);
     expect(updated.html).toBe(sanitizedHtml);
@@ -114,7 +120,7 @@ describe('lpSanitizationOrchestrator', () => {
     expect(updated.subcategory).toBe('b2b-saas');
     expect(updated.metadata_json).toContain('"category":"saas"');
 
-    expect(BridgeAdapter.sendMessage).toHaveBeenCalledTimes(2);
+    expect(BridgeAdapter.sendMessage).toHaveBeenCalledTimes(3);
     expect(PreviewService.updatePublicPreview).toHaveBeenCalledWith(
       template.public_preview_token,
       sanitizedHtml
@@ -140,7 +146,12 @@ describe('lpSanitizationOrchestrator', () => {
         content: JSON.stringify({ ok: false, corrections: ['Add a tagline'], metadata }),
         mode: 'thinking',
       })
-      .mockResolvedValueOnce({ success: true, content: refinedHtml, mode: 'thinking' });
+      .mockResolvedValueOnce({ success: true, content: refinedHtml, mode: 'thinking' })
+      .mockResolvedValueOnce({
+        success: true,
+        content: JSON.stringify({ metadata }),
+        mode: 'thinking',
+      });
 
     const result = await SanitizationOrchestrator.startSanitization(
       sessionId,
@@ -149,13 +160,12 @@ describe('lpSanitizationOrchestrator', () => {
       'http://kimi.example.com/chat/2',
       'user-2'
     );
-
     expect(result.success).toBe(true);
 
     const updated = await TemplateRepository.findById(template.id);
-    expect(updated.status).toBe('available');
+    expect(updated.status).toBe('approved');
     expect(updated.html).toBe(refinedHtml);
-    expect(BridgeAdapter.sendMessage).toHaveBeenCalledTimes(3);
+    expect(BridgeAdapter.sendMessage).toHaveBeenCalledTimes(4);
   });
 
   test('falls back to unreviewed status when bridge throws', async () => {

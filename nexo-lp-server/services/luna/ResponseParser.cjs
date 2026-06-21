@@ -271,7 +271,9 @@ class ResponseParser {
       return afterStart.trim();
     }
 
-    return text.trim();
+    // No HTML document markers found — return empty instead of leaking
+    // intermediate JSON/metadata text into the preview.
+    return '';
   }
 }
 

@@ -120,8 +120,11 @@ STACK: ${stack}
 
 ${IRON_RULES}
 
-Build these sections:
-${sectionList || '- hero\n- features\n- testimonials\n- cta\n- footer'}
+DESIGN FREEDOM — You decide everything:
+- Interpret the user's request and choose the exact sections, layout, number of pages, and interactions that best deliver the goal.
+- Do NOT force a generic landing-page structure (hero/features/testimonials/CTA/footer) unless the request truly calls for it.
+- For games, interactive experiences, or visually impressive sites: use Three.js, WebGL, Canvas, GSAP, or any modern browser API needed. Make it visually stunning AND playable/usable.
+- Focus on jaw-dropping visuals, smooth motion, clear user flow, and meaningful interaction.
 
 ${colorHint}
 
@@ -131,8 +134,8 @@ OUTPUT RULES — OBEY EXACTLY:
 3. It MUST start with <!DOCTYPE html> and end with </html>.
 4. Load Tailwind CSS via CDN. Semantic HTML5, mobile-first, responsive.
 5. Include <title>, charset, viewport and OG meta tags.
-6. ONE conversion goal, CTA repeated 2-3 times, no competing exit links.
-7. Cinematic animations, parallax, hover micro-interactions. Premium feel.
+6. For conversion sites: ONE conversion goal, CTA repeated 2-3 times, no competing exit links.
+7. Cinematic animations, parallax, hover micro-interactions, WebGL/Three.js where appropriate. Premium feel.
 8. Real Unsplash/Pexels images only. No gray placeholders.
 9. Benefit-driven copy. No lorem ipsum.
 10. ONLY the HTML code block. No JSON, no briefs, no explanations, no partial snippets.
@@ -245,64 +248,102 @@ Schema:
 function sanitizePrompt(originalHtml) {
   return `${BASE_PERSONA}
 
-ROLE: NEXO LOJA HTML Sanitizer
-TASK: Sanitize, debug, and lightly improve the landing page HTML below so it can be sold as a reusable NEXO Digital template.
+ROLE: NEXO LOJA PII Sanitizer
+TASK: Remove only personally identifiable information (PII) and sensitive real business data from the landing page HTML. Do NOT change the visual design, colors, images, layout, typography, animations, sections, copy, pricing, or statistics.
 
 ${IRON_RULES}
 
 SANITIZATION RULES:
-1. Remove all brand names, personal names, emails, phone numbers, addresses, and real business data.
-2. Replace removed data with neutral NEXO Digital placeholders:
-   - Brand: NEXO Digital
-   - Site: https://www.nexo-digital.app/pt
-   - Slogan: We create digital experiences that convert.
-   - Email: contato@nexo-digital.app
-   - Primary colors: #6366F1 and #8B5CF6
-3. Fix obvious HTML/CSS/JS bugs while preserving layout, structure, and Tailwind classes.
-4. Keep images as generic placeholders (Unsplash keywords or inline SVG).
-5. Lightly improve copy and spacing if it improves conversion, but do NOT add new sections.
-6. Return ONLY the complete, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>.
-7. PASTE the HTML directly into the chat response. Do NOT create a downloadable file, attachment, or external link. I need the raw code here, inside a markdown HTML code block.
+1. Replace ONLY real personally identifiable information (PII) and sensitive real business data:
+   - Real person names → {{AUTHOR_NAME}} (or a generic name like "Maria S.")
+   - Real email addresses → {{EMAIL}}
+   - Real phone numbers → {{PHONE}}
+   - Real physical addresses → {{ADDRESS}}
+   - Real company/brand names of the original client → {{BRAND_NAME}} (or "Sua Marca")
+   - Real client-specific URLs → {{WEBSITE_URL}}
+   - Real social media handles → {{SOCIAL_HANDLE}}
+   - Real testimonials that reveal identifiable data → generic placeholder text
+   - Any other data that could identify a real person or a specific real business
+2. PRESERVE the template's subject, theme, niche, industry, geography, and vibe. Examples:
+   - If the template is about Brazil, keep "Brasil", green/yellow colors, flags, and Brazilian imagery.
+   - If it is about a coffee shop, keep coffee language, brown colors, and café imagery.
+   - If it is SaaS/tech, keep tech terminology and the existing color palette.
+   The topic of the template is intentional and must NOT be neutralized.
+3. DO NOT change:
+   - Colors (CSS variables, Tailwind classes, inline styles, hex/rgb values)
+   - Images, photos, illustrations, icons, SVGs, background images
+   - Fonts, font sizes, spacing, padding, margins, layout
+   - Animations, transitions, hover effects, scroll effects
+   - HTML structure, sections, components, Tailwind classes
+   - Generic copy ("Features", "Pricing", "Contact", "Get Started")
+   - Country, region, industry, or thematic words
+   - Prices, numbers, statistics, ratings, unless they are clearly tied to a real business secret
+4. Preserve ALL HTML/CSS/JS structure and functionality exactly as provided.
+5. Return ONLY the complete, self-contained HTML code starting with <!DOCTYPE html> and ending with </html>.
+6. PASTE the HTML directly into the chat response. Do NOT create a downloadable file, attachment, or external link. I need the raw code here, inside a markdown HTML code block.
 
-HTML to sanitize and improve:
+HTML to sanitize:
 ${originalHtml}`;
 }
 
 function sanitizeRetryPrompt(originalHtml) {
   return `${BASE_PERSONA}
 
-ROLE: NEXO LOJA HTML Sanitizer
-TASK: The HTML you returned previously was incomplete, truncated, or provided as a downloadable file. Return the COMPLETE, self-contained HTML code.
+ROLE: NEXO LOJA PII Sanitizer
+TASK: The HTML you returned previously was incomplete, truncated, or provided as a downloadable file. Return the COMPLETE, self-contained HTML code. Remember: only replace PII and sensitive real business data; preserve ALL colors, images, layout, typography, animations, sections, copy, pricing, and statistics.
 
 ${IRON_RULES}
 
+- Replace ONLY real names, emails, phones, addresses, company/brand names, client URLs, social handles, and identifiable testimonials.
+- DO NOT change colors, images, layout, fonts, animations, HTML structure, generic copy, prices, or statistics.
 - PASTE the raw code directly — no downloadable file, attachment, or external link.
 - No markdown fences outside the HTML block, no explanations.
 - Start with <!DOCTYPE html> and end with </html>.
 
-HTML to sanitize and improve:
+HTML to sanitize:
 ${originalHtml}`;
 }
 
-function sanitizeReviewPrompt(html) {
+function sanitizeQaPrompt(html) {
   return `${BASE_PERSONA}
 
-ROLE: NEXO LOJA Template Reviewer
-TASK: Review the sanitized landing page HTML below for the NEXO Digital template store.
+ROLE: NEXO LOJA Technical QA
+TASK: Verify if the landing page HTML below is technically correct and ready to publish.
 
 ${IRON_RULES}
 
-Your job is to:
-1. Decide if the HTML is technically correct, safe, and ready to publish.
-2. Verify the HTML starts with <!DOCTYPE html> and ends with </html> and has no truncated tags.
-3. Propose corrections if anything is wrong.
-4. Categorize the template and generate rich marketplace metadata.
+Check ONLY these technical aspects:
+1. Starts with <!DOCTYPE html> and ends with </html>.
+2. No truncated or unclosed tags.
+3. No broken inline JavaScript that would crash the page.
+4. All images use valid src URLs (no placeholder filenames like "image.png" without path).
+5. No empty sections that would make the page look broken.
+6. Tailwind CSS classes are present and the page has visual content.
 
 Return ONLY a JSON object inside a json code block (no explanations outside the block):
 
 {
   "ok": true,
-  "corrections": [],
+  "corrections": []
+}
+
+If anything is wrong, set "ok" to false and list concrete corrections as strings. Keep corrections short and actionable.
+
+HTML to review:
+${html}`;
+}
+
+function sanitizeMetadataPrompt(html) {
+  return `${BASE_PERSONA}
+
+ROLE: NEXO LOJA Template Cataloguer
+TASK: Analyze the landing page HTML below and generate rich marketplace metadata.
+
+${IRON_RULES}
+
+Return ONLY a JSON object inside a json code block (no explanations outside the block):
+
+{
   "metadata": {
     "category": "saas",
     "subcategory": "b2b-saas",
@@ -320,9 +361,9 @@ Return ONLY a JSON object inside a json code block (no explanations outside the 
   }
 }
 
-If corrections are needed, set "ok" to false and list them as strings in "corrections". Never leave metadata empty; infer the best values from the HTML content.
+Infer everything from the actual HTML content. Never leave arrays empty; always provide at least 3 tags, 3 features, 3 colors, 3 seoKeywords and 3 useCases. Make metadata attractive for buyers.
 
-HTML to review:
+HTML to analyze:
 ${html}`;
 }
 
@@ -360,6 +401,7 @@ module.exports = {
   reviewRetryPrompt,
   sanitizePrompt,
   sanitizeRetryPrompt,
-  sanitizeReviewPrompt,
+  sanitizeQaPrompt,
+  sanitizeMetadataPrompt,
   sanitizeRefinePrompt,
 };

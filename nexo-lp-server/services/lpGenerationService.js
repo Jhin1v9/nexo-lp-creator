@@ -357,6 +357,14 @@ class GenerationService {
             break;
           case 'code':
             currentHtml = this.extractHtmlFromResponse(content);
+
+            // If the AI returned metadata JSON or no real HTML, fall back to
+            // a locally generated page so the preview never shows raw JSON.
+            if (!hasRealCode(currentHtml) || !/<\/html\s*>/i.test(currentHtml)) {
+              console.warn(`[GenerationService][${sessionId}][code] AI returned no valid HTML; falling back to local generator`);
+              currentHtml = this.generateLocalHtml(prompt, context.intention, selectedStack);
+            }
+
             await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
 
             // Snapshot the raw generated code before QA review
@@ -595,6 +603,14 @@ class GenerationService {
       currentHtml = lastValidHtml;
       await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
       console.log(`[GenerationService][${sessionId}] rolled back to last complete HTML (${currentHtml.length} chars)`);
+    }
+
+    // Ultimate safety net: if we still don't have real HTML, generate a local
+    // fallback page so the preview is never empty or raw JSON.
+    if (!hasRealCode(currentHtml) || !/<\/html\s*>/i.test(currentHtml)) {
+      console.warn(`[GenerationService][${sessionId}] no valid HTML after all retries; generating local fallback`);
+      currentHtml = this.generateLocalHtml(prompt, context.intention, selectedStack);
+      await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
     }
 
     // Snapshot the final code after QA review / rebuild loop

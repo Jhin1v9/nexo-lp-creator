@@ -18,6 +18,7 @@ const CurrencyRepository = require('../models/repositories/CurrencyRepository');
 const PreviewService = require('./lpPreviewService');
 const SanitizationOrchestrator = require('./lpSanitizationOrchestrator');
 const userService = require('./lpUserService');
+const NexoDashboardFinanceService = require('./nexoDashboardFinanceService');
 const config = require('../config/nexo-lp-config');
 
 class TemplateService {
@@ -239,7 +240,7 @@ class TemplateService {
   }
 
   /**
-   * Promote an unreviewed template to fully reviewed/available.
+   * Promote an unreviewed template to fully reviewed/approved.
    * Restores the original price.
    * @param {string} templateId
    * @returns {object|null}
@@ -250,7 +251,7 @@ class TemplateService {
     if (template.status !== 'unreviewed') return template;
 
     return TemplateRepository.update(templateId, {
-      status: 'available',
+      status: 'approved',
       is_public: 2,
       reviewed_at: new Date().toISOString(),
       unreviewed_reason: null,
@@ -287,13 +288,23 @@ class TemplateService {
     const cost = { stars: template.price_stars, suns: template.price_suns, moons: template.price_moons };
     await CurrencyRepository.deduct(userId, cost);
 
-    return TemplatePurchaseRepository.create({
+    const purchaseRecord = await TemplatePurchaseRepository.create({
       template_id: templateId,
       user_id: userId,
       price_stars: cost.stars,
       price_suns: cost.suns,
       price_moons: cost.moons,
     });
+
+    try {
+      NexoDashboardFinanceService.recordTemplatePurchase(purchaseRecord, template).catch((err) => {
+        console.error('[TemplateService] Failed to push template purchase to NEXO Dashboard:', err.message);
+      });
+    } catch (err) {
+      console.error('[TemplateService] Failed to push template purchase to NEXO Dashboard:', err.message);
+    }
+
+    return purchaseRecord;
   }
 
   /**

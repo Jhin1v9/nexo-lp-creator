@@ -130,17 +130,16 @@ class TemplateRepository {
   }
 
   _buildWhere(options = {}) {
-    const conditions = [];
+    const conditions = ['is_public >= 1'];
     const params = [];
 
-    if (!options.includeAllStatuses) {
-      conditions.push('is_public >= 1');
-      if (options.status) {
-        conditions.push('status = ?');
-        params.push(options.status);
-      } else {
-        conditions.push("status IN ('sanitizing', 'available', 'unreviewed')");
-      }
+    if (options.includeAllStatuses) {
+      // Admin view: no status filter.
+    } else if (options.status) {
+      conditions.push('status = ?');
+      params.push(options.status);
+    } else {
+      conditions.push("status IN ('sanitizing', 'available', 'unreviewed', 'approved')");
     }
 
     if (options.category) {
@@ -156,11 +155,6 @@ class TemplateRepository {
     if (options.stack) {
       conditions.push('stack = ?');
       params.push(options.stack);
-    }
-
-    if (options.createdBy || options.created_by) {
-      conditions.push('created_by = ?');
-      params.push(options.createdBy || options.created_by);
     }
 
     if (options.search) {
@@ -243,7 +237,10 @@ class TemplateRepository {
   }
 
   async approve(id) {
-    await run('UPDATE templates SET is_public = 2 WHERE id = ?', [id]);
+    await run(
+      "UPDATE templates SET is_public = 2, status = 'approved' WHERE id = ?",
+      [id]
+    );
     return this.findById(id);
   }
 

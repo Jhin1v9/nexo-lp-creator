@@ -42,6 +42,35 @@ export function buildPreviewDocument(html, options = {}) {
     baseUrl = '',
   } = options;
 
+  // Guard: if the content does not contain real HTML, show a clear error
+  // instead of leaking raw JSON/metadata text into the preview iframe.
+  const looksLikeHtml = /<(html|!doctype|body|div|section|header|footer|main)/i.test(html || '');
+  if (!looksLikeHtml) {
+    const safePreview = html ? html.substring(0, 500).replace(/</g, '&lt;') : '(empty)';
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Preview Error</title>
+  <style>
+    body { font-family: Inter, system-ui, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; }
+    .box { max-width: 640px; background: #1e293b; border: 1px solid #334155; border-radius: 16px; padding: 2rem; }
+    h1 { font-size: 1.25rem; color: #f87171; margin-bottom: 0.75rem; }
+    p { color: #94a3b8; line-height: 1.6; margin-bottom: 1rem; }
+    pre { background: #0f172a; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 0.8rem; color: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h1>Preview indisponível</h1>
+    <p>O conteúdo gerado não é HTML válido. Isso pode acontecer quando a IA responde com JSON de estrutura em vez do código da página. Tente regenerar ou edite o código manualmente.</p>
+    <pre>${safePreview}</pre>
+  </div>
+</body>
+</html>`;
+  }
+
   // Extract body content if full document provided
   let bodyContent = html;
   const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
