@@ -424,6 +424,10 @@ const adminController = {
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    // Flush headers immediately so the client fires onopen / connects.
+    res.write(':connected\n\n');
 
     // Send buffered events first
     adminEventBus.getRecent().forEach((event) => {

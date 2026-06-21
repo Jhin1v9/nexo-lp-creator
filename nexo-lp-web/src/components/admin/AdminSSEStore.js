@@ -77,7 +77,7 @@ function createAdminSSEStore() {
     }
   }
 
-  return { subscribe, connect, disconnect };
+  return { subscribe, set, update, connect, disconnect };
 }
 
 export const adminLiveEvents = createAdminSSEStore();

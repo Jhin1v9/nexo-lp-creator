@@ -37,7 +37,7 @@ ${userPrompt}
 Return ONLY a single JSON object matching this exact schema (no markdown fences, no comments, no explanations):
 
 {
-  "title": "Short, compelling page title",
+  "title": "Short, compelling page title — use a brand/product name or headline the user explicitly mentions; otherwise derive from the core offer",
   "description": "One-paragraph summary of the offer and page objective",
   "niche": "Specific market niche",
   "audience": "Specific ideal customer profile",
@@ -164,7 +164,7 @@ OUTPUT RULES — OBEY EXACTLY:
 2. MUST start with <!DOCTYPE html> and end with </html>.
 3. Load Tailwind CSS via CDN and configure it with the palette above in tailwind.config.
 4. Semantic HTML5, mobile-first, responsive.
-5. Include <title>, charset, viewport and OG meta tags.
+5. Include <title>, charset, viewport and OG meta tags. The <title> AND og:title MUST be exactly: "${title}". The meta description AND og:description MUST be exactly: "${description || `Landing page for ${title}`}".
 6. ONE conversion goal, CTA repeated 2-3 times, no competing exit links.
 7. Animations, parallax, hover micro-interactions where appropriate. Keep it premium.
 8. Real Unsplash/Pexels images only. No gray placeholders.

@@ -19,6 +19,7 @@ const BridgeAdapter = require('./lpBridgeAdapter.cjs');
 const lpSessionService = require('./lpSessionService');
 const lpVersionService = require('./lpVersionService');
 const lpTemplateService = require('./lpTemplateService');
+const { injectMetadata } = require('./lpHtmlMetadataService');
 const config = require('../config/nexo-lp-config');
 const { ResponseParser, ReviewValidationError } = require('./luna/ResponseParser.cjs');
 const {
@@ -507,6 +508,14 @@ class GenerationService {
     if (!hasRealCode(currentHtml) || !/<\/html\s*>/i.test(currentHtml)) {
       throw new Error('Generation did not produce a valid HTML document');
     }
+
+    // Normalize <title> and OG/Twitter meta tags from the structured brief.
+    const metadataBrief = {
+      title: context.intention?.title || context.structure?.title || '',
+      description: context.intention?.description || context.structure?.description || '',
+    };
+    currentHtml = injectMetadata(currentHtml, metadataBrief);
+    await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
 
     // Snapshot the final code after QA review / rebuild loop
     try {

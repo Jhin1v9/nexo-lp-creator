@@ -1,6 +1,12 @@
 <script>
+  import { onMount, onDestroy } from 'svelte';
   import { adminLiveEvents } from '../../stores.js';
+  import { listAdminTemplates, listAdminSessions } from '../../api.js';
   import AdminEventFeed from './AdminEventFeed.svelte';
+
+  let now = Date.now();
+  let tickTimer = null;
+  let pollTimer = null;
 
   function progress(job) {
     if (job.scope === 'generation') {
@@ -9,16 +15,77 @@
       return idx >= 0 ? Math.round(((idx + 1) / phases.length) * 100) : 0;
     }
     if (job.scope === 'sanitization') {
-      return Math.min((job.step || 0) * 25, 100);
+      const step = job.step || 0;
+      if (step >= 4) return 100;
+      if (step === 3) return 75;
+      if (step === 2) return 50;
+      if (step === 1) return 25;
+      return 10;
     }
     return 0;
   }
 
   function duration(job) {
-    const ms = Date.now() - (job.lastUpdate || Date.now());
+    const ms = now - (job.lastUpdate || Date.now());
     if (ms < 1000) return 'now';
     return `${Math.round(ms / 1000)}s`;
   }
+
+  async function syncActiveJobs() {
+    try {
+      const [sanitizing, sessions] = await Promise.all([
+        listAdminTemplates({ status: 'sanitizing', limit: 100 }),
+        listAdminSessions({ status: 'preview', limit: 100 }),
+      ]);
+
+      adminLiveEvents.update((s) => {
+        const jobs = { ...s.jobs };
+        for (const t of sanitizing.templates || []) {
+          const key = t.session_id || t.id;
+          if (key && !jobs[key]) {
+            jobs[key] = {
+              scope: 'sanitization',
+              sessionId: t.session_id,
+              templateId: t.id,
+              step: 0,
+              lastUpdate: Date.now(),
+            };
+          }
+        }
+        const sessionList = Array.isArray(sessions) ? sessions : (sessions.sessions || []);
+        for (const sess of sessionList) {
+          const key = sess.id;
+          if (key && !jobs[key]) {
+            jobs[key] = {
+              scope: 'generation',
+              sessionId: sess.id,
+              phase: sess.status || 'preview',
+              lastUpdate: Date.now(),
+            };
+          }
+        }
+        return { ...s, jobs };
+      });
+    } catch (err) {
+      // Silently ignore polling errors so the UI stays resilient.
+      console.warn('[Operations] syncActiveJobs failed', err);
+    }
+  }
+
+  onMount(() => {
+    tickTimer = setInterval(() => {
+      now = Date.now();
+    }, 1000);
+    pollTimer = setInterval(() => {
+      syncActiveJobs();
+    }, 5000);
+    syncActiveJobs();
+  });
+
+  onDestroy(() => {
+    if (tickTimer) clearInterval(tickTimer);
+    if (pollTimer) clearInterval(pollTimer);
+  });
 </script>
 
 <div class="space-y-6">
