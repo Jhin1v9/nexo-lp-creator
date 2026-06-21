@@ -2,7 +2,7 @@
   import { onMount, tick, afterUpdate } from 'svelte';
   import { fade, fly, slide, scale } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
-  import { messages, isGenerating, currentTool, preview, tokens, currencies, generationMode, session, editorTab, showNotification, kimiChatUrl, contextWarning, contextInfo, contextUsagePercent, generationEvents } from '../stores.js';
+  import { messages, isGenerating, currentTool, preview, tokens, currencies, generationMode, session, editorTab, showNotification, kimiChatUrl, contextWarning, contextInfo, contextUsagePercent, generationEvents, generationOverlayMinimized } from '../stores.js';
   import { lpClient } from '../lib/lpClient.js';
   import { getCurrencyBalance } from '../api.js';
   import { createBlobUrl, revokeBlobUrl } from '../lib/previewBuilder.js';
@@ -361,16 +361,28 @@
     >
       <div class="max-w-4xl mx-auto flex items-center gap-2 flex-wrap">
         {#if $kimiChatUrl}
-          <a
-            href={$kimiChatUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors {$isGenerating ? 'bg-white bg-opacity-10 text-white border-white border-opacity-20 hover:bg-white hover:bg-opacity-20' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'}"
-            title="Open this session in Kimi"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
-            Open in Kimi
-          </a>
+          {#if $isGenerating}
+            <button
+              type="button"
+              on:click={() => generationOverlayMinimized.set(false)}
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors bg-white bg-opacity-10 text-white border-white border-opacity-20 hover:bg-white hover:bg-opacity-20"
+              title="Voltar ao overlay de geração"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 16 16 12 12 8"/><line x1="8" x2="16" y1="12" y2="12"/></svg>
+              Voltar ao universo LP
+            </button>
+          {:else}
+            <a
+              href={$kimiChatUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+              title="Open this session in Kimi"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+              Open in Kimi
+            </a>
+          {/if}
         {/if}
         {#if $contextWarning !== 'none'}
           <span

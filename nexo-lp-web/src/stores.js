@@ -65,6 +65,7 @@ export const editorTab = writable('chat');
 
 // Generation state
 export const isGenerating = writable(false);
+export const generationOverlayMinimized = writable(false);
 
 // Current tool/action being executed
 export const currentTool = writable(null);

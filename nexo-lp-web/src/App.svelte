@@ -19,6 +19,7 @@
     contextUsagePercent,
     contextInfo,
     currentTemplate,
+    generationOverlayMinimized,
   } from './stores.js';
   import { lpClient } from './lib/lpClient.js';
   import { createBlobUrl } from './lib/previewBuilder.js';
@@ -26,6 +27,7 @@
   import { getSession, renameSession, deleteSession, getSessionDownloadUrl } from './api.js';
   import LandingPageCreator from './components/LandingPageCreator.svelte';
   import LPTemplateStore from './components/LPTemplateStore.svelte';
+  import LPAdminPanel from './components/LPAdminPanel.svelte';
 
   import LPGeneratingOverlay from './components/LPGeneratingOverlay.svelte';
 
@@ -40,7 +42,8 @@
   let sidebarWidth = 256;
   let labelOpacity = 1;
   let sidebarCollapsedBeforeGeneration = false;
-  let overlayMinimized = false;
+  let isMobile = false;
+  let autoCollapsedByMobile = false;
 
   const SIDEBAR_WIDTH_EXPANDED = 256; // w-64
   const SIDEBAR_WIDTH_COLLAPSED = 64; // w-16
@@ -83,6 +86,26 @@
 
   function animateSidebar(collapsed, duration = 0.7) {
     setSidebarVisuals(collapsed, true, duration);
+  }
+
+  function checkMobile() {
+    isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+  }
+
+  $: if (sidebarEl) {
+    const shouldCollapse = ($currentView === 'admin' || $currentView === 'templates');
+    if (isMobile && shouldCollapse && !sidebarCollapsed) {
+      autoCollapsedByMobile = true;
+      animateSidebar(true, 0.4);
+    } else if (isMobile && !shouldCollapse && sidebarCollapsed && autoCollapsedByMobile) {
+      autoCollapsedByMobile = false;
+      animateSidebar(false, 0.4);
+    } else if (!isMobile && autoCollapsedByMobile && sidebarCollapsed) {
+      autoCollapsedByMobile = false;
+      if ($currentView !== 'templates') {
+        animateSidebar(false, 0.4);
+      }
+    }
   }
 
   $: if (sidebarEl) {
@@ -135,8 +158,16 @@
   }
 
   onMount(async () => {
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+
     // Initialize sidebar visuals without animation
-    setSidebarVisuals(sidebarCollapsed, false);
+    if (isMobile) {
+      setSidebarVisuals(true, false);
+      autoCollapsedByMobile = true;
+    } else {
+      setSidebarVisuals(sidebarCollapsed, false);
+    }
 
     await loadRecentSessions();
 
@@ -336,6 +367,7 @@
   const navItems = [
     { id: 'chat', label: 'Editor', icon: SparkleIcon },
     { id: 'templates', label: 'LOJA', icon: TemplateIcon },
+    { id: 'admin', label: 'Admin', icon: AdminIcon },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
 
@@ -345,6 +377,10 @@
 
   function TemplateIcon(props) {
     return `<svg xmlns="http://www.w3.org/2000/svg" width="${props.size || 20}" height="${props.size || 20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><line x1="3" x2="21" y1="9" y2="9"/><line x1="9" x2="9" y1="21" y2="9"/></svg>`;
+  }
+
+  function AdminIcon(props) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" width="${props.size || 20}" height="${props.size || 20}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5Z"/><path d="M4.5 21a6.5 6.5 0 0 1 15 0"/><circle cx="12" cy="9" r="2.5"/><path d="M17 13a5 5 0 0 0-10 0"/></svg>`;
   }
 
   function SettingsIcon(props) {
@@ -397,16 +433,20 @@
   class="flex h-screen w-full overflow-hidden relative z-10 transition-colors duration-700"
   class:bg-luna-surface={!$isGenerating}
   class:bg-transparent={$isGenerating}
-  class:pointer-events-none={$isGenerating && !overlayMinimized}
+  class:pointer-events-none={$isGenerating && !$generationOverlayMinimized}
+  class:admin-mode={$currentView === 'admin'}
 >
 
   <!-- ===== LEFT SIDEBAR ===== -->
   <aside
     bind:this={sidebarEl}
-    class="flex-shrink-0 h-full bg-white border-r border-luna-border flex flex-col overflow-hidden transition-opacity duration-700"
-    class:pointer-events-none={$isGenerating}
-    style:width="{$isGenerating ? 0 : sidebarWidth}px"
-    style:opacity="{$isGenerating ? 0 : 1}"
+    class="flex-shrink-0 h-full bg-white border-r border-luna-border flex flex-col overflow-hidden transition-all duration-700"
+    class:pointer-events-none={$isGenerating || $currentView === 'admin'}
+    class:opacity-0={$currentView === 'admin'}
+    class:!w-0={$currentView === 'admin'}
+    class:!border-r-0={$currentView === 'admin'}
+    style:width="{$currentView === 'admin' ? 0 : ($isGenerating ? 0 : sidebarWidth)}px"
+    style:opacity="{$currentView === 'admin' ? 0 : ($isGenerating ? 0 : 1)}"
   >
     <!-- Logo Area -->
     <div class="flex items-center gap-3 px-4 h-16 border-b border-luna-border flex-shrink-0">
@@ -624,7 +664,7 @@
   <main class="flex-1 flex flex-col h-full overflow-hidden relative">
     <!-- Top Bar -->
     <header
-      class="h-16 flex items-center justify-between px-6 flex-shrink-0 z-10 transition-colors duration-700"
+      class="h-16 flex items-center justify-between px-6 flex-shrink-0 z-10 transition-all duration-700 overflow-hidden"
       class:bg-white={!$isGenerating}
       class:bg-opacity-80={!$isGenerating}
       class:backdrop-blur-sm={!$isGenerating}
@@ -635,6 +675,10 @@
       class:backdrop-blur-md={$isGenerating}
       class:border-white={$isGenerating}
       class:border-opacity-10={$isGenerating}
+      class:!h-0={$currentView === 'admin'}
+      class:opacity-0={$currentView === 'admin'}
+      class:pointer-events-none={$currentView === 'admin'}
+      class:!border-b-0={$currentView === 'admin'}
     >
       <div class="flex items-center gap-3">
         <h1
@@ -658,16 +702,28 @@
       </div>
       <div class="flex items-center gap-2">
         {#if $session.id && $kimiChatUrl}
-          <a
-            href={$kimiChatUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors {$isGenerating ? 'bg-white bg-opacity-10 text-white border-white border-opacity-20 hover:bg-white hover:bg-opacity-20' : 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100'}"
-            title="Open this session in Kimi"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
-            Open in Kimi
-          </a>
+          {#if $isGenerating}
+            <button
+              type="button"
+              on:click={() => generationOverlayMinimized.set(false)}
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors bg-white bg-opacity-10 text-white border-white border-opacity-20 hover:bg-white hover:bg-opacity-20"
+              title="Voltar ao universo LP"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+              Voltar ao universo LP
+            </button>
+          {:else}
+            <a
+              href={$kimiChatUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border transition-colors bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100"
+              title="Open this session in Kimi"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+              Open in Kimi
+            </a>
+          {/if}
         {/if}
         {#if $contextWarning !== 'none'}
           <span
@@ -696,6 +752,8 @@
         <LandingPageCreator />
       {:else if $currentView === 'templates'}
         <LPTemplateStore />
+      {:else if $currentView === 'admin'}
+        <LPAdminPanel />
       {:else if $currentView === 'settings'}
         <div class="h-full flex items-center justify-center">
           <div class="text-center space-y-4 max-w-md mx-auto p-8" in:fade={{ duration: 300 }}>
@@ -741,4 +799,4 @@
 </div>
 
 <!-- ===== FULLSCREEN GENERATION OVERLAY ===== -->
-<LPGeneratingOverlay bind:minimized={overlayMinimized} />
+<LPGeneratingOverlay />

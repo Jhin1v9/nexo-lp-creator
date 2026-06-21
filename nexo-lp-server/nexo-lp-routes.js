@@ -39,6 +39,8 @@ const lpTemplateService = require('./services/lpTemplateService');
 const lpMiningService = require('./services/lpMiningService');
 const lpVersionService = require('./services/lpVersionService');
 const lpCurrencyService = require('./services/lpCurrencyService');
+const lunaExtensionHandler = require('./services/luna/lunaExtensionHandler.cjs');
+const adminRoutes = require('./routes/adminRoutes');
 
 /**
  * Helper: Async handler wrapper to catch errors in async route handlers
@@ -952,5 +954,56 @@ router.post('/stacks/validate', asyncHandler(async (req, res) => {
 
   res.status(200).json(successResponse(result, 'Stack validation completed'));
 }));
+
+// ============================================================
+// LUNA CHROME EXTENSION ROUTES
+// Routes used by the Luna Chrome Extension loaded into the
+// Kimi browser page to stream DOM events to the bridge.
+// ============================================================
+
+/**
+ * POST /ext/register
+ * Register an extension session so events can be buffered.
+ */
+router.post('/ext/register', asyncHandler(async (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) {
+    return res.status(400).json(errorResponse('sessionId is required', 'MISSING_PARAM', 400));
+  }
+  lunaExtensionHandler.registerSession(sessionId);
+  res.status(200).json(successResponse({ sessionId }, 'Extension session registered'));
+}));
+
+/**
+ * POST /ext/event
+ * Receive a DOM/streaming event from the extension.
+ */
+router.post('/ext/event', asyncHandler(async (req, res) => {
+  const { sessionId } = req.body;
+  if (!sessionId) {
+    return res.status(400).json(errorResponse('sessionId is required', 'MISSING_PARAM', 400));
+  }
+  lunaExtensionHandler.pushEvent(sessionId, req.body);
+  res.status(200).json(successResponse({ received: true }, 'Event received'));
+}));
+
+/**
+ * GET /ext/poll
+ * Poll for server-to-extension messages.
+ */
+router.get('/ext/poll', asyncHandler(async (req, res) => {
+  const { sessionId } = req.query;
+  if (!sessionId) {
+    return res.status(400).json(errorResponse('sessionId is required', 'MISSING_PARAM', 400));
+  }
+  const messages = lunaExtensionHandler.consumeOutboundMessages(sessionId);
+  res.status(200).json(successResponse({ messages }, 'Poll completed'));
+}));
+
+// ============================================================
+// ADMIN ROUTES
+// ============================================================
+
+router.use('/admin', adminRoutes);
 
 module.exports = router;

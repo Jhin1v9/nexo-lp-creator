@@ -1,5 +1,7 @@
 export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3460/api/nexo-lp';
 
+const ADMIN_TOKEN_KEY = 'nexo_admin_token';
+
 class ApiError extends Error {
   constructor(message, status, data) {
     super(message);
@@ -18,6 +20,11 @@ async function request(endpoint, options = {}) {
     },
     ...restOptions,
   };
+
+  const adminToken = localStorage.getItem(ADMIN_TOKEN_KEY);
+  if (adminToken && endpoint.startsWith('/admin')) {
+    config.headers.Authorization = `Bearer ${adminToken}`;
+  }
 
   if (config.body && typeof config.body === 'object') {
     config.body = JSON.stringify(config.body);
@@ -267,4 +274,179 @@ export async function startGithubAuth() {
 
 export async function checkGithubAuth(deviceCode) {
   throw new ApiError('GitHub OAuth not implemented', 501);
+}
+
+// ===== Admin API =====
+function buildAdminQuery(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== '') {
+      params.set(key, String(value));
+    }
+  });
+  const query = params.toString();
+  return query ? `?${query}` : '';
+}
+
+export async function adminRequest(endpoint, options = {}) {
+  const adminToken = localStorage.getItem(ADMIN_TOKEN_KEY);
+  if (!adminToken) {
+    throw new ApiError('Admin token not found. Please log in as admin.', 401);
+  }
+  return request(endpoint, options);
+}
+
+export async function getAdminStats() {
+  const result = await adminRequest('/admin/stats');
+  return result.data;
+}
+
+export async function listAdminTemplates(filters = {}) {
+  const result = await adminRequest(`/admin/templates${buildAdminQuery(filters)}`);
+  return result.data;
+}
+
+export async function updateAdminTemplate(id, data) {
+  const result = await adminRequest(`/admin/templates/${id}`, {
+    method: 'PATCH',
+    body: data,
+  });
+  return result.data;
+}
+
+export async function approveAdminTemplate(id) {
+  const result = await adminRequest(`/admin/templates/${id}/approve`, {
+    method: 'POST',
+  });
+  return result.data;
+}
+
+export async function deleteAdminTemplate(id) {
+  const result = await adminRequest(`/admin/templates/${id}`, {
+    method: 'DELETE',
+  });
+  return result.data;
+}
+
+export async function sanitizeAdminTemplate(id) {
+  const result = await adminRequest(`/admin/templates/${id}/sanitize`, {
+    method: 'POST',
+  });
+  return result.data;
+}
+
+export async function bulkSanitizeAdminTemplates(ids) {
+  const result = await adminRequest('/admin/templates/bulk/sanitize', {
+    method: 'POST',
+    body: { ids },
+  });
+  return result.data;
+}
+
+export async function bulkApproveAdminTemplates(ids) {
+  const result = await adminRequest('/admin/templates/bulk/approve', {
+    method: 'POST',
+    body: { ids },
+  });
+  return result.data;
+}
+
+export async function bulkDeleteAdminTemplates(ids) {
+  const result = await adminRequest('/admin/templates/bulk/delete', {
+    method: 'POST',
+    body: { ids },
+  });
+  return result.data;
+}
+
+export async function listAdminSessions(filters = {}) {
+  const result = await adminRequest(`/admin/sessions${buildAdminQuery(filters)}`);
+  return result.data;
+}
+
+export async function regenerateAdminSession(id) {
+  const result = await adminRequest(`/admin/sessions/${id}/regenerate`, {
+    method: 'POST',
+  });
+  return result.data;
+}
+
+export async function deleteAdminSession(id) {
+  const result = await adminRequest(`/admin/sessions/${id}`, {
+    method: 'DELETE',
+  });
+  return result.data;
+}
+
+export async function listAdminPurchases(filters = {}) {
+  const result = await adminRequest(`/admin/purchases${buildAdminQuery(filters)}`);
+  return result.data;
+}
+
+export async function getAdminPurchasesSummary() {
+  const result = await adminRequest('/admin/purchases/summary');
+  return result.data;
+}
+
+export async function creditAdminCurrency(userId, currency, amount) {
+  const result = await adminRequest(`/admin/currencies/${encodeURIComponent(userId)}/credit`, {
+    method: 'POST',
+    body: { currency, amount },
+  });
+  return result.data;
+}
+
+export async function deductAdminCurrency(userId, currency, amount) {
+  const result = await adminRequest(`/admin/currencies/${encodeURIComponent(userId)}/deduct`, {
+    method: 'POST',
+    body: { currency, amount },
+  });
+  return result.data;
+}
+
+export async function listAdminMiningJobs(filters = {}) {
+  const result = await adminRequest(`/admin/mining-jobs${buildAdminQuery(filters)}`);
+  return result.data;
+}
+
+export async function retryAdminMiningJob(id) {
+  const result = await adminRequest(`/admin/mining-jobs/${id}/retry`, {
+    method: 'POST',
+  });
+  return result.data;
+}
+
+export async function pauseAdminMiningJob(id) {
+  const result = await adminRequest(`/admin/mining-jobs/${id}/pause`, {
+    method: 'POST',
+  });
+  return result.data;
+}
+
+export async function resumeAdminMiningJob(id) {
+  const result = await adminRequest(`/admin/mining-jobs/${id}/resume`, {
+    method: 'POST',
+  });
+  return result.data;
+}
+
+export async function getAdminSettings() {
+  const result = await adminRequest('/admin/settings');
+  return result.data;
+}
+
+export async function updateAdminSettings(settings) {
+  const result = await adminRequest('/admin/settings', {
+    method: 'PATCH',
+    body: settings,
+  });
+  return result.data;
+}
+
+export async function pushAdminFinance(purchaseId) {
+  const result = await adminRequest('/admin/finance/push', {
+    method: 'POST',
+    body: { purchaseId },
+  });
+  return result.data;
 }

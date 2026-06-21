@@ -1731,6 +1731,159 @@ class KimiBridge {
     return text.trim();
   }
 
+  /**
+   * v12.4-fix: Kimi truncates very long pasted responses and shows a "Continue >"
+   * button that must be clicked before the rest of the text is rendered.
+   * Detect the button inside the chat area and click it once per stream.
+   */
+  async _clickContinuationButtons(page) {
+    if (!page) return false;
+    try {
+      const result = await page.evaluate(() => {
+        // Helper: is the element visible and clickable?
+        const isVisible = (el) => {
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden';
+        };
+
+        // Prefer the actual chat message container; fall back to the whole body.
+        const chatArea = document.querySelector('.chat-detail-main, .chat-content-container, .chat-page, .chat-main, .main-content, [class*="conversation"]') || document.body;
+
+        // 1) Direct class/attribute hints Kimi uses for continuation.
+        const selectors = [
+          '.continue-chat-button',
+          '[class*="continue-chat"]',
+          '[class*="continue"]',
+          '[data-testid*="continue"]',
+          '[aria-label*="Continue" i]',
+          '[aria-label*="Continuar" i]',
+          '[title*="Continue" i]',
+          '[title*="Continuar" i]',
+        ];
+        for (const sel of selectors) {
+          const matches = Array.from(chatArea.querySelectorAll(sel)).filter(isVisible);
+          if (matches.length > 0) {
+            const el = matches[matches.length - 1];
+            el.click();
+            el.scrollIntoView({ behavior: 'instant', block: 'center' });
+            return { clicked: true, text: el.textContent?.trim().slice(0, 40) || sel, selector: sel };
+          }
+        }
+
+        // 2) Text-based match across all likely button elements.
+        let candidates = Array.from(chatArea.querySelectorAll('button, [role="button"], a, div, span, p'));
+        // If the chosen chatArea is too small, search the whole document body.
+        if (candidates.length < 20) {
+          candidates = Array.from(document.body.querySelectorAll('button, [role="button"], a, div, span, p'));
+        }
+        let textMatches = 0;
+        for (const el of candidates) {
+          if (!isVisible(el)) continue;
+          const text = (el.textContent || '').trim().replace(/\s+/g, ' ');
+          // Match the "Continue >" button Kimi shows after long outputs.
+          // Support multiple languages and optional trailing arrows (sometimes the
+          // arrow is an SVG icon, so textContent may be just "Continue").
+          if (/^(Continue|Continuar|继续|続ける|Weiter|Suivre)\s*[>›»→⇒]*\.?$/i.test(text) ||
+              /^[>›»→⇒]\s*(Continue|Continuar|继续|続ける|Weiter|Suivre)\.?$/i.test(text)) {
+            textMatches += 1;
+            el.click();
+            el.scrollIntoView({ behavior: 'instant', block: 'center' });
+            return { clicked: true, text, selector: 'text-match' };
+          }
+        }
+
+        // 3) Last resort: any small clickable at the very end of the last assistant
+        // message that contains only an arrow icon.
+        const lastAssistant = chatArea.querySelector('.markdown-container:last-of-type, .assistant-message:last-of-type, .message-assistant:last-of-type') ||
+                              document.body.querySelector('.markdown-container:last-of-type, .assistant-message:last-of-type, .message-assistant:last-of-type');
+        if (lastAssistant) {
+          const arrows = Array.from(lastAssistant.querySelectorAll('button, [role="button"], a, div, span, p'))
+            .filter((el) => isVisible(el) && el.textContent.trim().length <= 5 && /[>›»→⇒]/.test(el.textContent));
+          if (arrows.length > 0) {
+            const el = arrows[arrows.length - 1];
+            el.click();
+            el.scrollIntoView({ behavior: 'instant', block: 'center' });
+            return { clicked: true, text: el.textContent.trim(), selector: 'arrow-last-resort' };
+          }
+        }
+
+        return { clicked: false, candidates: candidates.length, textMatches, reason: 'no-match' };
+      });
+      if (result.clicked) {
+        log.info(`[kimi-bridge] Clicked continuation button: "${result.text}" (${result.selector})`);
+        return true;
+      }
+      log.debug(`[kimi-bridge] No continuation button found (candidates=${result.candidates}, textMatches=${result.textMatches})`);
+    } catch (e) {
+      log.debug(`[kimi-bridge] _clickContinuationButtons error: ${e.message}`);
+    }
+    return false;
+  }
+
+  /**
+   * v12.5-fix: After the stream considers itself complete, Kimi may still show a
+   * "Continue >" button with more content hidden behind it. This helper clicks the
+   * button and waits for the response to grow, repeating until either the HTML is
+   * complete, no button remains, or a max number of attempts is reached.
+   */
+  async _expandContinuedResponse(page, preSendSnapshot, currentHtml = '') {
+    if (!page || !currentHtml) return currentHtml;
+    const looksIncomplete = (html) => html && (html.includes('<!doctype html>') || html.includes('<html')) && !/<\/html\s*>/i.test(html);
+    if (!looksIncomplete(currentHtml)) return currentHtml;
+
+    for (let attempt = 1; attempt <= 5; attempt += 1) {
+      // 1) Try a direct Playwright click on the known Kimi continuation button.
+      try {
+        const continueBtn = page.locator('.continue-chat-button').filter({ hasText: /Continue|Continuar|继续|続ける/i }).first();
+        if (await continueBtn.count() > 0) {
+          await continueBtn.scrollIntoViewIfNeeded();
+          await continueBtn.click({ timeout: 10000 });
+          log.info(`[kimi-bridge] _expandContinuedResponse clicked .continue-chat-button (attempt ${attempt})`);
+        }
+      } catch (e) {
+        // Fallback to the JS-based clicker if Playwright selector fails.
+        const jsClicked = await this._clickContinuationButtons(page);
+        if (!jsClicked) {
+          log.debug(`[kimi-bridge] No continuation button found in _expandContinuedResponse attempt ${attempt}`);
+          break;
+        }
+      }
+
+      // 2) Wait for the DOM to update and the text to grow.
+      let lastLength = currentHtml.length;
+      let stableCount = 0;
+      const start = Date.now();
+      while (Date.now() - start < 60000) {
+        await new Promise((r) => setTimeout(r, 1500));
+        let newHtml = '';
+        try {
+          newHtml = await this._extractResponseDiff(page, preSendSnapshot);
+        } catch (ex) {
+          log.debug(`[kimi-bridge] _expandContinuedResponse extraction error: ${ex.message}`);
+        }
+        if (newHtml && newHtml.length > lastLength) {
+          currentHtml = newHtml;
+          lastLength = newHtml.length;
+          stableCount = 0;
+          log.info(`[kimi-bridge] Continued response grew to ${currentHtml.length} chars`);
+        } else {
+          stableCount += 1;
+        }
+        if (!looksIncomplete(currentHtml)) {
+          log.success(`[kimi-bridge] Continued response is now complete (${currentHtml.length} chars)`);
+          return currentHtml;
+        }
+        if (stableCount >= 4) {
+          log.info(`[kimi-bridge] Continued response stable after attempt ${attempt}`);
+          break;
+        }
+      }
+    }
+
+    return currentHtml;
+  }
+
   async _extractResponseDiff(page, preSendSnapshot = []) {
     if (!preSendSnapshot || preSendSnapshot.length === 0) {
       // Fallback: no snapshot, use last assistant
@@ -4398,6 +4551,34 @@ class KimiBridge {
   }
 
   /**
+   * Immediately close a user's page and free its slot. Use after batch work
+   * to avoid accumulating Chrome tabs.
+   */
+  async closeUserPage(userId) {
+    const session = this.userSessions.get(userId);
+    if (!session) return;
+    log.info(`Explicit close: closing page for user ${hashUserId(userId)}`);
+    try {
+      if (session.page && !session.page.isClosed()) {
+        session.page.removeAllListeners('crash');
+        await session.page.close();
+      }
+    } catch (e) {
+      log.warn(`Explicit close error for ${hashUserId(userId)}: ${e.message}`);
+    }
+    this.userSessions.delete(userId);
+    this.semaphore.release();
+    this._stopDomPoller(userId).catch(() => {});
+    const ctx = this.userContexts.get(userId);
+    if (ctx && ctx !== this.defaultContext && typeof ctx.close === 'function') {
+      await ctx.close().catch(e => log.warn(`Context close error: ${e.message}`));
+      this.userContexts.delete(userId);
+    } else if (ctx === this.defaultContext) {
+      this.userContexts.delete(userId);
+    }
+  }
+
+  /**
    * Start idle cleanup timer — closes inactive pages (skips persistent users)
    */
   _startIdleCleanup() {
@@ -6643,11 +6824,9 @@ class KimiBridge {
       await page.waitForTimeout(300);
 
       // Click send or press Enter
-      const sendBtn = page.locator('.send-button-container').first();
-      const hasSendBtn = await sendBtn.count() > 0;
-
-      if (hasSendBtn) {
-        await sendBtn.click({ timeout: 3000 });
+      const clickedSend = await this._clickSendButtonDirectly(page);
+      if (clickedSend) {
+        log.info(`Steer injected via direct send button click`);
       } else {
         await this._pressEnterOnInput(inputLocator);
       }
@@ -6658,6 +6837,31 @@ class KimiBridge {
       log.error(`Steer injection failed: ${err.message}`);
       return { success: false, error: err.message };
     }
+  }
+
+  /**
+   * v12.5-fix: Click Kimi's send button by finding the real DOM element and calling
+   * click() directly inside the page. This bypasses Playwright locator timeouts when
+   * the page is heavy/laggy and works on the exact rendered element.
+   */
+  async _clickSendButtonDirectly(page) {
+    if (!page) return false;
+    return await page.evaluate(() => {
+      const selectors = [
+        '.send-button-container',
+        '[class*="send-button"]',
+        'button[type="submit"]',
+      ];
+      for (const sel of selectors) {
+        const el = document.querySelector(sel);
+        if (el && !el.disabled) {
+          el.scrollIntoView({ behavior: 'instant', block: 'center' });
+          el.click();
+          return { clicked: true, selector: sel };
+        }
+      }
+      return { clicked: false };
+    });
   }
 
   /**
@@ -6743,6 +6947,10 @@ class KimiBridge {
 
     // v7.0: Start DOM poller — runs INDEPENDENTLY of the stream
     this._startDomPoller(userId);
+
+    // v12.4-fix: continuation-button clicker handle; declared early so finally
+    // can always clear it even if setup throws.
+    let continuationClickInterval = null;
 
     try {
       await this._verifySession(page);
@@ -6834,12 +7042,12 @@ class KimiBridge {
       });
       await page.waitForTimeout(500);
 
-      // v12.2-fix: Prefer clicking the enabled send button; fall back to Enter.
-      const sendBtn = page.locator('.send-button-container').first();
-      const isSendEnabled = await sendBtn.evaluate((el) => !el.disabled).catch(() => false);
-      if (isSendEnabled) {
-        await sendBtn.click({ timeout: 3000 });
-        log.info(`[sendMessageStream] Message sent via send button`);
+      // v12.2-fix: Prefer clicking the enabled send button directly via DOM;
+      // fall back to Enter. Direct element click bypasses Playwright locator
+      // timeouts on heavy/laggy pages.
+      const clickedSend = await this._clickSendButtonDirectly(page);
+      if (clickedSend) {
+        log.info(`[sendMessageStream] Message sent via direct send button click`);
       } else {
         await this._pressEnterOnInput(inputLocator);
         log.info(`[sendMessageStream] Message sent via Enter`);
@@ -6914,6 +7122,16 @@ class KimiBridge {
       const emittedResponseHashes = new Set();
       const emittedJsonActionHashes = new Set();
       let domActionsCount = 0;
+
+      // v12.4-fix: Independent continuation-button clicker for very long pasted
+      // responses. Runs in parallel with the stream and never blocks it.
+      continuationClickInterval = setInterval(async () => {
+        if (isComplete || stopConsuming) return;
+        const clicked = await this._clickContinuationButtons(page);
+        if (!clicked && lastResponse && lastResponse.length > 40000 && !/<\/html\s*>/i.test(lastResponse)) {
+          log.debug(`[kimi-bridge] Continuation button not found yet (response=${lastResponse.length} chars, no </html>)`);
+        }
+      }, 1500);
 
       // Register soft-cancel signal
       this.streamStopFlags.set(userId, () => { stopConsuming = true; });
@@ -7207,6 +7425,21 @@ class KimiBridge {
         log.warn(`[sendMessageStream] _extractResponseDiff failed: ${e.message}`);
       }
 
+      // v12.5-fix: If the extracted HTML looks truncated, click Kimi's "Continue >"
+      // button to reveal the rest and re-extract until complete.
+      if (finalResponse && (finalResponse.includes('<!doctype html>') || finalResponse.includes('<html')) && !/<\/html\s*>/i.test(finalResponse)) {
+        try {
+          const expanded = await this._expandContinuedResponse(page, preSendSnapshot, finalResponse);
+          if (expanded && expanded.length > finalResponse.length) {
+            finalResponse = expanded;
+            extractionSource = 'snapshot-diff-expanded';
+            log.success(`[sendMessageStream] Expanded response via Continue button: ${finalResponse.length} chars`);
+          }
+        } catch (e) {
+          log.debug(`[sendMessageStream] Continue expansion failed: ${e.message}`);
+        }
+      }
+
       // Fallback: if snapshot diff returned nothing or failed, try old strategies
       if (!finalResponse) {
         try {
@@ -7246,18 +7479,23 @@ class KimiBridge {
       }
 
       // v12.1-fix: If the extracted response looks like a file/artifact link with no
-      // real code, open the artifact Code tab and extract the actual code.
-      if (finalResponse && (
+      // real code, OR if the HTML appears truncated (no closing </html>), try opening
+      // the artifact/Code tab to fetch the full source Kimi generated.
+      const looksLikeArtifactLink = finalResponse && (
         finalResponse.includes('sandbox://') ||
         /\[.*?\]\(.*?\.(html|jsx|css|js|tsx|vue|svelte)\)/i.test(finalResponse) ||
         finalResponse.toLowerCase().includes('download:')
-      ) && !finalResponse.includes('<')) {
+      );
+      const htmlLooksIncomplete = finalResponse &&
+        (finalResponse.includes('<!doctype html>') || finalResponse.includes('<html')) &&
+        !/<\/html\s*>/i.test(finalResponse);
+      if (finalResponse && (looksLikeArtifactLink || htmlLooksIncomplete)) {
         try {
           const artifactCode = await this._extractArtifactCode(page);
           if (artifactCode && artifactCode.length > 100) {
             finalResponse = artifactCode;
             extractionSource = 'artifact-panel';
-            log.success(`[sendMessageStream] Replaced artifact link with actual code (${finalResponse.length} chars)`);
+            log.success(`[sendMessageStream] Replaced with artifact code (${finalResponse.length} chars)`);
           }
         } catch (e) {
           log.debug(`[sendMessageStream] Artifact fallback failed: ${e.message}`);
@@ -7312,6 +7550,7 @@ class KimiBridge {
         throw err;
       }
     } finally {
+      if (continuationClickInterval) clearInterval(continuationClickInterval);
       if (session) {
         session.processing = false;
         session.softCancelRequested = false; // v7.0: clear soft cancel flag
