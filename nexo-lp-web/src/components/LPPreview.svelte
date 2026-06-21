@@ -1,11 +1,13 @@
 <script>
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { preview, hasPreview } from '../stores.js';
 
   let iframe;
+  let previewContainer;
   let reloadKey = 0;
   let deviceMode = 'desktop';
+  let isFullscreen = false;
 
   const devices = [
     { id: 'desktop', label: 'Desktop', width: '100%', icon: DesktopIcon },
@@ -37,13 +39,36 @@
     preview.update((p) => ({ ...p, device }));
   }
 
+  function toggleFullscreen() {
+    if (!previewContainer) return;
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      previewContainer.requestFullscreen().catch((err) => {
+        console.warn('Fullscreen request failed:', err);
+      });
+    }
+  }
+
+  function updateFullscreenState() {
+    isFullscreen = !!document.fullscreenElement;
+  }
+
+  onMount(() => {
+    document.addEventListener('fullscreenchange', updateFullscreenState);
+  });
+
+  onDestroy(() => {
+    document.removeEventListener('fullscreenchange', updateFullscreenState);
+  });
+
   $: previewHtml = $preview.html || '';
   $: hasContent = $hasPreview;
 </script>
 
-<div class="flex flex-col h-full bg-luna-surface">
+<div bind:this={previewContainer} class="flex flex-col h-full bg-luna-surface" class:bg-black={isFullscreen}>
   <!-- Toolbar -->
-  <div class="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-luna-border">
+  <div class="flex-shrink-0 flex items-center justify-between px-4 py-3 bg-white border-b border-luna-border" class:hidden={isFullscreen}>
     <div class="flex items-center gap-2">
       <span class="text-xs font-semibold text-luna-text-muted uppercase tracking-wider">Preview</span>
       {#if hasContent}
@@ -73,6 +98,19 @@
         {/each}
       </div>
 
+      <!-- Fullscreen Button -->
+      <button
+        class="flex items-center justify-center w-8 h-8 rounded-lg text-luna-text-muted hover:text-luna-text hover:bg-luna-surface transition-all"
+        on:click={toggleFullscreen}
+        title="Tela cheia"
+      >
+        {#if isFullscreen}
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v3a2 2 0 0 1-2 2H3"/><path d="M21 8h-3a2 2 0 0 1-2-2V3"/><path d="M3 16h3a2 2 0 0 1 2 2v3"/><path d="M16 21v-3a2 2 0 0 1 2-2h3"/></svg>
+        {:else}
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg>
+        {/if}
+      </button>
+
       <!-- Reload Button -->
       <button
         class="flex items-center justify-center w-8 h-8 rounded-lg text-luna-text-muted hover:text-luna-text hover:bg-luna-surface transition-all"
@@ -85,10 +123,12 @@
   </div>
 
   <!-- Preview Area -->
-  <div class="flex-1 overflow-auto p-4 flex items-start justify-center bg-luna-surface">
+  <div class="flex-1 overflow-auto p-4 flex items-start justify-center bg-luna-surface" class:p-0={isFullscreen} class:items-stretch={isFullscreen} class:justify-stretch={isFullscreen}>
     {#if hasContent}
       <div
         class="transition-all duration-300 ease-in-out bg-white rounded-xl shadow-md overflow-hidden"
+        class:rounded-none={isFullscreen}
+        class:shadow-none={isFullscreen}
         style="width: {devices.find(d => d.id === deviceMode)?.width || '100%'}; min-height: 600px;"
         in:fade={{ duration: 300 }}
       >
