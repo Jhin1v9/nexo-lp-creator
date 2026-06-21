@@ -94,6 +94,28 @@ class SessionRepository {
   }
 
   /**
+   * Search sessions by content across id, prompt, chat URL, generated HTML,
+   * and chat messages.
+   */
+  async searchByContent(term, options = {}) {
+    const limit = options.limit || 50;
+    const pattern = `%${term}%`;
+    const sql = `
+      SELECT DISTINCT s.*
+      FROM sessions s
+      LEFT JOIN messages m ON m.session_id = s.id
+      WHERE LOWER(s.id) LIKE LOWER(?)
+         OR LOWER(s.initial_prompt) LIKE LOWER(?)
+         OR LOWER(s.kimi_chat_url) LIKE LOWER(?)
+         OR LOWER(s.current_html) LIKE LOWER(?)
+         OR LOWER(m.content) LIKE LOWER(?)
+      ORDER BY s.updated_at DESC
+      LIMIT ?
+    `;
+    return query(sql, [pattern, pattern, pattern, pattern, pattern, limit]);
+  }
+
+  /**
    * Update session fields
    */
   async update(id, data) {

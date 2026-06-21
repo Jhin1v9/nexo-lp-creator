@@ -90,6 +90,11 @@ export async function listSessions(page = 1, limit = 50) {
   return result.data || { sessions: [], total: 0 };
 }
 
+export async function searchSessions(query, limit = 50) {
+  const result = await request(`/sessions/search?q=${encodeURIComponent(query)}&limit=${limit}`);
+  return result.data || { sessions: [] };
+}
+
 export async function renameSession(sessionId, title) {
   const result = await request(`/sessions/${sessionId}`, {
     method: 'PATCH',

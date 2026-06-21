@@ -129,6 +129,26 @@ router.get('/sessions', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /sessions/search?q=<term>
+ * Search sessions by content across prompt, chat URL, generated HTML,
+ * and persisted chat messages.
+ *
+ * Query: { q, limit? }
+ * Response: { success, data: { sessions } }
+ */
+router.get('/sessions/search', asyncHandler(async (req, res) => {
+  const { q, limit = '50' } = req.query;
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 50));
+
+  if (!q || typeof q !== 'string' || !q.trim()) {
+    return res.status(400).json(errorResponse('Search query is required', 'BAD_REQUEST', 400));
+  }
+
+  const sessions = await lpSessionService.searchSessions(q.trim(), { limit: limitNum });
+  res.status(200).json(successResponse({ sessions }, 'Sessions retrieved successfully'));
+}));
+
+/**
  * GET /sessions/by-chat/:chatId
  * Get session by Kimi chat id substring
  *

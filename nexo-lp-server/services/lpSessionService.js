@@ -188,6 +188,28 @@ class SessionService {
     return null;
   }
 
+  /**
+   * Search sessions by content across id, prompt, chat URL, generated HTML,
+   * and persisted chat messages.
+   * @param {string} query - Search term
+   * @param {object} options - { limit }
+   * @returns {Promise<Array<object>>} session rows with contextInfo merged
+   */
+  async searchSessions(query, options = {}) {
+    if (!query || typeof query !== 'string' || !query.trim()) {
+      return [];
+    }
+
+    const sessions = await this.repository.searchByContent(query.trim(), options);
+    const sessionsWithContext = await Promise.all(
+      sessions.map(async (session) => {
+        const contextInfo = await this.getContextInfo(session);
+        return { ...session, ...contextInfo };
+      })
+    );
+    return sessionsWithContext;
+  }
+
   _sumMetadataStringLengths(value) {
     if (value === null || value === undefined) return 0;
     if (typeof value === 'string') return value.length;
