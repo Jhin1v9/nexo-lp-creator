@@ -340,15 +340,11 @@ class GenerationService {
         let response;
 
         if (phase === 'code') {
-          // Code phase may need auto-continue when Kimi emits intermediate metadata JSON.
-          // We keep the same Kimi chat because the code prompt now carries the full
-          // design brief, and creating a new chat has been unreliable (transient
-          // ?chat_enter_method=new_chat page never renders the response).
-          // v14.2-fix: Start a fresh Kimi chat for the code phase. Reusing the
-          // intention/structure chat leaves Kimi in JSON/brief mode, so it keeps
-          // emitting structure metadata instead of the actual HTML file. A clean
-          // context with the full brief in the prompt makes HTML output reliable.
-          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs, true);
+          // v15.0-fix: Reuse the existing Kimi chat for the code phase. The prompt
+          // now carries the full brief, palette, and vibe explicitly, and opening a
+          // new tab was slow, broke context, and annoyed users. Auto-continue still
+          // handles any intermediate JSON/metadata responses.
+          response = await this.runCodePhaseWithContinue(sessionId, context, phasePrompt, selectedStack, phaseTimeoutMs, false);
         } else {
           response = await this.sendMessageWithoutHardTimeout(context, phasePrompt, {
             stack: selectedStack,

@@ -48,12 +48,17 @@ Return ONLY a single JSON object matching this exact schema (no markdown fences,
   "proof": ["social proof type", "trust signal"],
   "ctas": ["primary CTA label", "secondary CTA label"],
   "sections": ["hero", "features", "social-proof", "pricing", "faq", "cta"],
-  "tone": "professional|casual|luxury|playful|minimal",
-  "colorDirection": { "primary": "#6366F1", "secondary": "#8B5CF6", "accent": "#10B981" },
+  "tone": "professional|casual|luxury|playful|minimal|bold|romantic|futuristic",
+  "colorDirection": { "primary": "#HEX_FROM_USER", "secondary": "#HEX_FROM_USER", "accent": "#HEX_FROM_USER", "background": "#HEX_FROM_USER", "text": "#HEX_FROM_USER" },
   "constraints": ["must be single HTML file", "user chooses stack and style"],
-  "userVibe": "free-form description of the visual style the user wants",
+  "userVibe": "free-form description of the visual style the user wants — colors, mood, typography, imagery, energy level",
   "dependencies": ["any CDN libraries the user requests or you suggest for stunning effects"]
 }
+
+CRITICAL COLOR/STYLE RULES:
+- If the user names a color (e.g. "rosa", "azul", "preto", "dourado", "verde neon"), translate it into concrete hex codes in colorDirection and use them as the REAL palette. Do NOT fall back to generic indigo/purple.
+- If the user describes a mood ("elegante", "divertido", "sombrio", "clean", "luxo", "futurista", "romântico"), capture that exact mood in userVibe and tone.
+- Pick images and fonts that match the requested vibe. A romantic/pink request gets soft gradients, serif headings, warm photography. A dark/tech request gets neon accents, mono fonts, abstract visuals.
 
 Use high-quality images from Unsplash, Pexels, or similar with direct URLs. NEVER use generic gray placeholders or SVG icons without purpose.`;
 }
@@ -72,15 +77,20 @@ ${CONVERSION_REFERENCE_DIRECTIVE}
 Intention brief:
 ${JSON.stringify(intention, null, 2)}
 
+CRITICAL: Preserve the user's requested colors and vibe from the intention brief above.
+- If intention.colorDirection contains real colors (especially non-default ones like pinks, reds, dark tones, etc.), copy them EXACTLY into designTokens.colors.
+- Do NOT replace the user's palette with generic indigo/purple/green defaults.
+- Preserve intention.tone and intention.userVibe in typography, motion, and image choices.
+
 Return ONLY a single JSON object matching this exact schema (no markdown fences, no comments, no explanations):
 
 {
   "layout": "single-page",
   "designTokens": {
-    "colors": { "primary": "#6366F1", "secondary": "#8B5CF6", "accent": "#10B981", "dark": "#0F172A", "light": "#F8FAFC" },
+    "colors": { "primary": "#6366F1", "secondary": "#8B5CF6", "accent": "#10B981", "background": "#F8FAFC", "text": "#0F172A" },
     "typography": "modern sans-serif stack",
     "spacing": "generous vertical rhythm with clear section breaks",
-    "motion": "STUNNING, cinematic, immersive animations: GSAP ScrollTrigger timelines, parallax layers, morphing SVGs, 3D transforms, particle effects, WebGL shaders. Hover states on EVERY interactive element. The page must feel ALIVE, SURREAL, and award-winning.",
+    "motion": "Cinematic, immersive animations: GSAP ScrollTrigger timelines, parallax layers, morphing SVGs, 3D transforms, particle effects, WebGL shaders. Hover states on EVERY interactive element. The page must feel ALIVE, SURREAL, and award-winning.",
     "techStack": { "css": "Tailwind CDN or pure CSS", "js": "vanilla or any CDN libs", "canvas": "optional for advanced effects" }
   },
   "sections": [
@@ -102,21 +112,28 @@ Return ONLY a single JSON object matching this exact schema (no markdown fences,
 }
 
 function codePrompt(structure, stack) {
-  // v8.0-fix: Lead with the HTML mandate and keep the design brief as reference.
-  // Putting a large JSON block at the top of the prompt confuses Kimi into
-  // emitting another JSON structure instead of the actual HTML file.
-  const sectionList = (structure.sections || []).map(s => {
+  // v9.0-fix: Put the user's palette and vibe FIRST so Kimi cannot ignore them.
+  // Keep the structured brief as a short reference, not a wall of JSON at the top.
+  const sectionList = (structure.sections || []).map((s) => {
     const id = s.id || s;
     const purpose = s.purpose ? ` (${s.purpose})` : '';
     return `- ${id}${purpose}`;
   }).join('\n');
-  const colors = structure.designTokens?.colors || structure.colors || {};
-  const colorHint = Object.keys(colors).length
-    ? `Palette: ${Object.entries(colors).map(([k, v]) => `${k} ${v}`).join(', ')}.`
-    : '';
-  const title = structure.title || structure.designTokens?.title || 'Landing Page';
-  const description = structure.description || structure.designTokens?.description || '';
-  const goal = structure.goal || structure.croStrategy || 'Drive the primary conversion';
+
+  const intention = structure.intention || {};
+  const designTokens = structure.designTokens || {};
+  const colors = designTokens.colors || structure.colors || intention.colorDirection || {};
+  const colorEntries = Object.entries(colors);
+  const colorBlock = colorEntries.length
+    ? colorEntries.map(([k, v]) => `${k}: ${v}`).join('\n')
+    : 'primary: #EC4899\nsecondary: #F472B6\naccent: #8B5CF6\nbackground: #FFF1F2\ntext: #1F2937';
+
+  const title = structure.title || intention.title || 'Landing Page';
+  const description = structure.description || intention.description || '';
+  const goal = structure.goal || intention.goal || 'Drive the primary conversion';
+  const tone = intention.tone || designTokens.typography || 'modern and conversion-focused';
+  const vibe = intention.userVibe || designTokens.motion || 'premium, clean, high-converting';
+  const typography = designTokens.typography || 'Use typography that matches the tone and vibe above';
 
   return `${BASE_PERSONA}
 
@@ -124,31 +141,38 @@ ${IRON_RULES}
 
 STACK: ${stack}
 
-YOU ARE IN THE CODE PHASE. YOUR ONLY JOB IS TO OUTPUT THE COMPLETE HTML FILE.
-DO NOT output JSON. DO NOT output a design brief. DO NOT explain. DO NOT summarize.
+YOU ARE IN THE CODE PHASE. OUTPUT ONLY THE COMPLETE HTML FILE.
+NO JSON. NO design brief. NO explanations. NO summaries. ONLY \`\`\`html ... \`\`\`.
 
-PAGE TO BUILD: ${title}
-${description ? `DESCRIPTION: ${description}` : ''}
+═══════════════════════════════════════
+PAGE: ${title}
+${description ? `ABOUT: ${description}` : ''}
 GOAL: ${goal}
-${colorHint}
+TONE: ${tone}
+VIBE: ${vibe}
+TYPOGRAPHY: ${typography}
+
+COLOR PALETTE — USE EXACTLY THESE COLORS:
+${colorBlock}
 
 SECTIONS TO INCLUDE:
 ${sectionList || '- Build the sections that best deliver the conversion goal'}
+═══════════════════════════════════════
 
 OUTPUT RULES — OBEY EXACTLY:
-1. Return ONLY ONE markdown HTML code block: \`\`\`html ... \`\`\`.
-2. The code block must contain a COMPLETE, VALID, SINGLE-FILE HTML page.
-3. It MUST start with <!DOCTYPE html> and end with </html>.
-4. Load Tailwind CSS via CDN. Semantic HTML5, mobile-first, responsive.
+1. ONE markdown HTML code block containing a COMPLETE, VALID, SINGLE-FILE HTML page.
+2. MUST start with <!DOCTYPE html> and end with </html>.
+3. Load Tailwind CSS via CDN and configure it with the palette above in tailwind.config.
+4. Semantic HTML5, mobile-first, responsive.
 5. Include <title>, charset, viewport and OG meta tags.
 6. ONE conversion goal, CTA repeated 2-3 times, no competing exit links.
-7. Cinematic animations, parallax, hover micro-interactions, WebGL/Three.js where appropriate. Premium feel.
+7. Animations, parallax, hover micro-interactions where appropriate. Keep it premium.
 8. Real Unsplash/Pexels images only. No gray placeholders.
 9. Benefit-driven copy. No lorem ipsum.
-10. ONLY the HTML code block. No JSON, no briefs, no explanations, no partial snippets.
+10. ONLY the HTML code block.
 
-DESIGN BRIEF (REFERENCE ONLY — DO NOT REPEAT AS JSON):
-${JSON.stringify(structure, null, 2)}
+DESIGN NOTES (REFERENCE ONLY):
+${JSON.stringify({ title, description, goal, tone, vibe, sections: structure.sections, designTokens }, null, 2)}
 
 Write the complete HTML now.`;
 }
