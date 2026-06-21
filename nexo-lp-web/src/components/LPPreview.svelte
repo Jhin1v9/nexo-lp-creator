@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { preview, hasPreview } from '../stores.js';
+  import { preparePreviewHtml } from '../lib/previewBuilder.js';
 
   let iframe;
   let previewContainer;
@@ -62,7 +63,8 @@
     document.removeEventListener('fullscreenchange', updateFullscreenState);
   });
 
-  $: previewHtml = $preview.html || '';
+  $: rawPreviewHtml = $preview.html || '';
+  $: previewHtml = rawPreviewHtml ? preparePreviewHtml(rawPreviewHtml) : '';
   $: hasContent = $hasPreview;
 </script>
 

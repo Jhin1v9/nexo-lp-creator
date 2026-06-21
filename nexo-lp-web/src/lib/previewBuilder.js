@@ -1,8 +1,73 @@
 /**
- * Preview utilities — simple HTML formatter/validator kept for the code editor.
- * The live preview now renders the raw generated HTML via iframe srcdoc,
- * exactly like the admin template panel, so no blob URL wrapping is needed.
+ * Preview utilities.
+ *
+ * The live preview renders the raw generated HTML via iframe srcdoc, exactly
+ * like the admin template panel. To prevent GSAP/ScrollTrigger/AOS-style
+ * animations from leaving sections invisible in the preview, we inject a small
+ * CSS reset that forces opacity/visibility/transform back to visible defaults.
+ * Animations still play, but content is never stuck hidden.
  */
+
+const PREVIEW_VISIBILITY_STYLE = `
+/* NEXO preview visibility safeguard — ensures animated content is visible */
+[data-aos],
+[data-aos*="fade"],
+[data-aos*="zoom"],
+[data-aos*="slide"],
+[data-gsap],
+[data-scroll-trigger],
+.gsap-marker,
+.animate-on-scroll,
+.reveal,
+.fade-in,
+.slide-up,
+.zoom-in,
+.section-reveal,
+.counter-number {
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: none !important;
+  filter: none !important;
+  clip-path: none !important;
+  mask: none !important;
+  -webkit-mask: none !important;
+}
+
+/* If any element starts with opacity 0 via inline style, make it visible */
+[style*="opacity: 0"],
+[style*="opacity:0"] {
+  opacity: 1 !important;
+}
+
+[style*="visibility: hidden"],
+[style*="visibility:hidden"] {
+  visibility: visible !important;
+}
+`;
+
+/**
+ * Prepare raw generated HTML for safe preview rendering.
+ * Injects a visibility safeguard into the <head> without altering the body.
+ */
+export function preparePreviewHtml(html) {
+  if (!html || typeof html !== 'string') return html;
+  if (!html.includes('<')) return html;
+
+  const styleTag = `<style>${PREVIEW_VISIBILITY_STYLE}</style>`;
+
+  // If there's a <head>, inject before </head>
+  if (/<\/head>/i.test(html)) {
+    return html.replace(/<\/head>/i, `${styleTag}</head>`);
+  }
+
+  // If there's an <html>, inject after <html>
+  if (/<html[^>]*>/i.test(html)) {
+    return html.replace(/(<html[^>]*>)/i, `$1<head>${styleTag}</head>`);
+  }
+
+  // Fallback: prepend a minimal head
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">${styleTag}</head><body>${html}</body></html>`;
+}
 
 /**
  * Check if HTML has a valid structure
