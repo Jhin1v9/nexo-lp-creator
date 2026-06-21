@@ -1,33 +1,19 @@
 /**
  * NEXO Landing Page Creator v3.0 - SQLite Database Layer
- * Uses sql.js (SQLite WASM) with better-sqlite3-compatible sync API.
+ *
+ * Uses better-sqlite3 for persistent, file-backed SQLite with native
+ * performance. Replaces the previous sql.js in-memory + export() approach
+ * which serialized the whole database on every write and caused noticeable
+ * latency when switching chats or saving large HTML payloads.
  */
 
 const fs = require('fs');
 const path = require('path');
+const DatabaseConstructor = require('better-sqlite3');
 
 const DB_PATH = process.env.NEXO_LP_DB_PATH || path.join(__dirname, '../../data/nexo-lp.db');
 
-let _SQL = null;
 let _db = null;
-let _initPromise = null;
-
-/**
- * Initialize the SQL.js module (async, but cached)
- */
-async function initSQL() {
-  if (_SQL) return _SQL;
-  if (_initPromise) return _initPromise;
-
-  _initPromise = (async () => {
-    const initSqlJs = require('sql.js');
-    _SQL = await initSqlJs();
-    _initPromise = null;
-    return _SQL;
-  })();
-
-  return _initPromise;
-}
 
 function ensureDir() {
   const dir = path.dirname(DB_PATH);
@@ -36,48 +22,24 @@ function ensureDir() {
   }
 }
 
-function loadOrCreate() {
-  ensureDir();
-  if (fs.existsSync(DB_PATH)) {
-    const data = fs.readFileSync(DB_PATH);
-    return new _SQL.Database(data);
-  }
-  return new _SQL.Database();
-}
-
-function persist() {
-  if (!_db) return;
-  ensureDir();
-  const data = _db.export();
-  fs.writeFileSync(DB_PATH, Buffer.from(data));
-}
-
-// NOTE: Do NOT persist on process.exit. Every write already calls persist(),
-// and persisting here would overwrite external changes made by other processes
-// (e.g., the cron backfill script) with this process's stale in-memory state.
-
 /**
- * Get the database instance (initializes sql.js on first call)
+ * Get the database instance (synchronous)
  */
-async function getDatabaseAsync() {
-  if (_db) return _db;
-  await initSQL();
-  _db = loadOrCreate();
+function getDatabase() {
+  if (!_db) {
+    throw new Error('Database not initialized. Call initializeDatabase() first.');
+  }
   return _db;
 }
 
-function getDatabase() {
-  if (_db) return _db;
-  // Sync fallback: if sql.js already loaded, use it
-  if (_SQL) {
-    _db = loadOrCreate();
-    return _db;
-  }
-  throw new Error('Database not initialized. Call initializeDatabase() first.');
+/**
+ * Async variant kept for backward compatibility with existing repositories.
+ */
+async function getDatabaseAsync() {
+  return getDatabase();
 }
 
 function closeDatabase() {
-  persist();
   if (_db) {
     _db.close();
     _db = null;
@@ -101,49 +63,35 @@ class Statement {
     return this._stmt;
   }
 
+  _flattenParams(params) {
+    return params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
+  }
+
+  _normalizeParams(params) {
+    return this._flattenParams(params).map((value) => {
+      if (typeof value === 'boolean') return value ? 1 : 0;
+      return value;
+    });
+  }
+
   get(...params) {
-    const flat = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-    const stmt = this._getStmt();
-    stmt.bind(flat);
-    if (stmt.step()) {
-      return stmt.getAsObject();
-    }
-    return undefined;
+    return this._getStmt().get(this._normalizeParams(params));
   }
 
   run(...params) {
-    const flat = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-    const stmt = this._getStmt();
-    stmt.run(flat);
-    // Get last insert rowid BEFORE persisting, because sql.js export() resets it.
-    let lastID = 0;
-    try {
-      const idStmt = this.db.prepare('SELECT last_insert_rowid() as id');
-      if (idStmt.step()) {
-        lastID = idStmt.getAsObject().id || 0;
-      }
-      idStmt.free();
-    } catch (e) { /* ignore */ }
-    persist();
-    return { lastID, changes: 1 };
+    const info = this._getStmt().run(this._normalizeParams(params));
+    return {
+      lastID: Number(info.lastInsertRowid) || 0,
+      changes: info.changes,
+    };
   }
 
   all(...params) {
-    const flat = params.length === 1 && Array.isArray(params[0]) ? params[0] : params;
-    const stmt = this._getStmt();
-    stmt.bind(flat);
-    const rows = [];
-    while (stmt.step()) {
-      rows.push(stmt.getAsObject());
-    }
-    return rows;
+    return this._getStmt().all(this._normalizeParams(params));
   }
 
   free() {
-    if (this._stmt) {
-      this._stmt.free();
-      this._stmt = null;
-    }
+    // better-sqlite3 prepared statements are garbage-collected; no-op for API compat.
   }
 }
 
@@ -152,10 +100,7 @@ class Statement {
 // ============================================
 class Database {
   constructor() {
-    if (!_db) {
-      throw new Error('Database not initialized. Call initializeDatabase() first.');
-    }
-    this.db = _db;
+    this.db = getDatabase();
   }
 
   prepare(sql) {
@@ -163,17 +108,11 @@ class Database {
   }
 
   exec(sql) {
-    this.db.run(sql);
-    persist();
+    this.db.exec(sql);
   }
 
   pragma(pragma) {
-    const stmt = this.db.prepare(`PRAGMA ${pragma}`);
-    const rows = [];
-    while (stmt.step()) {
-      rows.push(stmt.getAsObject());
-    }
-    stmt.free();
+    const rows = this.db.pragma(pragma, { simple: false });
     return rows.length === 1 ? rows[0] : rows;
   }
 
@@ -187,33 +126,28 @@ class Database {
 // ============================================
 function query(sql, params = []) {
   return Promise.resolve().then(() => {
-    const db = getDatabase();
-    const stmt = new Statement(db, sql);
+    const stmt = new Statement(getDatabase(), sql);
     return stmt.all(params);
   });
 }
 
 function queryOne(sql, params = []) {
   return Promise.resolve().then(() => {
-    const db = getDatabase();
-    const stmt = new Statement(db, sql);
+    const stmt = new Statement(getDatabase(), sql);
     return stmt.get(params);
   });
 }
 
 function run(sql, params = []) {
   return Promise.resolve().then(() => {
-    const db = getDatabase();
-    const stmt = new Statement(db, sql);
+    const stmt = new Statement(getDatabase(), sql);
     return stmt.run(params);
   });
 }
 
 function exec(sql) {
   return Promise.resolve().then(() => {
-    const db = getDatabase();
-    db.run(sql);
-    persist();
+    getDatabase().exec(sql);
   });
 }
 
@@ -230,7 +164,7 @@ function runMigrations() {
 
   const db = getDatabase();
 
-  db.run(`CREATE TABLE IF NOT EXISTS __migrations (
+  db.exec(`CREATE TABLE IF NOT EXISTS __migrations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     filename TEXT NOT NULL UNIQUE,
     executed_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -243,25 +177,47 @@ function runMigrations() {
 
     if (!row) {
       const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
-      db.run(sql);
+      db.exec(sql);
       const insert = new Statement(db, 'INSERT INTO __migrations (filename) VALUES (?)');
       insert.run(file);
       insert.free();
       console.log(`[DB] Migrated: ${file}`);
     }
   }
-
-  persist();
 }
 
 // ============================================
 // Initialization
 // ============================================
 async function initializeDatabase() {
-  await initSQL();
-  await getDatabaseAsync();
+  if (_db) {
+    _db.close();
+    _db = null;
+  }
+
+  ensureDir();
+
+  // If the database file is being recreated (e.g. test teardown deleted only
+  // the .db file), stale WAL/SHM files from a previous run can cause a
+  // "disk I/O error" on open. Remove them when the main file is missing.
+  if (!fs.existsSync(DB_PATH)) {
+    for (const suffix of ['-wal', '-shm']) {
+      try {
+        const stale = `${DB_PATH}${suffix}`;
+        if (fs.existsSync(stale)) fs.unlinkSync(stale);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  _db = new DatabaseConstructor(DB_PATH);
+  // WAL mode allows concurrent readers and avoids the full-database fsync
+  // bottleneck that made sql.js feel slow when switching chats.
+  _db.pragma('journal_mode = WAL');
+
   runMigrations();
-  console.log(`[DB] SQLite (sql.js) initialized at ${DB_PATH}`);
+  console.log(`[DB] SQLite (better-sqlite3) initialized at ${DB_PATH}`);
 }
 
 // ============================================
@@ -323,14 +279,14 @@ function table(name) {
 }
 
 function transaction(callback) {
+  const db = getDatabase();
   const result = callback({
-    db: getDatabase(),
+    db,
     query,
     queryOne,
     run,
     exec,
   });
-  persist();
   return Promise.resolve(result);
 }
 

@@ -18,6 +18,7 @@ const CurrencyRepository = require('../models/repositories/CurrencyRepository');
 const PreviewService = require('./lpPreviewService');
 const SanitizationOrchestrator = require('./lpSanitizationOrchestrator');
 const userService = require('./lpUserService');
+const adminEventBus = require('./adminEventBus');
 const NexoDashboardFinanceService = require('./nexoDashboardFinanceService');
 const config = require('../config/nexo-lp-config');
 
@@ -294,6 +295,19 @@ class TemplateService {
       price_stars: cost.stars,
       price_suns: cost.suns,
       price_moons: cost.moons,
+    });
+
+    adminEventBus.publish({
+      scope: 'purchase',
+      type: 'purchase',
+      purchaseId: purchaseRecord.id,
+      templateId: purchaseRecord.template_id,
+      userId: purchaseRecord.user_id,
+      amount: {
+        stars: purchaseRecord.price_stars,
+        suns: purchaseRecord.price_suns,
+        moons: purchaseRecord.price_moons,
+      },
     });
 
     try {

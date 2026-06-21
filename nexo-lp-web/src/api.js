@@ -67,6 +67,11 @@ export async function getSession(sessionId) {
   return result.data;
 }
 
+export async function getSessionByKimiChatId(chatId) {
+  const result = await request(`/sessions/by-chat/${encodeURIComponent(chatId)}`);
+  return result.data;
+}
+
 export async function getMessages(sessionId) {
   const result = await request(`/sessions/${sessionId}/messages`);
   return result.data || [];
@@ -114,7 +119,7 @@ export async function generate(sessionId, prompt, options = {}) {
       stack: options.stack || 'static-html-tailwind',
       options: {
         mode: options.mode || 'stars',
-        ...options,
+        generationMode: options.generationMode || options.generationPageMode,
       },
     },
   });
@@ -335,30 +340,6 @@ export async function sanitizeAdminTemplate(id) {
   return result.data;
 }
 
-export async function bulkSanitizeAdminTemplates(ids) {
-  const result = await adminRequest('/admin/templates/bulk/sanitize', {
-    method: 'POST',
-    body: { ids },
-  });
-  return result.data;
-}
-
-export async function bulkApproveAdminTemplates(ids) {
-  const result = await adminRequest('/admin/templates/bulk/approve', {
-    method: 'POST',
-    body: { ids },
-  });
-  return result.data;
-}
-
-export async function bulkDeleteAdminTemplates(ids) {
-  const result = await adminRequest('/admin/templates/bulk/delete', {
-    method: 'POST',
-    body: { ids },
-  });
-  return result.data;
-}
-
 export async function listAdminSessions(filters = {}) {
   const result = await adminRequest(`/admin/sessions${buildAdminQuery(filters)}`);
   return result.data;
@@ -383,23 +364,18 @@ export async function listAdminPurchases(filters = {}) {
   return result.data;
 }
 
-export async function getAdminPurchasesSummary() {
-  const result = await adminRequest('/admin/purchases/summary');
-  return result.data;
-}
-
 export async function creditAdminCurrency(userId, currency, amount) {
-  const result = await adminRequest(`/admin/currencies/${encodeURIComponent(userId)}/credit`, {
+  const result = await adminRequest('/admin/currency/credit', {
     method: 'POST',
-    body: { currency, amount },
+    body: { userId, currency, amount },
   });
   return result.data;
 }
 
 export async function deductAdminCurrency(userId, currency, amount) {
-  const result = await adminRequest(`/admin/currencies/${encodeURIComponent(userId)}/deduct`, {
+  const result = await adminRequest('/admin/currency/deduct', {
     method: 'POST',
-    body: { currency, amount },
+    body: { userId, currency, amount },
   });
   return result.data;
 }
@@ -431,7 +407,9 @@ export async function resumeAdminMiningJob(id) {
 }
 
 export async function getAdminSettings() {
-  const result = await adminRequest('/admin/settings');
+  // Settings are public so the editor's generation mode switch can read them
+  // even when the user is not logged in as admin.
+  const result = await request('/admin/settings');
   return result.data;
 }
 
@@ -443,10 +421,42 @@ export async function updateAdminSettings(settings) {
   return result.data;
 }
 
-export async function pushAdminFinance(purchaseId) {
-  const result = await adminRequest('/admin/finance/push', {
+// ===== Admin Users API =====
+export async function listAdminUsers(filters = {}) {
+  const result = await adminRequest(`/admin/users${buildAdminQuery(filters)}`);
+  return result.data;
+}
+
+export async function getAdminUser(id) {
+  const result = await adminRequest(`/admin/users/${encodeURIComponent(id)}`);
+  return result.data;
+}
+
+export async function updateAdminUser(id, data) {
+  const result = await adminRequest(`/admin/users/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: data,
+  });
+  return result.data;
+}
+
+export async function blockAdminUser(id) {
+  const result = await adminRequest(`/admin/users/${encodeURIComponent(id)}/block`, {
     method: 'POST',
-    body: { purchaseId },
+  });
+  return result.data;
+}
+
+export async function unblockAdminUser(id) {
+  const result = await adminRequest(`/admin/users/${encodeURIComponent(id)}/unblock`, {
+    method: 'POST',
+  });
+  return result.data;
+}
+
+export async function impersonateAdminUser(id) {
+  const result = await adminRequest(`/admin/users/${encodeURIComponent(id)}/impersonate`, {
+    method: 'POST',
   });
   return result.data;
 }

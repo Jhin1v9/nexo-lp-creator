@@ -11,6 +11,7 @@ process.env.NEXO_LP_DB_PATH = path.join(__dirname, '../../../data/nexo-lp-test-u
 const { initializeDatabase, closeDatabase } = require('../../models/sqlite');
 const UserRepository = require('../../models/repositories/UserRepository');
 const CurrencyRepository = require('../../models/repositories/CurrencyRepository');
+const TemplateRepository = require('../../models/repositories/TemplateRepository');
 const TemplatePurchaseRepository = require('../../models/repositories/TemplatePurchaseRepository');
 
 describe('UserRepository', () => {
@@ -138,6 +139,10 @@ describe('UserRepository', () => {
     });
 
     await CurrencyRepository.setBalance('usr-test-003', { stars: 100, suns: 10, moons: 1 });
+
+    // Foreign keys are now enforced, so the referenced templates must exist.
+    await TemplateRepository.create({ id: 'tpl-test-001', name: 'Template One', price_stars: 20 });
+    await TemplateRepository.create({ id: 'tpl-test-002', name: 'Template Two', price_stars: 5 });
 
     await TemplatePurchaseRepository.create({
       id: 'tpu-test-001',

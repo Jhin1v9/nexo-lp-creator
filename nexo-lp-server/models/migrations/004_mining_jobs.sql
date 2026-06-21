@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS mining_jobs (
     url TEXT NOT NULL,
     user_id TEXT,
     status TEXT NOT NULL DEFAULT 'pending'
-        CHECK (status IN ('pending', 'queued', 'scraping', 'analyzing', 'extracting', 'completed', 'failed')),
+        CHECK (status IN ('pending', 'queued', 'scraping', 'analyzing', 'extracting', 'completed', 'failed', 'paused')),
     progress INTEGER NOT NULL DEFAULT 0
         CHECK (progress >= 0 AND progress <= 100),
     result TEXT,                      -- JSON string with mined template data

@@ -519,7 +519,7 @@ describe('lpGenerationService LOJA integration', () => {
     expect(fixPromptReceived).not.toContain('No images detected');
   }, 30000);
 
-  test('retries review prompt and fails generation when review response stays unparseable', async () => {
+  test('retries review prompt and publishes as unreviewed when review response stays unparseable', async () => {
     const session = await createSession();
     sessionId = session.id;
 
@@ -568,7 +568,10 @@ describe('lpGenerationService LOJA integration', () => {
     );
 
     const finalSession = await SessionRepository.findById(sessionId);
-    expect(finalSession.status).toBe('failed');
+    // v4.2-fix: an unparseable review no longer fails the whole generation.
+    // The page is published as unreviewed instead, so the session ends in preview.
+    expect(finalSession.status).not.toBe('failed');
+    expect(finalSession.status).toBe('preview');
 
     // Initial review + retry (no bug-detector fallback)
     const reviewCalls = BridgeAdapter.sendMessage.mock.calls.filter(([, , opts]) => opts && opts.phase === 'review');

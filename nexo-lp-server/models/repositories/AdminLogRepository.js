@@ -57,6 +57,17 @@ class AdminLogRepository {
     params.push(safeLimit, safeOffset);
     return query(sql, params);
   }
+
+  /**
+   * Convenience helper: list logs for a specific target.
+   * @param {string} targetType
+   * @param {string} targetId
+   * @param {number} [limit=100]
+   * @returns {Promise<object[]>}
+   */
+  async listByTarget(targetType, targetId, limit = 100) {
+    return this.list({ targetType, targetId, limit });
+  }
 }
 
 module.exports = new AdminLogRepository();

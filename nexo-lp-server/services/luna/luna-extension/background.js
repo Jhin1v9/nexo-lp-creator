@@ -2,7 +2,7 @@
 // v8.1: Message router between content scripts and Luna server via HTTP polling
 // Eliminates offscreen document lifecycle issues by using fetch + polling
 
-const LUNA_SERVER_URL = 'http://localhost:3458';
+const LUNA_SERVER_URL = 'http://localhost:3460';
 const KIMI_URL_PATTERNS = [
   'https://www.kimi.com/*',
   'https://kimi.com/*',
@@ -21,6 +21,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'luna-keepalive') {
     // Minimal work to reset idle timer
     chrome.storage.session.get('luna-active').catch(() => {});
+    // v1.1-fix: Retry registration on every keepalive until the server is reachable.
+    if (!sessionId) {
+      registerSession().catch(() => {});
+    }
   }
   if (alarm.name === 'luna-poll') {
     pollServer();
@@ -101,6 +105,10 @@ async function registerSession() {
 
 async function sendEventToServer(payload) {
   try {
+    if (!sessionId) {
+      await registerSession();
+    }
+    if (!sessionId) return false;
     const res = await fetch(`${LUNA_SERVER_URL}/ext/event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

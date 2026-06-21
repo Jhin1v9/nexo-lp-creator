@@ -114,6 +114,64 @@ class ResponseParser {
   }
 
   /**
+   * Extract the first valid JSON object or array from free-form text.
+   * Unlike extractJsonObject, this does NOT normalize the result into a
+   * review shape, so it is suitable for intention/structure payloads.
+   */
+  static extractGenericJson(text) {
+    if (!text || typeof text !== 'string') return null;
+
+    let cleaned = this.cleanKimiHeaders(text);
+    if (!cleaned) return null;
+
+    // Try the whole cleaned text first.
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // Continue to substring extraction.
+    }
+
+    // Extract the first balanced object or array.
+    for (const startChar of ['{', '[']) {
+      const closeChar = startChar === '{' ? '}' : ']';
+      let start = cleaned.indexOf(startChar);
+      while (start !== -1) {
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let i = start; i < cleaned.length; i += 1) {
+          const char = cleaned[i];
+          if (inString) {
+            if (escape) {
+              escape = false;
+            } else if (char === '\\') {
+              escape = true;
+            } else if (char === '"') {
+              inString = false;
+            }
+          } else if (char === '"') {
+            inString = true;
+          } else if (char === startChar) {
+            depth += 1;
+          } else if (char === closeChar) {
+            depth -= 1;
+            if (depth === 0) {
+              try {
+                return JSON.parse(cleaned.slice(start, i + 1));
+              } catch {
+                break;
+              }
+            }
+          }
+        }
+        start = cleaned.indexOf(startChar, start + 1);
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Extract a review-like JSON object from free-form text.
    * Handles code blocks, wrappers, explanatory text, old schemas, arrays, etc.
    */

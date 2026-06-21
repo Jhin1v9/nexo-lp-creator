@@ -23,6 +23,7 @@ const { query } = require('../models/sqlite');
 const VALID_CURRENCIES = ['stars', 'suns', 'moons'];
 const GENERATION_SETTINGS_KEYS = [
   'generation.mode',
+  'generation.modes',
   'generation.frameworks',
   'generation.auto_publish',
   'generation.base_prompt',
@@ -30,6 +31,10 @@ const GENERATION_SETTINGS_KEYS = [
 ];
 const DEFAULT_SETTINGS = {
   'generation.mode': 'landing',
+  'generation.modes': [
+    { label: 'Landing', basePrompt: 'Create a focused, high-converting single-page landing page.' },
+    { label: 'Multi-page', basePrompt: 'Create a multi-page website with home, about, and contact pages.' },
+  ],
   'generation.frameworks': ['static-html-tailwind'],
   'generation.auto_publish': false,
   'generation.base_prompt': '',
@@ -131,6 +136,9 @@ class AdminService {
 
   /**
    * List public templates with filters.
+   *
+   * The admin UI expects a `price` field that maps to the underlying
+   * `price_stars` column.
    */
   async listTemplates(filters = {}) {
     const limit = filters.limit
@@ -142,6 +150,14 @@ class AdminService {
       delete repoFilters.status;
     }
     const result = await this.templateRepository.findAll(repoFilters);
+
+    const templates = Array.isArray(result) ? result : result?.templates;
+    if (Array.isArray(templates)) {
+      for (const template of templates) {
+        template.price = template.price_stars ?? 0;
+      }
+    }
+
     const count = Array.isArray(result)
       ? result.length
       : result?.templates?.length ?? result?.pagination?.total ?? 0;
@@ -168,6 +184,9 @@ class AdminService {
         if (typeof allowed.price !== 'number' || Number.isNaN(allowed.price) || allowed.price < 0) {
           throw new TypeError('price must be a number >= 0');
         }
+        // The admin UI uses `price`; the database stores it as `price_stars`.
+        allowed.price_stars = allowed.price;
+        delete allowed.price;
       }
 
       if ('metadata_json' in allowed) {

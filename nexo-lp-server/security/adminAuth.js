@@ -1,13 +1,24 @@
 const crypto = require('crypto');
 
 function requireAdmin(req, res, next) {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const expected = process.env.ADMIN_SECRET;
 
   if (!expected) {
     console.error('ADMIN_SECRET is not configured');
     return res.status(500).json({ success: false, error: 'Server misconfigured' });
+  }
+
+  let token = null;
+
+  const authHeader = req.headers.authorization || '';
+  if (authHeader.startsWith('Bearer ')) {
+    token = authHeader.slice(7);
+  }
+
+  // Server-Sent Events (and other GET requests that cannot send custom headers)
+  // may authenticate via a query-string token.
+  if (!token && req.method === 'GET' && req.query && req.query.adminToken) {
+    token = req.query.adminToken;
   }
 
   if (!token || token.length !== expected.length) {

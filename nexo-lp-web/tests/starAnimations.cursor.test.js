@@ -1,6 +1,15 @@
-import { initCursorFollowers, updateCursorFollowers, boomAt } from '../src/lib/starAnimations.js';
-
 describe('cursor follower physics', () => {
+  let initCursorFollowers;
+  let updateCursorFollowers;
+  let boomAt;
+
+  beforeAll(async () => {
+    const mod = await import('../src/lib/starAnimations.js');
+    initCursorFollowers = mod.initCursorFollowers;
+    updateCursorFollowers = mod.updateCursorFollowers;
+    boomAt = mod.boomAt;
+  });
+
   it('picks followers from near and mid layers', () => {
     const near = Array.from({ length: 5 }, (_, i) => createBgStar('near', i));
     const mid = Array.from({ length: 10 }, (_, i) => createBgStar('mid', i));

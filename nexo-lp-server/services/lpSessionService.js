@@ -43,7 +43,7 @@ class SessionService {
   }
 
   async updateStatus(id, status) {
-    const validStatuses = ['created', 'intention', 'structure', 'code', 'review', 'preview', 'deployed', 'failed', 'archived'];
+    const validStatuses = ['created', 'intention', 'structure', 'code', 'review', 'preview', 'deployed', 'failed', 'archived', 'error'];
     if (!validStatuses.includes(status)) {
       throw new Error(`Invalid status: ${status}`);
     }
@@ -155,11 +155,37 @@ class SessionService {
     }
 
     return {
-      kimiChatUrl: metadata.kimiChatUrl || null,
+      kimiChatUrl: metadata.kimiChatUrl || session.kimi_chat_url || null,
       contextWarning,
       contextSize,
       contextLimit,
     };
+  }
+
+  /**
+   * Find a session by a Kimi chat id substring.
+   * Prefers sessions whose kimi_chat_url column contains the id, falling back
+   * to sessions whose metadata_json kimiChatUrl contains it.
+   * @param {string} chatId - Kimi chat id substring
+   * @returns {Promise<object|null>} session row or null
+   */
+  async getSessionByKimiChatId(chatId) {
+    if (!chatId || typeof chatId !== 'string') return null;
+
+    const normalizedChatId = chatId.trim();
+    if (!normalizedChatId) return null;
+
+    const columnMatches = await this.repository.findByKimiChatUrlLike(normalizedChatId, { limit: 1 });
+    if (columnMatches && columnMatches.length > 0) {
+      return columnMatches[0];
+    }
+
+    const metadataMatches = await this.repository.findByMetadataKimiChatUrlLike(normalizedChatId, { limit: 1 });
+    if (metadataMatches && metadataMatches.length > 0) {
+      return metadataMatches[0];
+    }
+
+    return null;
   }
 
   _sumMetadataStringLengths(value) {

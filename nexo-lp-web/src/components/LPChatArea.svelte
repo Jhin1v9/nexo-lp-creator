@@ -2,8 +2,10 @@
   import { onMount, tick, afterUpdate } from 'svelte';
   import { fade, fly, slide, scale } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
-  import { messages, isGenerating, currentTool, preview, tokens, currencies, generationMode, session, editorTab, showNotification, kimiChatUrl, contextWarning, contextInfo, contextUsagePercent, generationEvents, generationOverlayMinimized } from '../stores.js';
+  import { messages, isGenerating, currentTool, preview, tokens, currencies, generationMode, generationPageMode, session, editorTab, showNotification, kimiChatUrl, contextWarning, contextInfo, contextUsagePercent, generationEvents, generationOverlayMinimized } from '../stores.js';
   import { lpClient } from '../lib/lpClient.js';
+  import { projectNameFromPrompt } from '../lib/projectName.js';
+  import GenerationModeSwitch from './GenerationModeSwitch.svelte';
   import { getCurrencyBalance } from '../api.js';
   import { createBlobUrl, revokeBlobUrl } from '../lib/previewBuilder.js';
   import LPWelcomeScreen from './LPWelcomeScreen.svelte';
@@ -46,6 +48,10 @@
 
   $: {
     lpClient.setMode($generationMode);
+  }
+
+  $: {
+    lpClient.setGenerationMode($generationPageMode);
   }
 
   const suggestedPrompts = [
@@ -111,11 +117,13 @@
     isTyping = true;
     responseBuffer = '';
 
-    // Initialize session if needed
+    // Initialize session if needed. Use the first user message as the
+    // project/chat title instead of a generic default.
     if (!lpClient.isReady) {
       try {
-        await lpClient.init($session.projectName);
-        session.update(s => ({ ...s, id: lpClient.sessionId }));
+        const projectName = projectNameFromPrompt(message, $session.projectName || 'Untitled Project');
+        await lpClient.init(projectName);
+        session.update(s => ({ ...s, id: lpClient.sessionId, projectName }));
         syncContextStores();
       } catch (error) {
         console.error('Failed to initialize session:', error);
@@ -401,8 +409,9 @@
   <div
     class="flex-shrink-0 px-4 py-3 transition-colors duration-700 ease-in-out {$isGenerating ? 'bg-black bg-opacity-40 backdrop-blur-md' : 'bg-white border-t border-luna-border'}"
   >
-    <div class="max-w-4xl mx-auto">
+    <div class="max-w-4xl mx-auto flex items-center justify-between">
       <ModeSelector bind:mode={$generationMode} balance={$currencies} disabled={$isGenerating} />
+      <GenerationModeSwitch />
     </div>
     <div class="flex items-end gap-3 max-w-4xl mx-auto mt-2">
       <div class="flex-1 relative">

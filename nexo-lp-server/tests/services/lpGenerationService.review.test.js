@@ -22,7 +22,7 @@ describe('review prompt', () => {
     const html = '<!DOCTYPE html><html><head><title>Test</title></head><body><h1>Test</h1></body></html>';
     const prompt = PHASE_PROMPTS.review(html);
 
-    expect(prompt).toContain('HTML to review:');
+    expect(prompt).toContain('HTML TO REVIEW:');
     expect(prompt).toContain(html);
 
     // Required JSON schema fields with concrete examples (not empty).
@@ -34,8 +34,8 @@ describe('review prompt', () => {
     // SEO must be evaluated.
     expect(prompt).toMatch(/SEO|seo/);
 
-    // Must force at least one concrete issue when failed.
-    expect(prompt).toContain('at least one concrete issue');
+    // Must require concrete issues when the review fails.
+    expect(prompt).toMatch(/If "passed": false, "issues" MUST explain why/i);
   });
 });
 

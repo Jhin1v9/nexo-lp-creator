@@ -1,4 +1,11 @@
 import { writable, derived } from 'svelte/store';
+import { adminLiveEvents as adminLiveEventsStore } from './components/admin/AdminSSEStore.js';
+
+// Admin live events (SSE) state: { connected, events, jobs }
+export const adminLiveEvents = adminLiveEventsStore;
+
+// End-user page generation mode (Landing, Multi-page, etc.)
+export const generationPageMode = writable('Landing');
 
 // Session management
 export const session = writable({

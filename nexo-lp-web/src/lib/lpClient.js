@@ -17,10 +17,15 @@ export class LPClient {
     this.contextSize = 0;
     this.contextLimit = 0;
     this.mode = 'stars';
+    this.generationMode = 'Landing';
   }
 
   setMode(mode) {
     this.mode = mode || 'stars';
+  }
+
+  setGenerationMode(mode) {
+    this.generationMode = mode || 'Landing';
   }
 
   _setContextFromResponse(response) {
@@ -100,7 +105,7 @@ export class LPClient {
     }
 
     if (!streamCallback) {
-      const response = await api.generate(this.sessionId, message, { mode: this.mode });
+      const response = await api.generate(this.sessionId, message, { mode: this.mode, generationMode: this.generationMode });
       this._setContextFromResponse(response);
       const preview = await this._pollPreview();
       this.currentHtml = preview?.html || this.currentHtml;
@@ -118,7 +123,7 @@ export class LPClient {
 
       // Small grace period to ensure SSE is registered before kicking off generation
       setTimeout(() => {
-        api.generate(this.sessionId, message, { mode: this.mode }).catch((err) => {
+        api.generate(this.sessionId, message, { mode: this.mode, generationMode: this.generationMode }).catch((err) => {
           console.error('[LPClient] Background generation failed:', err);
           streamCallback({ type: 'error', error: err.message });
         });
@@ -269,20 +274,31 @@ export class LPClient {
     }
   }
 
-  async _pollPreview(maxAttempts = 30, interval = 1000) {
+  async _pollPreview(maxAttempts = 300, interval = 1000) {
+    // Poll for up to 5 minutes to accommodate real Kimi generation. Use the
+    // persisted preview file as the source of truth instead of the session row
+    // so the frontend always reflects the latest saved HTML, even if the
+    // session.current_html update lags or fails.
     for (let i = 0; i < maxAttempts; i++) {
       try {
         const session = await api.getSession(this.sessionId);
         this._setContextFromResponse(session);
-        if (session.current_html) {
+      } catch (error) {
+        // Ignore session polling errors; context info is best-effort here.
+      }
+
+      try {
+        const preview = await api.getPreview(this.sessionId);
+        if (preview?.html) {
           return {
-            html: session.current_html,
-            previewUrl: session.preview_url || null,
+            html: preview.html,
+            previewUrl: preview.previewUrl || null,
           };
         }
       } catch (error) {
-        // Ignore polling errors
+        // Preview not saved yet — keep polling.
       }
+
       await new Promise((r) => setTimeout(r, interval));
     }
     return null;
@@ -298,6 +314,7 @@ export class LPClient {
 
     const response = await api.generate(this.sessionId, prompt, {
       mode: this.mode,
+      generationMode: this.generationMode,
       ...options,
     });
     this._setContextFromResponse(response);
@@ -432,10 +449,11 @@ export class LPClient {
   async fetchHtml() {
     if (!this.sessionId) return null;
     try {
-      const session = await api.getSession(this.sessionId);
-      if (session.current_html) {
-        this.currentHtml = session.current_html;
-        return session.current_html;
+      // Prefer the persisted preview file as the source of truth.
+      const preview = await api.getPreview(this.sessionId);
+      if (preview?.html) {
+        this.currentHtml = preview.html;
+        return preview.html;
       }
     } catch (error) {
       console.error("[LPClient] fetchHtml failed:", error);

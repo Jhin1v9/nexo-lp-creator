@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     user_id TEXT NOT NULL,
     project_id TEXT,
     status TEXT NOT NULL DEFAULT 'created'
-        CHECK (status IN ('created', 'intention', 'structure', 'code', 'review', 'preview', 'deployed', 'failed', 'archived')),
+        CHECK (status IN ('created', 'intention', 'structure', 'code', 'review', 'preview', 'deployed', 'failed', 'archived', 'error')),
     initial_prompt TEXT,
     stack TEXT NOT NULL DEFAULT 'static-html-tailwind',
     intention_json TEXT,

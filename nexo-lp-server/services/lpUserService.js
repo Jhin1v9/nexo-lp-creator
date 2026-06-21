@@ -38,13 +38,10 @@ class UserService {
 
     const balances = await CurrencyRepository.getBalance(userId);
     const purchases = await TemplatePurchaseRepository.findByUser(userId);
-    const sessions = await SessionRepository.list({ userId }, 1, 1000);
-    const { templates: publishedTemplates } = await TemplateRepository.list(
-      { includeAllStatuses: true, createdBy: userId },
-      1,
-      1000
-    );
-    const adminHistory = await AdminLogRepository.listByTarget('user', userId);
+    const sessions = await SessionRepository.findByUserId(userId, { limit: 1000 });
+    const allTemplates = await TemplateRepository.list({ includeAllStatuses: true }, 1, 1000);
+    const publishedTemplates = allTemplates.templates.filter((t) => t.created_by === userId);
+    const adminHistory = await AdminLogRepository.list({ targetType: 'user', targetId: userId });
 
     const totalSpent = purchases.reduce(
       (acc, purchase) => ({

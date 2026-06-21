@@ -129,6 +129,24 @@ router.get('/sessions', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /sessions/by-chat/:chatId
+ * Get session by Kimi chat id substring
+ *
+ * Response: { success, data: { session object } }
+ */
+router.get('/sessions/by-chat/:chatId', asyncHandler(async (req, res) => {
+  const { chatId } = req.params;
+  const session = await lpSessionService.getSessionByKimiChatId(chatId);
+
+  if (!session) {
+    return res.status(404).json(errorResponse('Session not found', 'NOT_FOUND', 404));
+  }
+
+  const contextInfo = await lpSessionService.getContextInfo(session);
+  res.status(200).json(successResponse({ ...session, ...contextInfo }, 'Session retrieved successfully'));
+}));
+
+/**
  * GET /sessions/:id
  * Get session details by ID
  *

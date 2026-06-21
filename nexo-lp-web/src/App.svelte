@@ -24,7 +24,7 @@
   import { lpClient } from './lib/lpClient.js';
   import { createBlobUrl } from './lib/previewBuilder.js';
   import { projectNameFromPrompt } from './lib/projectName.js';
-  import { getSession, renameSession, deleteSession, getSessionDownloadUrl } from './api.js';
+  import { getPreview, renameSession, deleteSession, getSessionDownloadUrl, getSessionByKimiChatId } from './api.js';
   import LandingPageCreator from './components/LandingPageCreator.svelte';
   import LPTemplateStore from './components/LPTemplateStore.svelte';
   import LPAdminPanel from './components/LPAdminPanel.svelte';
@@ -153,8 +153,42 @@
     contextInfo.set(lpClient.getContextInfo());
   }
 
+  function extractKimiChatId(url) {
+    if (!url) return null;
+    try {
+      const u = new URL(String(url));
+      if (u.hostname !== 'kimi.com') return null;
+      const match = u.pathname.match(/^\/chat\/([a-f0-9-]+)/i);
+      return match ? match[1] : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function updateBrowserUrlForSession(sessionData) {
+    if (typeof window === 'undefined' || !sessionData) return;
+    const chatId = extractKimiChatId(sessionData.kimiChatUrl || lpClient.getKimiChatUrl());
+    const params = new URLSearchParams();
+    if (chatId) {
+      params.set('chat', chatId);
+    } else if (sessionData.id) {
+      params.set('session', sessionData.id);
+    }
+    const name = sessionData.projectName || sessionData.initial_prompt || 'Untitled Project';
+    if (name && name !== 'Untitled Project') {
+      params.set('project', name);
+    }
+    const query = params.toString();
+    const newUrl = `${window.location.pathname}${query ? '?' + query : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }
+
   $: if (typeof document !== 'undefined') {
     document.body.classList.toggle('generating', $isGenerating);
+  }
+
+  $: if ($session.id && $kimiChatUrl && typeof window !== 'undefined') {
+    updateBrowserUrlForSession($session);
   }
 
   onMount(async () => {
@@ -173,6 +207,13 @@
 
     // Support loading a specific session via URL query param
     const urlParams = new URLSearchParams(window.location.search);
+    const chatFromUrl = urlParams.get('chat');
+    if (chatFromUrl) {
+      const projectName = urlParams.get('project') || 'Untitled Project';
+      await loadSessionByKimiChatId(chatFromUrl, projectName);
+      return;
+    }
+
     const sessionFromUrl = urlParams.get('session');
     if (sessionFromUrl) {
       const projectName = urlParams.get('project') || 'Untitled Project';
@@ -204,6 +245,7 @@
         status: s.status,
         updatedAt: s.updated_at,
         createdAt: s.created_at,
+        kimiChatUrl: s.kimiChatUrl || null,
       }));
     } catch (error) {
       console.error('Failed to load recent sessions:', error);
@@ -213,45 +255,66 @@
     }
   }
 
+  async function hydrateLoadedSession() {
+    session.set({
+      id: lpClient.sessionId,
+      projectName: lpClient.projectName,
+      createdAt: lpClient.messageHistory[0]?.timestamp || Date.now(),
+    });
+    syncContextStores();
+    updateBrowserUrlForSession($session);
+    currentTemplate.set(null);
+    messages.set([
+      WELCOME_MESSAGE,
+      ...lpClient.messageHistory.map((m, i) => ({
+        id: `msg_${m.timestamp || Date.now()}_${i}`,
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp || Date.now(),
+        type: m.type || 'text',
+        metadata: m.metadata || {},
+      })),
+    ]);
+    // Refresh preview from the persisted preview file (source of truth) so
+    // loading a session always shows the latest generated HTML.
+    try {
+      const previewData = await getPreview(lpClient.sessionId);
+      if (previewData?.html) {
+        preview.set({
+          html: previewData.html,
+          blobUrl: createBlobUrl(previewData.html),
+          lastUpdated: Date.now(),
+          device: 'desktop',
+        });
+      }
+    } catch (e) {
+      // ignore
+    }
+    currentView.set('chat');
+  }
+
   async function loadSessionById(sessionId, projectName) {
     try {
       await lpClient.setSession(sessionId, projectName || 'Untitled Project');
-      session.set({
-        id: lpClient.sessionId,
-        projectName: lpClient.projectName,
-        createdAt: lpClient.messageHistory[0]?.timestamp || Date.now(),
-      });
-      syncContextStores();
-      currentTemplate.set(null);
-      messages.set([
-        WELCOME_MESSAGE,
-        ...lpClient.messageHistory.map((m, i) => ({
-          id: `msg_${m.timestamp || Date.now()}_${i}`,
-          role: m.role,
-          content: m.content,
-          timestamp: m.timestamp || Date.now(),
-          type: m.type || 'text',
-          metadata: m.metadata || {},
-        })),
-      ]);
-      // Refresh preview if session has generated HTML
-      try {
-        const s = await getSession(sessionId);
-        if (s?.current_html) {
-          preview.set({
-            html: s.current_html,
-            blobUrl: createBlobUrl(s.current_html),
-            lastUpdated: Date.now(),
-            device: 'desktop',
-          });
-        }
-      } catch (e) {
-        // ignore
-      }
-      currentView.set('chat');
+      await hydrateLoadedSession();
     } catch (error) {
       console.error('Failed to load session:', error);
       showNotification('Failed to load project', 'error');
+    }
+  }
+
+  async function loadSessionByKimiChatId(chatId, projectName) {
+    try {
+      const sessionData = await getSessionByKimiChatId(chatId);
+      if (!sessionData || !sessionData.id) {
+        showNotification('Kimi chat session not found', 'error');
+        return;
+      }
+      await lpClient.setSession(sessionData.id, projectName || sessionData.projectName || sessionData.initial_prompt || 'Untitled Project');
+      await hydrateLoadedSession();
+    } catch (error) {
+      console.error('Failed to load session by chat id:', error);
+      showNotification('Failed to load project from Kimi chat', 'error');
     }
   }
 
@@ -582,6 +645,19 @@
                   </span>
                   <span class="truncate flex-1 pr-5">{s.projectName}</span>
                 </button>
+                {#if s.kimiChatUrl}
+                  <a
+                    href={s.kimiChatUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="absolute right-7 top-1/2 -translate-y-1/2 p-1 rounded-md text-luna-text-muted hover:text-luna-primary hover:bg-luna-primary/10 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                    title="Open Kimi chat"
+                    aria-label="Open Kimi chat"
+                    on:click|stopPropagation={() => {}}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+                  </a>
+                {/if}
                 <button
                   class="absolute right-1 top-1/2 -translate-y-1/2 p-1 rounded-md text-luna-text-muted hover:text-luna-text hover:bg-luna-border/50 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
                   title="Project options"

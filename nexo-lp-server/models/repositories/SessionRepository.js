@@ -67,6 +67,33 @@ class SessionRepository {
   }
 
   /**
+   * Find sessions whose kimi_chat_url column contains the given substring.
+   */
+  async findByKimiChatUrlLike(substring, options = {}) {
+    let sql = 'SELECT * FROM sessions WHERE kimi_chat_url LIKE ? ORDER BY updated_at DESC';
+    const params = [`%${substring}%`];
+    if (options.limit) {
+      sql += ' LIMIT ?';
+      params.push(options.limit);
+    }
+    return query(sql, params);
+  }
+
+  /**
+   * Find sessions whose metadata_json contains a kimiChatUrl that includes
+   * the given substring. This is a fallback for legacy rows.
+   */
+  async findByMetadataKimiChatUrlLike(substring, options = {}) {
+    let sql = "SELECT * FROM sessions WHERE metadata_json LIKE ? ORDER BY updated_at DESC";
+    const params = [`%"kimiChatUrl":"%${substring}%"%`];
+    if (options.limit) {
+      sql += ' LIMIT ?';
+      params.push(options.limit);
+    }
+    return query(sql, params);
+  }
+
+  /**
    * Update session fields
    */
   async update(id, data) {
