@@ -1711,24 +1711,62 @@ class KimiBridge {
     // Skip the thinking container and its sibling planning block
     const thinkingContainer = contentBox.querySelector('.toolcall-container.thinking-container');
     let text = '';
-    // Prefer the last markdown-container that is NOT inside the thinking container
+    // v13.2-fix: Collect EVERY markdown-container that is NOT inside the thinking
+    // container. Kimi now appends the real answer after a planning block, so
+    // looking only at the last container was discarding the actual HTML.
     const markdownContainers = Array.from(contentBox.querySelectorAll('.markdown-container'))
       .filter((md) => !thinkingContainer || !thinkingContainer.contains(md));
-    const finalMd = markdownContainers[markdownContainers.length - 1];
-    if (finalMd) {
-      const codeBlocks = finalMd.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
+    for (const md of markdownContainers) {
+      const codeBlocks = md.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
       for (const cb of codeBlocks) {
         const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
         const t = (contentEl.textContent || contentEl.innerText || '').trim();
         if (t) text += t + '\n\n';
       }
-      const paragraphs = finalMd.querySelectorAll('.paragraph, p, [class*="text"]');
+      const paragraphs = md.querySelectorAll('.paragraph, p, [class*="text"]');
       for (const p of paragraphs) {
         const t = (p.innerText || p.textContent || '').trim();
         if (t) text += t + '\n\n';
       }
     }
     return text.trim();
+  }
+
+  /**
+   * v13.2-fix: Surgical extraction of the last assistant message.
+   * Returns the FULL raw text of the last .segment-assistant, including every
+   * code block and paragraph, while skipping the thinking/planning container.
+   * This is intentionally simple: whatever Kimi rendered last is what we capture.
+   */
+  async _extractLastAssistantFullText(page) {
+    return await page.evaluate(() => {
+      const assistants = document.querySelectorAll('.segment-assistant');
+      const last = assistants[assistants.length - 1];
+      if (!last) return '';
+
+      const thinkContainer = last.querySelector('.toolcall-container.thinking-container');
+      const contentBox = last.querySelector('.segment-content-box');
+      if (!contentBox) return '';
+
+      const markdownContainers = Array.from(contentBox.querySelectorAll('.markdown-container'))
+        .filter((md) => !thinkContainer || !thinkContainer.contains(md));
+
+      let text = '';
+      for (const md of markdownContainers) {
+        const codeBlocks = md.querySelectorAll('.segment-code, pre code, [class*="code-block"]');
+        for (const cb of codeBlocks) {
+          const contentEl = cb.querySelector('.segment-code-content') || cb.querySelector('pre code') || cb;
+          const t = (contentEl.textContent || contentEl.innerText || '').trim();
+          if (t) text += t + '\n\n';
+        }
+        const paragraphs = md.querySelectorAll('.paragraph, p, [class*="text"]');
+        for (const p of paragraphs) {
+          const t = (p.innerText || p.textContent || '').trim();
+          if (t) text += t + '\n\n';
+        }
+      }
+      return text.trim();
+    });
   }
 
   /**
@@ -1933,15 +1971,16 @@ class KimiBridge {
         }
       }
 
-      // Strategy B: Existing assistants that changed significantly
+      // Strategy B: Existing assistants that changed significantly.
+      // v13.2-fix: Return the full updated assistant text, not a naive slice.
+      // Kimi adds new markdown containers (e.g. HTML after a planning block), so
+      // slicing at the previous length corrupts the response.
       for (let i = 0; i < Math.min(preSendSnapshot.length, postSnapshot.length); i++) {
         const preText = preSendSnapshot[i] || '';
         const postText = postSnapshot[i]?.text || '';
         if (postText.length > preText.length + 10) {
-          // Significant change — extract only the NEW part
-          const newPart = postText.slice(preText.length).trim();
-          if (newPart.length > 10) {
-            newContent += newPart + '\n\n';
+          if (postText.length > 10) {
+            newContent += postText + '\n\n';
             sources.push(`changed-assistant-${i}`);
           }
         }
@@ -6886,7 +6925,7 @@ class KimiBridge {
     // Rate limiting
     this._checkCooldown(userId);
 
-    const page = await this._getOrCreateUserPage(userId);
+    let page = await this._getOrCreateUserPage(userId);
 
     // v12.2-fix: Only force a new chat when the current page is NOT already a
     // real /chat/ URL. Reusing an existing real chat is safe and avoids breaking
@@ -7408,31 +7447,36 @@ class KimiBridge {
         await new Promise(r => setTimeout(r, 100));
       }
 
-      // v7.7-INFALÍVEL: Final extraction using snapshot diff (PRIMARY strategy)
-      // This captures ALL new content since preSendSnapshot, regardless of how
-      // many assistants were created or how the DOM structure changed.
+      // v14.0-surgical: when Kimi's last assistant contains HTML, that is the
+      // asset we want — capture it whole. For JSON/planning phases keep using
+      // snapshot-diff, which is more reliable for code blocks and avoids
+      // capturing Kimi's meta-commentary or thinking text.
       let finalResponse = '';
       let extractionSource = 'none';
+      let fullLast = '';
 
       try {
-        const extracted = await this._extractResponseDiff(page, preSendSnapshot);
-        if (extracted && extracted.trim().length > 0) {
-          finalResponse = extracted.trim();
-          extractionSource = 'snapshot-diff';
-          log.info(`[sendMessageStream] _extractResponseDiff success: ${finalResponse.length} chars`);
+        fullLast = await this._extractLastAssistantFullText(page);
+        const looksLikeHtml = fullLast && (
+          (fullLast.toLowerCase().includes('<!doctype') || fullLast.toLowerCase().includes('<html'))
+        );
+        if (fullLast && fullLast.trim().length > 0 && looksLikeHtml) {
+          finalResponse = fullLast.trim();
+          extractionSource = 'last-assistant-full';
+          log.success(`[sendMessageStream] Captured full last assistant HTML: ${finalResponse.length} chars`);
         }
       } catch (e) {
-        log.warn(`[sendMessageStream] _extractResponseDiff failed: ${e.message}`);
+        log.debug(`[sendMessageStream] Full last-assistant extraction failed: ${e.message}`);
       }
 
-      // v12.5-fix: If the extracted HTML looks truncated, click Kimi's "Continue >"
-      // button to reveal the rest and re-extract until complete.
-      if (finalResponse && (finalResponse.includes('<!doctype html>') || finalResponse.includes('<html')) && !/<\/html\s*>/i.test(finalResponse)) {
+      // If the captured HTML looks truncated, click Kimi's "Continue >" button
+      // to reveal the rest and re-extract from the same assistant.
+      if (finalResponse && (finalResponse.toLowerCase().includes('<!doctype') || finalResponse.toLowerCase().includes('<html')) && !/<\/html\s*>/i.test(finalResponse)) {
         try {
           const expanded = await this._expandContinuedResponse(page, preSendSnapshot, finalResponse);
-          if (expanded && expanded.length > finalResponse.length) {
+          if (expanded && expanded.length > finalResponse.length && /<\/html\s*>/i.test(expanded)) {
             finalResponse = expanded;
-            extractionSource = 'snapshot-diff-expanded';
+            extractionSource = 'last-assistant-full-expanded';
             log.success(`[sendMessageStream] Expanded response via Continue button: ${finalResponse.length} chars`);
           }
         } catch (e) {
@@ -7440,54 +7484,62 @@ class KimiBridge {
         }
       }
 
-      // Fallback: if snapshot diff returned nothing or failed, try old strategies
+      // For non-HTML responses (JSON phases), snapshot diff is the primary
+      // source of truth. It captures only new content and avoids stale/wrong
+      // assistant text.
       if (!finalResponse) {
         try {
-          const extractOptions = targetAssistantIndex >= 0 ? { preferAssistantIndex: targetAssistantIndex, userId } : { userId };
-          const extracted = await this._extractResponse(page, extractOptions);
+          const extracted = await this._extractResponseDiff(page, preSendSnapshot);
           if (extracted && extracted.trim().length > 0) {
             finalResponse = extracted.trim();
-            extractionSource = 'target-assistant';
-            log.info(`[sendMessageStream] _extractResponse fallback success: ${finalResponse.length} chars (assistant ${targetAssistantIndex})`);
+            extractionSource = 'snapshot-diff';
+            log.info(`[sendMessageStream] _extractResponseDiff success: ${finalResponse.length} chars`);
           }
         } catch (e) {
-          log.warn(`_extractResponse fallback failed: ${e.message}`);
+          log.warn(`[sendMessageStream] _extractResponseDiff failed: ${e.message}`);
+        }
+
+        if (!finalResponse && fullLast && fullLast.trim().length > 0) {
+          finalResponse = fullLast.trim();
+          extractionSource = 'last-assistant-full';
+          log.info(`[sendMessageStream] Falling back to full last assistant text: ${finalResponse.length} chars`);
+        }
+
+        if (!finalResponse) {
+          try {
+            const extractOptions = targetAssistantIndex >= 0 ? { preferAssistantIndex: targetAssistantIndex, userId } : { userId };
+            const extracted = await this._extractResponse(page, extractOptions);
+            if (extracted && extracted.trim().length > 0) {
+              finalResponse = extracted.trim();
+              extractionSource = 'target-assistant';
+              log.info(`[sendMessageStream] _extractResponse fallback success: ${finalResponse.length} chars (assistant ${targetAssistantIndex})`);
+            }
+          } catch (e) {
+            log.warn(`_extractResponse fallback failed: ${e.message}`);
+          }
+        }
+
+        if (!finalResponse) {
+          const sawResponseDuringStream = lastResponse && lastResponse.length > 0 && lastResponse !== initialText;
+          if (sawResponseDuringStream) {
+            finalResponse = lastResponse;
+            extractionSource = 'lastResponse-fallback';
+            log.info(`[sendMessageStream] Using lastResponse as fallback: ${finalResponse.length} chars`);
+          } else if (lastThinking && lastThinking.length > 10) {
+            finalResponse = lastThinking;
+            extractionSource = 'lastThinking-fallback';
+          }
         }
       }
 
-      // Smart fallback: if extracted thinking-like but lastResponse has JSON/code
-      const hasJsonOrCode = (text) => text && (text.includes('"tool"') || text.includes('"response"') || text.includes('```'));
-      const looksLikeThinking = (text) => text && text.length < 100 && !text.includes('{') && !text.includes('```');
-      
-      if (finalResponse && lastResponse && hasJsonOrCode(lastResponse) && looksLikeThinking(finalResponse)) {
-        log.warn(`[sendMessageStream] Extracted thinking-like text (${finalResponse.length} chars) but lastResponse has JSON/code (${lastResponse.length} chars). Using lastResponse.`);
-        finalResponse = lastResponse;
-        extractionSource = 'lastResponse-swap';
-      }
-
-      // CRITICAL fallback: only use lastResponse if we actually saw it change during this stream
-      if (!finalResponse) {
-        const sawResponseDuringStream = lastResponse && lastResponse.length > 0 && lastResponse !== initialText;
-        if (sawResponseDuringStream) {
-          finalResponse = lastResponse;
-          extractionSource = 'lastResponse-fallback';
-          log.info(`[sendMessageStream] Using lastResponse as fallback: ${finalResponse.length} chars`);
-        } else if (lastThinking && lastThinking.length > 10) {
-          finalResponse = lastThinking;
-          extractionSource = 'lastThinking-fallback';
-        }
-      }
-
-      // v12.1-fix: If the extracted response looks like a file/artifact link with no
-      // real code, OR if the HTML appears truncated (no closing </html>), try opening
-      // the artifact/Code tab to fetch the full source Kimi generated.
+      // Artifact fallback for file links / truncated HTML.
       const looksLikeArtifactLink = finalResponse && (
         finalResponse.includes('sandbox://') ||
         /\[.*?\]\(.*?\.(html|jsx|css|js|tsx|vue|svelte)\)/i.test(finalResponse) ||
         finalResponse.toLowerCase().includes('download:')
       );
       const htmlLooksIncomplete = finalResponse &&
-        (finalResponse.includes('<!doctype html>') || finalResponse.includes('<html')) &&
+        (finalResponse.toLowerCase().includes('<!doctype') || finalResponse.toLowerCase().includes('<html')) &&
         !/<\/html\s*>/i.test(finalResponse);
       if (finalResponse && (looksLikeArtifactLink || htmlLooksIncomplete)) {
         try {

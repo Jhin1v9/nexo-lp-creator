@@ -102,8 +102,9 @@ Return ONLY a single JSON object matching this exact schema (no markdown fences,
 }
 
 function codePrompt(structure, stack) {
-  // v6.0-fix: The code prompt must be laser-focused on producing the actual
-  // HTML file. Any mention of JSON/schema makes Kimi output another brief.
+  // v7.0-fix: Give Kimi the full design brief and a fresh context so it outputs
+  // the actual HTML file instead of another planning JSON. The output must be
+  // the complete HTML document wrapped in a markdown code block.
   const sectionList = (structure.sections || []).map(s => {
     const id = s.id || s;
     return `- ${id}`;
@@ -115,26 +116,26 @@ function codePrompt(structure, stack) {
 
   return `${BASE_PERSONA}
 
-PHASE: Code Generation — FINAL OUTPUT. No more planning. No more JSON. Just code.
+PHASE: Code Generation — FINAL OUTPUT. This is the CODE phase. Stop planning. Stop writing briefs. Generate the actual HTML file now.
 STACK: ${stack}
 
 ${IRON_RULES}
 
-DESIGN FREEDOM — You decide everything:
-- Interpret the user's request and choose the exact sections, layout, number of pages, and interactions that best deliver the goal.
-- Do NOT force a generic landing-page structure (hero/features/testimonials/CTA/footer) unless the request truly calls for it.
-- For games, interactive experiences, or visually impressive sites: use Three.js, WebGL, Canvas, GSAP, or any modern browser API needed. Make it visually stunning AND playable/usable.
-- Focus on jaw-dropping visuals, smooth motion, clear user flow, and meaningful interaction.
+DESIGN BRIEF TO IMPLEMENT:
+${JSON.stringify(structure, null, 2)}
 
 ${colorHint}
 
+SECTIONS TO INCLUDE:
+${sectionList || '- Build the sections that best deliver the conversion goal'}
+
 OUTPUT RULES — OBEY EXACTLY:
-1. Return ONE markdown HTML code block: \`\`\`html ... \`\`\`.
+1. Return ONLY ONE markdown HTML code block: \`\`\`html ... \`\`\`.
 2. The code block must contain a COMPLETE, VALID, SINGLE-FILE HTML page.
 3. It MUST start with <!DOCTYPE html> and end with </html>.
 4. Load Tailwind CSS via CDN. Semantic HTML5, mobile-first, responsive.
 5. Include <title>, charset, viewport and OG meta tags.
-6. For conversion sites: ONE conversion goal, CTA repeated 2-3 times, no competing exit links.
+6. ONE conversion goal, CTA repeated 2-3 times, no competing exit links.
 7. Cinematic animations, parallax, hover micro-interactions, WebGL/Three.js where appropriate. Premium feel.
 8. Real Unsplash/Pexels images only. No gray placeholders.
 9. Benefit-driven copy. No lorem ipsum.

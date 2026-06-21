@@ -197,7 +197,7 @@ describe('lpGenerationService LOJA integration', () => {
     publishSpy.mockRestore();
   }, 30000);
 
-  test('rebuilds code when QA review fails and stops sending preview prompts to AI', async () => {
+  test('publishes as unreviewed when QA review fails and does not rebuild', async () => {
     const session = await createSession();
     sessionId = session.id;
 
@@ -235,30 +235,22 @@ describe('lpGenerationService LOJA integration', () => {
           };
         case 'code': {
           codeCallCount += 1;
-          // First code call returns broken HTML; subsequent calls (fix prompts) return corrected HTML
-          const html = codeCallCount === 1
-            ? '<!DOCTYPE html><html><body><h1>Coffee Shop</h1><button>Click</button></body></html>'
-            : '<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Coffee Shop</title></head><body><h1>Coffee Shop</h1><button type="button">Click</button></body></html>';
-          return { content: `\`\`\`html\n${html}\n\`\`\`` };
+          return {
+            content: '```html\n<!DOCTYPE html><html><body><h1>Coffee Shop</h1><button>Click</button></body></html>\n```',
+          };
         }
         case 'review': {
           reviewCallCount += 1;
-          // First review fails; re-review passes
-          if (reviewCallCount === 1) {
-            return {
-              content: JSON.stringify({
-                score: 65,
-                issues: [
-                  { severity: 'error', message: 'Missing viewport meta tag' },
-                  { severity: 'warning', message: 'Button missing type attribute' },
-                ],
-                suggestions: ['Add viewport meta', 'Add button type'],
-                passed: true, // intentionally wrong to test normalization
-              }),
-            };
-          }
           return {
-            content: JSON.stringify({ score: 95, issues: [], suggestions: [], passed: true }),
+            content: JSON.stringify({
+              score: 65,
+              issues: [
+                { severity: 'error', message: 'Missing viewport meta tag' },
+                { severity: 'warning', message: 'Button missing type attribute' },
+              ],
+              suggestions: ['Add viewport meta', 'Add button type'],
+              passed: true, // intentionally wrong to test normalization
+            }),
           };
         }
         default:
@@ -276,17 +268,16 @@ describe('lpGenerationService LOJA integration', () => {
     const finalSession = await SessionRepository.findById(sessionId);
     expect(finalSession.status).toBe('preview');
 
-    // Should have generated initial code + at least one fix attempt
-    expect(codeCallCount).toBeGreaterThanOrEqual(2);
-    // Should have run initial review + re-review
-    expect(reviewCallCount).toBeGreaterThanOrEqual(2);
+    // We keep the original HTML; no AI rebuild loop should run.
+    expect(codeCallCount).toBe(1);
+    expect(reviewCallCount).toBe(1);
 
     // The preview phase should never be sent to the AI bridge
     const previewCalls = BridgeAdapter.sendMessage.mock.calls.filter(([, , opts]) => opts && opts.phase === 'preview');
     expect(previewCalls.length).toBe(0);
 
-    // Final HTML should be the corrected one (has viewport meta)
-    expect(finalSession.current_html).toContain('viewport');
+    // Final HTML is the original generated HTML
+    expect(finalSession.current_html).toContain('<h1>Coffee Shop</h1>');
   }, 30000);
 
   test('sends complete HTML (not truncated) to QA review when HTML exceeds 4000 chars', async () => {
@@ -441,7 +432,7 @@ describe('lpGenerationService LOJA integration', () => {
     });
   });
 
-  test('sends real review issues to fix prompt when Kimi response includes a header', async () => {
+  test('does not send fix prompts and keeps original HTML when QA review fails', async () => {
     const session = await createSession();
     sessionId = session.id;
 
@@ -450,7 +441,7 @@ describe('lpGenerationService LOJA integration', () => {
       { severity: 'warning', message: 'Viewport meta prevents zoom' },
     ];
 
-    let fixPromptReceived = null;
+    let fixPromptReceived = false;
 
     BridgeAdapter.sendMessage.mockImplementation(async (_context, prompt, options = {}) => {
       switch (options.phase) {
@@ -483,10 +474,7 @@ describe('lpGenerationService LOJA integration', () => {
           };
         case 'code': {
           if (prompt.includes('PHASE: Rebuild / Fix')) {
-            fixPromptReceived = prompt;
-            return {
-              content: '```html\n<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Fixed</title></head><body><h1>Coffee Shop</h1><button type="button">Click</button></body></html>\n```',
-            };
+            fixPromptReceived = true;
           }
           return {
             content: '```html\n<!DOCTYPE html><html><body><h1>Coffee Shop</h1><button>Click</button></body></html>\n```',
@@ -513,10 +501,10 @@ describe('lpGenerationService LOJA integration', () => {
       { userId }
     );
 
-    expect(fixPromptReceived).not.toBeNull();
-    expect(fixPromptReceived).toContain('Hero phone mockup board overflows container');
-    expect(fixPromptReceived).toContain('Viewport meta prevents zoom');
-    expect(fixPromptReceived).not.toContain('No images detected');
+    const finalSession = await SessionRepository.findById(sessionId);
+    expect(finalSession.status).toBe('preview');
+    expect(fixPromptReceived).toBe(false);
+    expect(finalSession.current_html).toContain('<h1>Coffee Shop</h1>');
   }, 30000);
 
   test('retries review prompt and publishes as unreviewed when review response stays unparseable', async () => {

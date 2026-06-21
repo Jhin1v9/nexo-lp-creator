@@ -19,8 +19,6 @@ const BridgeAdapter = require('./lpBridgeAdapter.cjs');
 const lpSessionService = require('./lpSessionService');
 const lpVersionService = require('./lpVersionService');
 const lpTemplateService = require('./lpTemplateService');
-const lpBugDetectorService = require('./lpBugDetectorService');
-const lpRebuildEngine = require('./lpRebuildEngine');
 const config = require('../config/nexo-lp-config');
 const { ResponseParser, ReviewValidationError } = require('./luna/ResponseParser.cjs');
 const {
@@ -28,7 +26,6 @@ const {
   structurePrompt,
   codePrompt,
   reviewPrompt,
-  fixPrompt,
   reviewRetryPrompt,
 } = require('./prompts/nexoPromptPack');
 const adminEventBus = require('./adminEventBus');
@@ -152,7 +149,6 @@ const PHASE_PROMPTS = {
   structure: (intention) => structurePrompt(intention),
   code: (structure, stack) => codePrompt(structure, stack),
   review: (html) => reviewPrompt(html),
-  fix: (html, review) => fixPrompt(html, review),
   preview: () => 'Prepare preview metadata.',
   deploy: () => 'Prepare deployment configuration.',
 };
@@ -220,15 +216,6 @@ function hasRealCode(text) {
     '<style',
   ];
   return codeMarkers.some((marker) => lower.includes(marker));
-}
-
-/**
- * Detect when Kimi refuses to continue because the conversation is too long.
- */
-function isConversationTooLong(text) {
-  if (!text || typeof text !== 'string') return false;
-  const lower = text.toLowerCase();
-  return lower.includes('conversation with kimi is getting too long') || lower.includes('try starting a new session');
 }
 
 class GenerationService {
@@ -362,6 +349,9 @@ class GenerationService {
             stack: selectedStack,
             phase,
             phaseTimeoutMs,
+            // Start every generation with a fresh Kimi chat. This avoids inheriting
+            // stale HTML/JSON from previous sessions in the same browser page.
+            newChat: phase === 'intention',
           });
         }
 
@@ -491,134 +481,19 @@ class GenerationService {
       }
     }
 
-    // If review failed, attempt to rebuild and re-review the code.
-    // Skip the rebuild loop when the review itself could not be parsed — the
-    // HTML is already complete and we should publish it as unreviewed instead
-    // of asking Kimi to "fix" a parse error.
+    // v14.0-surgical: we no longer run an AI rebuild loop. The HTML generated in
+    // the code phase is the asset we deliver. If QA did not pass, we publish it
+    // as unreviewed instead of risking a broken "fix" pass that overwrites good
+    // code or gets stuck in JSON mode.
     if (context.review && !context.review.passed && !context.review.metadata?.reviewParseFailed) {
-      const maxRebuildAttempts = config.rebuild.maxAttempts || 3;
-      for (let attempt = 1; attempt <= maxRebuildAttempts; attempt++) {
-        const fixPhase = `fix-${attempt}`;
-        const reReviewPhase = `re-review-${attempt}`;
-
-        // 1. Ask Kimi to fix the identified issues
-        let stopRebuild = false;
-        sendPhaseEvent(sessionId, 'action_start', fixPhase, {
-          message: `Corrigindo código (tentativa ${attempt}/${maxRebuildAttempts})...`,
-          attempt,
-          previousReview: context.review,
-        });
-        try {
-          const fixInstructions = this.extractFixInstructions(context.review);
-          const fixPrompt = PHASE_PROMPTS.fix(currentHtml, fixInstructions);
-          const fixResponse = await this.runCodePhaseWithContinue(sessionId, context, fixPrompt, selectedStack, phaseTimeoutMs);
-          if (isConversationTooLong(fixResponse.content || '')) {
-            console.warn(`[GenerationService][${sessionId}] Kimi reported conversation too long; stopping rebuild loop`);
-            sendPhaseEvent(sessionId, 'action_error', fixPhase, {
-              error: 'Conversation with Kimi is too long; stopping auto-rebuild.',
-              recoverable: false,
-            });
-            stopRebuild = true;
-          } else {
-            const htmlBeforeFix = currentHtml;
-            const fixedHtml = this.extractHtmlFromResponse(fixResponse.content || '');
-            if (hasRealCode(fixedHtml)) {
-              currentHtml = fixedHtml;
-              await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
-              if (lpVersionService.isHtmlComplete(currentHtml)) {
-                lastValidHtml = currentHtml;
-              }
-              console.log(`[GenerationService][${sessionId}] AI fix attempt ${attempt} applied, html length=${currentHtml.length}`);
-              if (htmlBeforeFix === currentHtml) {
-                console.warn(`[GenerationService][${sessionId}] WARNING: Fix attempt ${attempt} produced NO CHANGES. Stopping rebuild loop to avoid infinite cycle.`);
-                sendPhaseEvent(sessionId, "action_error", fixPhase, {
-                  error: `Fix attempt ${attempt} produced no changes. The AI returned identical HTML.`,
-                  recoverable: false,
-                });
-                stopRebuild = true;
-              }
-            }
-          }
-        } catch (fixErr) {
-          console.error(`[GenerationService][${sessionId}] AI fix attempt ${attempt} failed:`, fixErr.message);
-        }
-
-        if (stopRebuild) break;
-
-        // 2. Apply local auto-fixes as a safety net
-        try {
-          const localReport = await lpBugDetectorService.detect(sessionId, currentHtml);
-          if (!localReport.passed && localReport.issues && localReport.issues.length > 0) {
-            const rebuildResult = await lpRebuildEngine.rebuild(sessionId, currentHtml, localReport.issues, 1);
-            if (rebuildResult.fixesApplied.length > 0) {
-              currentHtml = rebuildResult.html;
-              await SessionRepository.updateGeneratedCode(sessionId, { html: currentHtml, css: '', js: '' });
-              if (lpVersionService.isHtmlComplete(currentHtml)) {
-                lastValidHtml = currentHtml;
-              }
-              console.log(`[GenerationService][${sessionId}] local fix attempt ${attempt} applied: ${rebuildResult.fixesApplied.length} fixes`);
-            }
-          }
-        } catch (localErr) {
-          console.error(`[GenerationService][${sessionId}] local rebuild attempt ${attempt} failed:`, localErr.message);
-        }
-
-        sendPhaseEvent(sessionId, 'action_end', fixPhase, {
-          message: `Correção ${attempt} finalizada`,
-          attempt,
-        });
-
-        if (stopRebuild) break;
-
-        // 3. Re-run QA review
-        sendPhaseEvent(sessionId, 'action_start', reReviewPhase, {
-          message: `Reverificando qualidade (tentativa ${attempt}/${maxRebuildAttempts})...`,
-          attempt,
-        });
-        try {
-          const reReviewPrompt = PHASE_PROMPTS.review(currentHtml);
-          const reReviewResponse = await this.sendMessageWithoutHardTimeout(context, reReviewPrompt, {
-            stack: selectedStack,
-            phase: 'review',
-            phaseTimeoutMs,
-          });
-          if (isConversationTooLong(reReviewResponse.content || '')) {
-            console.warn(`[GenerationService][${sessionId}] Kimi reported conversation too long during re-review; stopping rebuild loop`);
-            sendPhaseEvent(sessionId, 'action_error', reReviewPhase, {
-              error: 'Conversation with Kimi is too long; stopping auto-rebuild.',
-              recoverable: false,
-            });
-            stopRebuild = true;
-          } else {
-            context.review = await this.parseReviewResponse(reReviewResponse.content || '', currentHtml, sessionId);
-            this.normalizeReviewResult(context.review, currentHtml);
-            console.log(`[GenerationService][${sessionId}] re-review attempt ${attempt}: passed=${context.review.passed}, score=${context.review.score}`);
-          }
-        } catch (reviewErr) {
-          console.error(`[GenerationService][${sessionId}] re-review attempt ${attempt} failed:`, reviewErr.message);
-          sendPhaseEvent(sessionId, 'action_error', reReviewPhase, {
-            error: reviewErr.message,
-            recoverable: true,
-          });
-        }
-
-        sendPhaseEvent(sessionId, 'action_end', reReviewPhase, {
-          message: `Reverificação ${attempt} finalizada`,
-          attempt,
-          result: {
-            passed: !!context.review?.passed,
-            score: context.review?.score,
-          },
-        });
-
-        if (stopRebuild) break;
-
-        if (context.review?.passed) {
-          break;
-        }
-
-        await sleep(interPhaseDelayMs);
-      }
+      console.warn(
+        `[GenerationService][${sessionId}] Review did not pass (score=${context.review.score}, issues=${context.review.issues.length}) — publishing as unreviewed`
+      );
+      sendPhaseEvent(sessionId, 'action_warning', 'review', {
+        message: 'Review flagged issues; publishing as unreviewed',
+        score: context.review.score,
+        issuesCount: context.review.issues.length,
+      });
     }
 
     // Always keep the session on the last complete HTML. If the final code is
@@ -752,8 +627,10 @@ class GenerationService {
         stack: selectedStack,
         phase: 'code',
         phaseTimeoutMs,
-        // Keep the ongoing chat context (structure → code); do NOT start a new chat here.
-        newChat: false,
+        // v13.2-fix: Start a fresh chat on the first code attempt. The previous
+        // intention/structure messages put Kimi in JSON/brief mode, so a clean
+        // context with the full brief in the prompt makes HTML output reliable.
+        newChat: attempt === 1 && startNewChat,
         // v12.3-fix: tell the bridge not to stop at metadata JSON; wait for </html>
         requiredHtmlClose: true,
       });
@@ -900,46 +777,6 @@ class GenerationService {
     return ResponseParser.extractHtmlFromResponse(response);
   }
 
-  /**
-   * Extract fix instructions from review result.
-   * Prioritizes rebuildInstructions.specificFixes, falls back to issues[].fix.
-   * @param {object} review
-   * @returns {string[]}
-   */
-  extractFixInstructions(review) {
-    if (!review || typeof review !== "object") {
-      return [];
-    }
-    
-    // Priority 1: rebuildInstructions.specificFixes (from QA agent 04-qa.md)
-    const specificFixes = review.metadata?.rebuildInstructions?.specificFixes ||
-                        review.rebuildInstructions?.specificFixes ||
-                        [];
-    if (Array.isArray(specificFixes) && specificFixes.length > 0) {
-      return specificFixes.filter(f => typeof f === "string" && f.trim().length > 0);
-    }
-    
-    // Priority 2: issues[].fix (from review dimensions), fallback to issues[].message
-    const allIssues = review.issues || [];
-    const issueFixes = allIssues
-      .filter(issue => {
-        const text = issue.fix || issue.message;
-        return text && typeof text === "string" && text.trim().length > 0;
-      })
-      .map(issue => `[${issue.severity?.toUpperCase() || "FIX"}] ${issue.fix || issue.message}`);
-    
-    if (issueFixes.length > 0) {
-      return issueFixes;
-    }
-    
-    // Priority 3: suggestions
-    const suggestions = review.suggestions || [];
-    if (Array.isArray(suggestions) && suggestions.length > 0) {
-      return suggestions.filter(s => typeof s === "string" && s.trim().length > 0);
-    }
-    
-    return [];
-  }
 }
 
 module.exports = new GenerationService();
