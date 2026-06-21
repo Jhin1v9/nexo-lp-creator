@@ -148,7 +148,7 @@ function sleep(ms) {
 const PHASE_PROMPTS = {
   intention: (prompt) => intentionPrompt(prompt),
   structure: (intention) => structurePrompt(intention),
-  code: (structure, stack) => codePrompt(structure, stack),
+  code: (intention, structure, stack) => codePrompt(intention, structure, stack),
   review: (html) => reviewPrompt(html),
   preview: () => 'Prepare preview metadata.',
   deploy: () => 'Prepare deployment configuration.',
@@ -328,7 +328,7 @@ class GenerationService {
           phasePrompt = PHASE_PROMPTS.structure(context.intention);
           break;
         case 'code':
-          phasePrompt = PHASE_PROMPTS.code(context.structure, selectedStack);
+          phasePrompt = PHASE_PROMPTS.code(context.intention, context.structure, selectedStack);
           break;
         case 'review':
           phasePrompt = PHASE_PROMPTS.review(currentHtml);

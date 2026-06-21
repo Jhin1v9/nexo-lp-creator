@@ -23,7 +23,18 @@ const PREVIEW_VISIBILITY_STYLE = `
 .slide-up,
 .zoom-in,
 .section-reveal,
-.counter-number {
+.counter-number,
+.wow,
+.animate__animated,
+.animate__fadeIn,
+.animate__fadeInUp,
+.animate__fadeInDown,
+.animate__zoomIn,
+.animate__slideInUp,
+.fade,
+.hidden,
+.invisible,
+.opacity-0 {
   opacity: 1 !important;
   visibility: visible !important;
   transform: none !important;

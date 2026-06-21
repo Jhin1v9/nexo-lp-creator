@@ -39,32 +39,39 @@
       ]);
 
       adminLiveEvents.update((s) => {
-        const jobs = { ...s.jobs };
+        const activeKeys = new Set();
+        const nextJobs = {};
+
+        // Preserve existing SSE-driven jobs and merge with backend state.
         for (const t of sanitizing.templates || []) {
           const key = t.session_id || t.id;
-          if (key && !jobs[key]) {
-            jobs[key] = {
-              scope: 'sanitization',
-              sessionId: t.session_id,
-              templateId: t.id,
-              step: 0,
-              lastUpdate: Date.now(),
-            };
-          }
+          if (!key) continue;
+          activeKeys.add(key);
+          nextJobs[key] = {
+            ...(s.jobs[key] || {}),
+            scope: 'sanitization',
+            sessionId: t.session_id,
+            templateId: t.id,
+            step: s.jobs[key]?.step || 0,
+            lastUpdate: s.jobs[key]?.lastUpdate || Date.now(),
+          };
         }
+
         const sessionList = Array.isArray(sessions) ? sessions : (sessions.sessions || []);
         for (const sess of sessionList) {
           const key = sess.id;
-          if (key && !jobs[key]) {
-            jobs[key] = {
-              scope: 'generation',
-              sessionId: sess.id,
-              phase: sess.status || 'preview',
-              lastUpdate: Date.now(),
-            };
-          }
+          if (!key) continue;
+          activeKeys.add(key);
+          nextJobs[key] = {
+            ...(s.jobs[key] || {}),
+            scope: 'generation',
+            sessionId: sess.id,
+            phase: s.jobs[key]?.phase || sess.status || 'preview',
+            lastUpdate: s.jobs[key]?.lastUpdate || Date.now(),
+          };
         }
-        return { ...s, jobs };
+
+        return { ...s, jobs: nextJobs };
       });
     } catch (err) {
       // Silently ignore polling errors so the UI stays resilient.

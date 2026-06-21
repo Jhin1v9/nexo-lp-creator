@@ -134,15 +134,16 @@
         style="width: {devices.find(d => d.id === deviceMode)?.width || '100%'}; min-height: 600px;"
         in:fade={{ duration: 300 }}
       >
-        <iframe
-          bind:this={iframe}
-          key={reloadKey}
-          srcdoc={previewHtml}
-          title="Landing Page Preview"
-          class="w-full h-full border-0"
-          style="min-height: 600px;"
-          loading="lazy"
-        ></iframe>
+        {#key reloadKey}
+          <iframe
+            bind:this={iframe}
+            srcdoc={previewHtml}
+            title="Landing Page Preview"
+            class="w-full h-full border-0"
+            style="min-height: 600px;"
+            loading="lazy"
+          ></iframe>
+        {/key}
       </div>
     {:else}
       <div class="flex flex-col items-center justify-center h-full text-center py-20" in:fade={{ duration: 300 }}>

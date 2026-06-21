@@ -427,6 +427,7 @@ const adminController = {
     res.setHeader('X-Accel-Buffering', 'no');
 
     // Flush headers immediately so the client fires onopen / connects.
+    res.flushHeaders();
     res.write(':connected\n\n');
 
     // Send buffered events first

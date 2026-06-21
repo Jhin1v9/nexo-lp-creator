@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { XIcon, SparklesIcon, ShieldCheckIcon, TrashIcon } from './adminIcons.js';
   import { formatDate } from './adminUtils.js';
+  import { preparePreviewHtml } from '../../lib/previewBuilder.js';
 
   export let template = null;
 
@@ -27,7 +28,8 @@
     dispatch('delete', { id: template.id });
   }
 
-  $: previewHtml = template?.html || template?.preview_html || template?.preview || '<p class="p-4 text-slate-500">No preview available</p>';
+  $: rawTemplateHtml = template?.html || template?.preview_html || template?.preview || '<p class="p-4 text-slate-500">No preview available</p>';
+  $: previewHtml = rawTemplateHtml ? preparePreviewHtml(rawTemplateHtml) : rawTemplateHtml;
 </script>
 
 {#if template}

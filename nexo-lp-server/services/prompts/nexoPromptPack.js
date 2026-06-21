@@ -111,7 +111,7 @@ Return ONLY a single JSON object matching this exact schema (no markdown fences,
 }`;
 }
 
-function codePrompt(structure, stack) {
+function codePrompt(intention, structure, stack) {
   // v9.0-fix: Put the user's palette and vibe FIRST so Kimi cannot ignore them.
   // Keep the structured brief as a short reference, not a wall of JSON at the top.
   const sectionList = (structure.sections || []).map((s) => {
@@ -120,7 +120,6 @@ function codePrompt(structure, stack) {
     return `- ${id}${purpose}`;
   }).join('\n');
 
-  const intention = structure.intention || {};
   const designTokens = structure.designTokens || {};
   const colors = designTokens.colors || structure.colors || intention.colorDirection || {};
   const colorEntries = Object.entries(colors);

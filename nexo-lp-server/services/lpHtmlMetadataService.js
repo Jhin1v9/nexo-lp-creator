@@ -48,8 +48,8 @@ function buildMetaTags(title, description) {
 function injectMetadata(html, brief = {}) {
   if (!html || typeof html !== 'string') return html;
 
-  const title = brief.title || '';
-  const description = brief.description || '';
+  const title = (brief.title || '').trim();
+  const description = (brief.description || '').trim().slice(0, 160);
   if (!title && !description) return html;
 
   let result = html;
