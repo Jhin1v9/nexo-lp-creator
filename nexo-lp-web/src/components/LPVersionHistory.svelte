@@ -3,7 +3,6 @@
   import { fade, fly, slide } from 'svelte/transition';
   import { versionHistory, preview, showNotification, session, editorTab } from '../stores.js';
   import { lpClient } from '../lib/lpClient.js';
-  import { createBlobUrl, revokeBlobUrl } from '../lib/previewBuilder.js';
 
   let selectedVersion = null;
   let isRollingBack = false;
@@ -66,11 +65,8 @@
       const rolledBack = await lpClient.rollbackVersion(version.id);
 
       if (rolledBack.html && rolledBack.html.length > 50) {
-        if ($preview.blobUrl) revokeBlobUrl($preview.blobUrl);
-        const blobUrl = createBlobUrl(rolledBack.html);
         preview.set({
           html: rolledBack.html,
-          blobUrl,
           lastUpdated: Date.now(),
           device: $preview.device,
         });

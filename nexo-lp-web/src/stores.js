@@ -28,7 +28,6 @@ export const messages = writable([
 // Preview state
 export const preview = writable({
   html: '',
-  blobUrl: null,
   lastUpdated: null,
   device: 'desktop',
 });

@@ -7,7 +7,6 @@
   import { projectNameFromPrompt } from '../lib/projectName.js';
   import GenerationModeSwitch from './GenerationModeSwitch.svelte';
   import { getCurrencyBalance } from '../api.js';
-  import { createBlobUrl, revokeBlobUrl } from '../lib/previewBuilder.js';
   import LPWelcomeScreen from './LPWelcomeScreen.svelte';
   import ToolCard from './ToolCard.svelte';
   import ModeSelector from './ModeSelector.svelte';
@@ -189,14 +188,8 @@
 
       // Update preview if HTML was generated
       if (finalHtml) {
-        // Revoke old blob URL
-        if ($preview.blobUrl) {
-          revokeBlobUrl($preview.blobUrl);
-        }
-        const blobUrl = createBlobUrl(finalHtml);
         preview.set({
           html: finalHtml,
-          blobUrl,
           lastUpdated: Date.now(),
           device: $preview.device,
         });

@@ -22,7 +22,6 @@
     generationOverlayMinimized,
   } from './stores.js';
   import { lpClient } from './lib/lpClient.js';
-  import { createBlobUrl } from './lib/previewBuilder.js';
   import { projectNameFromPrompt } from './lib/projectName.js';
   import { getPreview, renameSession, deleteSession, getSessionDownloadUrl, getSessionByKimiChatId, searchSessions } from './api.js';
   import LandingPageCreator from './components/LandingPageCreator.svelte';
@@ -312,7 +311,6 @@
       if (previewData?.html) {
         preview.set({
           html: previewData.html,
-          blobUrl: createBlobUrl(previewData.html),
           lastUpdated: Date.now(),
           device: 'desktop',
         });
@@ -435,7 +433,7 @@
       if ($session.id === s.id) {
         session.set({ id: null, createdAt: null, projectName: 'Untitled Project' });
         messages.set([{ ...WELCOME_MESSAGE, timestamp: Date.now() }]);
-        preview.set({ html: '', blobUrl: null, lastUpdated: null, device: 'desktop' });
+        preview.set({ html: '', lastUpdated: null, device: 'desktop' });
         currentTemplate.set(null);
         kimiChatUrl.set(null);
         contextWarning.set('none');
@@ -606,7 +604,7 @@
             localStorage.removeItem(SESSION_STORAGE_KEY);
             session.set({ id: null, createdAt: null, projectName: 'Untitled Project' });
             messages.set([{ ...WELCOME_MESSAGE, timestamp: Date.now() }]);
-            preview.set({ html: '', blobUrl: null, lastUpdated: null, device: 'desktop' });
+            preview.set({ html: '', lastUpdated: null, device: 'desktop' });
             currentTemplate.set(null);
             kimiChatUrl.set(null);
             contextWarning.set('none');
