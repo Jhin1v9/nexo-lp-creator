@@ -1,4 +1,5 @@
-export const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3460/api/nexo-lp';
+const isProd = import.meta.env.PROD;
+export const API_BASE = import.meta.env.VITE_API_URL || (isProd ? '/api/nexo-lp' : 'http://localhost:3460/api/nexo-lp');
 
 const ADMIN_TOKEN_KEY = 'nexo_admin_token';
 
