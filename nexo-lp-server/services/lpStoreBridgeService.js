@@ -340,8 +340,8 @@ class LPStoreBridgeService {
 
     const method = exists ? 'PUT' : 'POST';
     const url = exists
-      ? `${storeUrl}/api/admin/apps/${encodeURIComponent(appProduct.id)}`
-      : `${storeUrl}/api/admin/apps`;
+      ? `${storeUrl}/api/admin/apps/${encodeURIComponent(appProduct.id)}/`
+      : `${storeUrl}/api/admin/apps/`;
 
     const result = await this._requestWithRetry(method, url, appProduct, adminKey);
     console.log(`[LPStoreBridge] ${method} ${appProduct.slug} → Store OK`);
