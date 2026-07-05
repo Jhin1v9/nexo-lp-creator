@@ -112,7 +112,8 @@ class TemplateService {
    * @param {string} userId
    * @returns {object} Created template
    */
-  async publishFromSession(sessionId, userId) {
+  async publishFromSession(sessionId, userId, options = {}) {
+    const { direct = false } = options;
     const session = await SessionRepository.findById(sessionId);
     if (!session) throw new Error('Session not found');
     if (session.user_id !== userId) throw new Error('Unauthorized');
@@ -143,7 +144,7 @@ class TemplateService {
       stack: session.stack || 'react-tailwind',
       html,
       original_html: html,
-      status: 'sanitizing',
+      status: direct ? 'available' : 'sanitizing',
       public_preview_token: token,
       prompt_hash: this._hashPrompt(prompt),
       prompt_censored: '[PROMPT BLOCKED — purchase this template in the LOJA to unlock the original prompt]',
@@ -159,11 +160,15 @@ class TemplateService {
 
     await PreviewService.publishPublicPreview(sessionId, this._blockedPreviewHtml(template.name), token);
 
-    SanitizationOrchestrator.startSanitization(sessionId, html, prompt, chatUrl, userId)
-      .catch((err) => console.error('[LOJA] Sanitization orchestrator failed:', err.message));
+    if (!direct) {
+      SanitizationOrchestrator.startSanitization(sessionId, html, prompt, chatUrl, userId)
+        .catch((err) => console.error('[LOJA] Sanitization orchestrator failed:', err.message));
+    } else {
+      console.log(`[LOJA] Direct publish for ${template.id}, skipping sanitization.`);
+    }
 
     // Push the freshly created template to the Nexo Store (fire-and-forget).
-    lpStoreBridgeService.syncTemplateBySessionId(sessionId).catch((err) => {
+    lpStoreBridgeService.syncTemplateBySessionId(sessionId, { direct }).catch((err) => {
       console.error('[LOJA] Store bridge sync failed:', err.message);
     });
 

@@ -232,7 +232,8 @@ router.post('/sessions/:id/publish', asyncHandler(async (req, res) => {
     return res.status(404).json(errorResponse('Session not found', 'NOT_FOUND', 404));
   }
 
-  const template = await lpTemplateService.publishFromSession(id, session.user_id);
+  const { direct } = req.body || {};
+  const template = await lpTemplateService.publishFromSession(id, session.user_id, { direct });
 
   res.status(201).json(successResponse({
     sessionId: id,

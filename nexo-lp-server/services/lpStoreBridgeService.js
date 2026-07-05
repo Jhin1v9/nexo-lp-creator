@@ -211,7 +211,8 @@ function resolveAssetUrl(url) {
  * @param {object} template
  * @returns {object}
  */
-function adaptLPCTemplateToAppProduct(template) {
+function adaptLPCTemplateToAppProduct(template, options = {}) {
+  const { direct = false } = options;
   const metadata = parseMetadata(template.metadata_json);
   const category = normalizeCategory(template.category);
   const subcategory = template.subcategory || metadata?.subcategory || category;
@@ -219,7 +220,7 @@ function adaptLPCTemplateToAppProduct(template) {
   const framework = inferFramework(template.stack);
   const industry = inferIndustry(template.category, subcategory, metadata);
   const sense = inferSense(subcategory, metadata);
-  const status = normalizeStatus(template.status);
+  const status = direct ? 'available' : normalizeStatus(template.status);
   const source = normalizeSource(template.source);
   const slug = buildUniqueSlug(template.name, template.id);
 
@@ -314,7 +315,7 @@ class LPStoreBridgeService {
    * @param {string} templateId
    * @returns {Promise<object>}
    */
-  async syncTemplateToStore(templateId) {
+  async syncTemplateToStore(templateId, options = {}) {
     if (!templateId) {
       throw new Error('Template ID is required');
     }
@@ -334,7 +335,7 @@ class LPStoreBridgeService {
       throw new Error(`Template ${templateId} not found`);
     }
 
-    const appProduct = adaptLPCTemplateToAppProduct(template);
+    const appProduct = adaptLPCTemplateToAppProduct(template, options);
     const exists = await this._checkStoreExists(storeUrl, adminKey, appProduct.slug);
 
     const method = exists ? 'PUT' : 'POST';
@@ -352,7 +353,7 @@ class LPStoreBridgeService {
    * @param {string} sessionId
    * @returns {Promise<object|null>}
    */
-  async syncTemplateBySessionId(sessionId) {
+  async syncTemplateBySessionId(sessionId, options = {}) {
     if (!sessionId) {
       throw new Error('Session ID is required');
     }
@@ -361,7 +362,7 @@ class LPStoreBridgeService {
       console.warn(`[LPStoreBridge] No template found for session ${sessionId}`);
       return null;
     }
-    return this.syncTemplateToStore(template.id);
+    return this.syncTemplateToStore(template.id, options);
   }
 
   /**
@@ -452,3 +453,7 @@ class LPStoreBridgeService {
 }
 
 module.exports = new LPStoreBridgeService();
+module.exports.buildUniqueSlug = buildUniqueSlug;
+module.exports.resolveAssetUrl = resolveAssetUrl;
+module.exports.resolveDemoUrl = resolveDemoUrl;
+module.exports.adaptLPCTemplateToAppProduct = adaptLPCTemplateToAppProduct;

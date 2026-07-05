@@ -48,7 +48,7 @@ async function main() {
           continue;
         }
 
-        const template = await lpTemplateService.publishFromSession(session.id, session.user_id);
+        const template = await lpTemplateService.publishFromSession(session.id, session.user_id, { direct: true });
         console.log(`[published] ${session.id} -> ${template.id} (status=${template.status})`);
         results.push({ sessionId: session.id, templateId: template.id, status: template.status });
 
