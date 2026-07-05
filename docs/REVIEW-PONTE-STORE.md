@@ -108,14 +108,20 @@
   - `nexo-digital-store/src/lib/formatting.ts`
   - `/root/nexo-projects-abner/ecosystem.config.js`
 
-## 5. Débitos técnicos / próximos passos
+## 5. Débitos técnicos / próximos passos (RESOLVIDOS em 2026-07-05)
 
-1. Automatizar cópia de `.next/static` para `.next/standalone/.next/static` no `scripts/deploy.sh`.
-2. Corrigir scripts legados `import-kimi-chats-to-loja.js` e `publish-existing-to-loja.js` para respeitar flag `direct`.
-3. Melhorar segurança das chaves admin (tokens longos, rate-limit).
-4. Adicionar testes automatizados para a ponte.
-5. Monitorar logs da ponte em produção.
+1. ✅ Automatizar cópia de `.next/static` para `.next/standalone/.next/static` no `scripts/deploy.sh`.
+2. ✅ Corrigir scripts legados `import-kimi-chats-to-loja.js` e `publish-existing-to-loja.js` para respeitar flag `direct`.
+3. ✅ Melhorar segurança das chaves admin (tokens longos de 64 chars, rate-limit, IP whitelist).
+4. ✅ Adicionar testes automatizados para a ponte e admin auth.
+5. ✅ Adicionar healthchecks para monitoramento.
+
+## 6. Recomendações futuras
+
+- Migrar previews para subdomínio isolado (`preview.vps.nexo-digital.app`) quando o DNS estiver disponível.
+- Considerar JWT de curta duração para admin API em vez de API keys estáticas.
+- Adicionar métricas/dashboard de monitoramento além dos healthchecks.
 
 ---
 
-*Última atualização: 2026-07-05 — ponte implementada, testada e deployada.*
+*Última atualização: 2026-07-05 — hardening completo, todos os débitos técnicos resolvidos.*
