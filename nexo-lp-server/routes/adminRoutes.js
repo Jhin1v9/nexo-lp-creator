@@ -11,6 +11,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const requireAdmin = require('../security/adminAuth');
+const { rateLimit } = require('../middleware/rateLimit');
 
 /**
  * Helper: Async handler wrapper to catch errors in async route handlers
@@ -25,6 +26,7 @@ const asyncHandler = (fn) => (req, res, next) => {
 // because EventSource cannot send custom headers.
 router.get('/settings', asyncHandler(adminController.getSettings));
 
+router.use(rateLimit({ max: 60 }));
 router.use(requireAdmin);
 
 // ============================================================

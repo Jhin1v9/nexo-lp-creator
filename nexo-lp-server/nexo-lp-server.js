@@ -21,6 +21,7 @@ const fs = require('fs');
 const config = require('./config/nexo-lp-config');
 const routes = require('./nexo-lp-routes');
 const { initializeDatabase } = require('./models/sqlite');
+const { rateLimit } = require('./middleware/rateLimit');
 
 // Ensure required directories exist
 const ensureDirectories = () => {
@@ -44,6 +45,9 @@ const ensureDirectories = () => {
 // Initialize Express application
 const app = express();
 const PORT = config.port;
+
+// Trust proxy headers from Caddy/reverse proxy so req.ip is accurate.
+app.set('trust proxy', true);
 
 /**
  * Security middleware configuration
