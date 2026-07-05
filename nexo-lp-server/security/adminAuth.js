@@ -6,11 +6,17 @@ function getClientIp(req) {
   return req.ip || req.connection?.remoteAddress || 'unknown';
 }
 
+function isLoopback(ip) {
+  if (!ip || ip === 'unknown') return false;
+  return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.startsWith('127.');
+}
+
 function isIpAllowed(req) {
   const allowed = process.env.ADMIN_ALLOWED_IPS;
   if (!allowed) return true;
   const clientIp = getClientIp(req);
-  return allowed.split(',').map((ip) => ip.trim()).includes(clientIp);
+  const allowedList = allowed.split(',').map((ip) => ip.trim());
+  return allowedList.includes(clientIp) || (allowedList.includes('127.0.0.1') && isLoopback(clientIp));
 }
 
 function requireAdmin(req, res, next) {
