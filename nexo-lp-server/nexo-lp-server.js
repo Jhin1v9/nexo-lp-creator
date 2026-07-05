@@ -144,7 +144,11 @@ app.use(config.apiPrefix, routes);
  * Serve static preview files from data/previews
  * (also covers the public subdirectory, so no separate /preview/public mount is needed)
  */
-app.use('/preview', express.static(path.resolve(__dirname, '../data/previews')));
+app.use('/preview', (req, res, next) => {
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  next();
+}, express.static(path.resolve(__dirname, '../data/previews')));
 
 /**
  * Serve generated ZIP downloads (restricted to zips subdirectory)

@@ -197,6 +197,14 @@ function resolveDemoUrl(template, slug) {
   return base ? `${base}${path}` : path;
 }
 
+function resolveAssetUrl(url) {
+  if (!url) return undefined;
+  if (/^https?:\/\//i.test(url)) return url;
+  const base = (process.env.PREVIEW_BASE_URL || '').replace(/\/+$/, '');
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return base ? `${base}${path}` : url;
+}
+
 /**
  * Convert a raw LP Creator template row into the AppProduct shape expected
  * by the Nexo Store admin API.
@@ -238,9 +246,9 @@ function adaptLPCTemplateToAppProduct(template) {
     subtitle: metadata?.useCases?.[0] || template.description?.slice(0, 80) || '',
     description: template.description || '',
     shortDescription: template.description?.slice(0, 120) || '',
-    icon: template.thumbnail_url || `/icons/${slug}.svg`,
-    thumbnail: template.thumbnail_url || `/thumbnails/${slug}.jpg`,
-    screenshots: template.thumbnail_url ? [template.thumbnail_url] : ['/screenshot-placeholder.jpg'],
+    icon: resolveAssetUrl(template.thumbnail_url) || `/icons/${slug}.svg`,
+    thumbnail: resolveAssetUrl(template.thumbnail_url) || `/thumbnails/${slug}.jpg`,
+    screenshots: template.thumbnail_url ? [resolveAssetUrl(template.thumbnail_url)] : ['/screenshot-placeholder.jpg'],
     type,
     framework,
     industry,
