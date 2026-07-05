@@ -190,7 +190,7 @@ function resolveHtml(template) {
 function resolveDemoUrl(template, slug) {
   const base = (process.env.PREVIEW_BASE_URL || '').replace(/\/+$/, '');
   if (template.public_preview_token) {
-    const path = `/preview/${template.public_preview_token}`;
+    const path = `/preview/public/${template.public_preview_token}.html`;
     return base ? `${base}${path}` : path;
   }
   const path = `/demo/${slug}`;
