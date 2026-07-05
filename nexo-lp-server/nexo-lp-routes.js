@@ -41,6 +41,7 @@ const lpVersionService = require('./services/lpVersionService');
 const lpCurrencyService = require('./services/lpCurrencyService');
 const lunaExtensionHandler = require('./services/luna/lunaExtensionHandler.cjs');
 const adminRoutes = require('./routes/adminRoutes');
+const { query } = require('./models/sqlite');
 
 /**
  * Helper: Async handler wrapper to catch errors in async route handlers
@@ -1040,9 +1041,25 @@ router.get('/ext/poll', asyncHandler(async (req, res) => {
 }));
 
 // ============================================================
+// HEALTH
+// ============================================================
+
+router.get('/health', asyncHandler(async (req, res) => {
+  const result = query('SELECT COUNT(*) as c FROM templates');
+  res.status(200).json({
+    ok: true,
+    templatesCount: result[0].c,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+}));
+
+// ============================================================
 // ADMIN ROUTES
 // ============================================================
 
 router.use('/admin', adminRoutes);
 
 module.exports = router;
+
+
