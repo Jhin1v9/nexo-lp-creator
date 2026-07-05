@@ -17,6 +17,7 @@ const MessageRepository = require('../models/repositories/MessageRepository');
 const CurrencyRepository = require('../models/repositories/CurrencyRepository');
 const PreviewService = require('./lpPreviewService');
 const SanitizationOrchestrator = require('./lpSanitizationOrchestrator');
+const lpStoreBridgeService = require('./lpStoreBridgeService');
 const userService = require('./lpUserService');
 const adminEventBus = require('./adminEventBus');
 const NexoDashboardFinanceService = require('./nexoDashboardFinanceService');
@@ -160,6 +161,11 @@ class TemplateService {
 
     SanitizationOrchestrator.startSanitization(sessionId, html, prompt, chatUrl, userId)
       .catch((err) => console.error('[LOJA] Sanitization orchestrator failed:', err.message));
+
+    // Push the freshly created template to the Nexo Store (fire-and-forget).
+    lpStoreBridgeService.syncTemplateBySessionId(sessionId).catch((err) => {
+      console.error('[LOJA] Store bridge sync failed:', err.message);
+    });
 
     return template;
   }

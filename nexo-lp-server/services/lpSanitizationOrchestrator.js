@@ -1,5 +1,6 @@
 const { EventEmitter } = require('events');
 const adminEventBus = require('./adminEventBus');
+const lpStoreBridgeService = require('./lpStoreBridgeService');
 const TemplateRepository = require('../models/repositories/TemplateRepository');
 const PreviewService = require('./lpPreviewService');
 const TemplateScreenshotService = require('./lpTemplateScreenshotService');
@@ -29,6 +30,15 @@ class SanitizationOrchestrator extends EventEmitter {
     this.on('sanitization:progress', (event) => adminEventBus.publish({ ...event, scope: 'sanitization', type: 'sanitization_progress' }));
     this.on('sanitization:complete', (event) => adminEventBus.publish({ ...event, scope: 'sanitization', type: 'sanitization_complete' }));
     this.on('sanitization:error', (event) => adminEventBus.publish({ ...event, scope: 'sanitization', type: 'sanitization_error' }));
+
+    // After a successful sanitization, mirror the final template to the Nexo Store.
+    this.on('sanitization:complete', (event) => {
+      if (event.success && event.templateId) {
+        lpStoreBridgeService.syncTemplateToStore(event.templateId).catch((err) => {
+          console.error('[SANITIZE] Store bridge sync failed:', err.message);
+        });
+      }
+    });
 
     const concurrency = parseInt(process.env.SANITIZE_CONCURRENCY, 10);
     this.concurrency = Number.isNaN(concurrency) ? 3 : concurrency;
