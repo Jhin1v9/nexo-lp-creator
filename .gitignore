@@ -77,3 +77,8 @@ screenshots/
 .superpowers/
 e2e/test-results/
 e2e/playwright-report/
+
+# brain-sync runtime state
+.brain/.pending-commits
+.brain/.pending-commits.inflight
+.brain/.sync.lock
