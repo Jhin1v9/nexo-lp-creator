@@ -27,6 +27,14 @@ Internal files (do not edit): `.pending-commits` (sync queue), `.sync.lock` (con
 git config core.hooksPath .githooks
 ```
 
+Also keep the sync's runtime state out of git — add to your `.gitignore`:
+
+```
+.brain/.pending-commits
+.brain/.pending-commits.inflight
+.brain/.sync.lock
+```
+
 Requires the `kimi` CLI in PATH for automatic sync. Without it, the script writes the pending prompt+diffs to `~/.brain-sync-last.md` so you can paste them into any AI session and apply the edits manually.
 
 ## Rules for humans
