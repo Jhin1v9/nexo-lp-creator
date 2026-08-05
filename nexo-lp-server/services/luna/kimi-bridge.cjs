@@ -2628,6 +2628,19 @@ class KimiBridge {
               return lastText;
             }
 
+            // v13-fix: Fallback — if text is stable for a long time but no action
+            // buttons appeared, treat as complete. Prevents infinite hang when Kimi
+            // finishes responding but the actions bar is not rendered.
+            const STABLE_DONE_MS = 60000;
+            if (!buttonsVisible && stableFor >= STABLE_DONE_MS) {
+              log.warn(`[_waitForResponse] Text stable ${stableFor}ms without action buttons — treating as complete (fallback)`);
+              if (onPartial) {
+                try { onPartial(currentText, 'done'); } catch (e) { log.debug(`[onPartial] done callback error: ${e.message}`); }
+              }
+              log.info('[DEBUG-LUNA] _waitForResponse finished (stable fallback)');
+              return lastText;
+            }
+
             // If stable >5s but no buttons yet = THINKING (Kimi paused)
             if (!thinkingNotified && stableFor >= thinkingWindow) {
               thinkingNotified = true;
@@ -4329,6 +4342,8 @@ class KimiBridge {
         `--remote-debugging-port=${startPort}`,
         '--no-first-run',
         '--no-default-browser-check',
+        '--no-sandbox',
+        '--no-zygote',
         '--user-data-dir=' + profileDir,
         '--disable-background-timer-throttling',
         '--disable-backgrounding-occluded-windows',

@@ -82,3 +82,27 @@ e2e/playwright-report/
 .brain/.pending-commits
 .brain/.pending-commits.inflight
 .brain/.sync.lock
+
+# Security — Kimi session cookies (never commit)
+kimi-cookies.json
+cookies.json
+nexo-lp-server/services/luna/kimi-cookies.json
+
+# Python
+__pycache__/
+*.pyc
+
+# Local env backups
+.env.bak*
+.env.*.bak
+
+# Backups (dot, dash, any suffix)
+*.bak
+*.bak.*
+*.bak-*
+*.bak2*
+*.bak2.*
+
+# Template migration data bundle
+nexo-lp-creator/template-migration/
+template-migration/
