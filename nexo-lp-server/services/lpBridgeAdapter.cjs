@@ -456,9 +456,12 @@ class BridgeAdapter {
    * @param {object} event
    */
   emitEvent(event) {
-    const { emitGenerationEvent } = require('./lpGenerationService');
-    if (emitGenerationEvent) {
-      emitGenerationEvent(event);
+    const lpGenService = require('./lpGenerationService');
+    const emitFn = lpGenService.emitGenerationEvent;
+    if (typeof emitFn === 'function') {
+      emitFn(event);
+    } else {
+      console.warn('[BridgeAdapter] emitGenerationEvent not available (circular dep?), event dropped:', event.type, 'sessionId=', event.sessionId, 'keys=', Object.keys(lpGenService));
     }
   }
 

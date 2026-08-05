@@ -34,7 +34,7 @@ User request:
 ${userPrompt}
 """
 
-Return ONLY a single JSON object matching this exact schema (no markdown fences, no comments, no explanations):
+Return ONLY a single raw JSON object matching this exact schema. Do NOT wrap it in markdown code blocks (triple backticks), do NOT add language hints, comments, or explanations. Return ONLY the JSON — never HTML:
 
 {
   "title": "Short, compelling page title — use a brand/product name or headline the user explicitly mentions; otherwise derive from the core offer",
@@ -82,7 +82,7 @@ CRITICAL: Preserve the user's requested colors and vibe from the intention brief
 - Do NOT replace the user's palette with generic indigo/purple/green defaults.
 - Preserve intention.tone and intention.userVibe in typography, motion, and image choices.
 
-Return ONLY a single JSON object matching this exact schema (no markdown fences, no comments, no explanations):
+Return ONLY a single raw JSON object matching this exact schema. Do NOT wrap it in markdown code blocks (triple backticks), do NOT add language hints, comments, or explanations. Return ONLY the JSON — never HTML:
 
 {
   "layout": "single-page",
@@ -186,7 +186,8 @@ HTML TO REVIEW:
 ${html}
 \`\`\`
 
-RETURN ONLY ONE JSON CODE BLOCK. NO explanations, NO regenerated HTML, NO summaries.
+RETURN ONLY ONE RAW JSON CODE BLOCK. NO explanations, NO regenerated HTML, NO summaries.
+Do NOT return HTML — return ONLY the JSON object. Do NOT wrap it in a markdown code block with extra language hint, and do NOT add any text before or after the JSON:
 
 Schema:
 \`\`\`json
@@ -353,7 +354,7 @@ Check ONLY these technical aspects:
 5. No empty sections that would make the page look broken.
 6. Tailwind CSS classes are present and the page has visual content.
 
-Return ONLY a JSON object inside a json code block (no explanations outside the block):
+Return ONLY a single raw JSON object (no markdown code block, no language hint, no explanations, no HTML):
 
 {
   "ok": true,
@@ -374,7 +375,7 @@ TASK: Analyze the landing page HTML below and generate rich marketplace metadata
 
 ${IRON_RULES}
 
-Return ONLY a JSON object inside a json code block (no explanations outside the block):
+Return ONLY a single raw JSON object (no markdown code block, no language hint, no explanations, no HTML):
 
 {
   "metadata": {

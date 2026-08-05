@@ -328,7 +328,7 @@ describe('LOJA Routes', () => {
     createdPublicTokens.push(template.public_preview_token);
   });
 
-  test('POST /api/nexo-lp/sessions/:id/publish ignores direct flag and still sanitizes', async () => {
+  test('POST /api/nexo-lp/sessions/:id/publish with direct flag skips sanitization and publishes as available', async () => {
     const userId = 'user-publish-direct-routes';
     const session = await createSession(userId);
 
@@ -340,10 +340,16 @@ describe('LOJA Routes', () => {
     expect(res.body.success).toBe(true);
 
     const template = await TemplateRepository.findById(res.body.data.templateId);
-    expect(template.status).toBe('sanitizing');
+    expect(template.status).toBe('available');
     expect(template.is_public).toBe(1);
 
-    expect(SanitizationOrchestrator.startSanitization).toHaveBeenCalled();
+    expect(SanitizationOrchestrator.startSanitization).not.toHaveBeenCalledWith(
+      session.id,
+      session.current_html,
+      session.initial_prompt,
+      session.kimi_chat_url,
+      userId
+    );
 
     createdPublicTokens.push(template.public_preview_token);
   });

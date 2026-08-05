@@ -20,6 +20,55 @@ describe('ResponseParser', () => {
     });
   });
 
+  describe('detectHtmlInsteadOfJson', () => {
+    test('detects doctype', () => {
+      expect(ResponseParser.detectHtmlInsteadOfJson('<!DOCTYPE html><html></html>')).toBe(true);
+    });
+
+    test('detects <html> start', () => {
+      expect(ResponseParser.detectHtmlInsteadOfJson('<html lang="pt"><body></body></html>')).toBe(true);
+    });
+
+    test('detects HTML Copy header then html', () => {
+      expect(ResponseParser.detectHtmlInsteadOfJson('HTML Copy\n<!doctype html>...')).toBe(true);
+    });
+
+    test('returns false for JSON', () => {
+      expect(ResponseParser.detectHtmlInsteadOfJson('{"score": 90}')).toBe(false);
+    });
+
+    test('returns false for plain text', () => {
+      expect(ResponseParser.detectHtmlInsteadOfJson('just plain text')).toBe(false);
+    });
+  });
+
+  describe('extractJsonFromMarkdown', () => {
+    test('extracts JSON from a json code block', () => {
+      const obj = { title: 'X', score: 5 };
+      const text = '```json\n' + JSON.stringify(obj) + '\n```';
+      expect(ResponseParser.extractJsonFromMarkdown(text)).toEqual(obj);
+    });
+
+    test('extracts JSON from a bare code block', () => {
+      const obj = { a: 1 };
+      expect(ResponseParser.extractJsonFromMarkdown('```\n' + JSON.stringify(obj) + '\n```')).toEqual(obj);
+    });
+
+    test('extracts JSON from a javascript code block', () => {
+      const obj = { b: 2 };
+      expect(ResponseParser.extractJsonFromMarkdown('```javascript\n' + JSON.stringify(obj) + '\n```')).toEqual(obj);
+    });
+
+    test('returns null when no code block has JSON', () => {
+      expect(ResponseParser.extractJsonFromMarkdown('```\njust text\n```')).toBeNull();
+    });
+
+    test('extracts JSON from a code block with trailing commas', () => {
+      const text = '```json\n{"score": 3, "items": [1, 2,],}\n```';
+      expect(ResponseParser.extractJsonFromMarkdown(text).score).toBe(3);
+    });
+  });
+
   describe('extractJsonObject', () => {
     test('parses plain review JSON', () => {
       const review = { score: 90, issues: [], suggestions: [], passed: true };
@@ -84,6 +133,12 @@ describe('ResponseParser', () => {
 
     test('throws when response is empty', () => {
       expect(() => ResponseParser.extractReviewFromResponse('')).toThrow(ReviewValidationError);
+    });
+
+    test('throws specific error when Kimi returns HTML instead of JSON', () => {
+      expect(() =>
+        ResponseParser.extractReviewFromResponse('<!DOCTYPE html><html><body>hi</body></html>')
+      ).toThrow(/HTML instead of JSON/);
     });
 
     test('throws when JSON cannot be parsed', () => {

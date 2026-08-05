@@ -35,6 +35,94 @@ class ResponseParser {
   }
 
   /**
+   * Detect whether a Kimi response looks like HTML instead of JSON.
+   * Returns true when the trimmed text starts with a doctype or <html tag.
+   */
+  static detectHtmlInsteadOfJson(text) {
+    if (!text || typeof text !== 'string') return false;
+    const trimmed = this.cleanKimiHeaders(text).trim().toLowerCase();
+    if (!trimmed) return false;
+    return (
+      trimmed.startsWith('<!doctype') ||
+      trimmed.startsWith('<html') ||
+      trimmed.startsWith('html') ||
+      /^\s*<(?:!doctype|html)[\s>]/i.test(trimmed)
+    );
+  }
+
+  /**
+   * Extract the first valid JSON object or array from markdown code blocks.
+   * Runs BEFORE generic free-form extraction so block-wrapped responses are
+   * handled deterministically even when fences/language hints are mangled.
+   */
+  static extractJsonFromMarkdown(text) {
+    if (!text || typeof text !== 'string') return null;
+
+    // Match both fenced blocks with a language hint and bare ones.
+    const blockRe = /```(?:json|javascript|js)?\n?([\s\S]*?)```/g;
+    for (const match of text.matchAll(blockRe)) {
+      const body = this.cleanKimiHeaders(match[1]).trim();
+      if (!body) continue;
+      // Whole body may already be valid JSON.
+      const direct = this.tryParseJson(body);
+      if (direct) return direct;
+      // Otherwise scan the block for a balanced object/array.
+      const inside = this.extractGenericJsonFromString(body);
+      if (inside !== null) return inside;
+    }
+    return null;
+  }
+
+  /**
+   * Scan a raw string for the first balanced JSON object or array.
+   * (Shared helper used by both markdown-block and free-form extraction.)
+   */
+  static extractGenericJsonFromString(cleaned) {
+    if (!cleaned) return null;
+    try {
+      return JSON.parse(cleaned);
+    } catch {
+      // fall through to substring scan
+    }
+    for (const startChar of ['{', '[']) {
+      const closeChar = startChar === '{' ? '}' : ']';
+      let start = cleaned.indexOf(startChar);
+      while (start !== -1) {
+        let depth = 0;
+        let inString = false;
+        let escape = false;
+        for (let i = start; i < cleaned.length; i += 1) {
+          const char = cleaned[i];
+          if (inString) {
+            if (escape) {
+              escape = false;
+            } else if (char === '\\') {
+              escape = true;
+            } else if (char === '"') {
+              inString = false;
+            }
+          } else if (char === '"') {
+            inString = true;
+          } else if (char === startChar) {
+            depth += 1;
+          } else if (char === closeChar) {
+            depth -= 1;
+            if (depth === 0) {
+              try {
+                return JSON.parse(cleaned.slice(start, i + 1));
+              } catch {
+                break;
+              }
+            }
+          }
+        }
+        start = cleaned.indexOf(startChar, start + 1);
+      }
+    }
+    return null;
+  }
+
+  /**
    * Try to parse a JSON candidate, cleaning common Kimi mistakes.
    */
   static tryParseJson(candidate) {
@@ -131,42 +219,13 @@ class ResponseParser {
       // Continue to substring extraction.
     }
 
+    // Prefer JSON wrapped in markdown code blocks (Phase 2 robustness).
+    const fromBlocks = this.extractJsonFromMarkdown(cleaned);
+    if (fromBlocks !== null) return fromBlocks;
+
     // Extract the first balanced object or array.
-    for (const startChar of ['{', '[']) {
-      const closeChar = startChar === '{' ? '}' : ']';
-      let start = cleaned.indexOf(startChar);
-      while (start !== -1) {
-        let depth = 0;
-        let inString = false;
-        let escape = false;
-        for (let i = start; i < cleaned.length; i += 1) {
-          const char = cleaned[i];
-          if (inString) {
-            if (escape) {
-              escape = false;
-            } else if (char === '\\') {
-              escape = true;
-            } else if (char === '"') {
-              inString = false;
-            }
-          } else if (char === '"') {
-            inString = true;
-          } else if (char === startChar) {
-            depth += 1;
-          } else if (char === closeChar) {
-            depth -= 1;
-            if (depth === 0) {
-              try {
-                return JSON.parse(cleaned.slice(start, i + 1));
-              } catch {
-                break;
-              }
-            }
-          }
-        }
-        start = cleaned.indexOf(startChar, start + 1);
-      }
-    }
+    const fromString = this.extractGenericJsonFromString(cleaned);
+    if (fromString !== null) return fromString;
 
     return null;
   }
@@ -265,6 +324,13 @@ class ResponseParser {
 
     if (!rawResponse || !rawResponse.trim()) {
       throw new ReviewValidationError(rawResponse, 'Review response is empty');
+    }
+
+    if (this.detectHtmlInsteadOfJson(rawResponse)) {
+      throw new ReviewValidationError(
+        rawResponse,
+        'Kimi returned HTML instead of JSON — the model ignored the JSON-only instruction. Please retry.'
+      );
     }
 
     const parsed = this.extractJsonObject(rawResponse);
