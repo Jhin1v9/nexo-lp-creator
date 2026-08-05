@@ -2,7 +2,7 @@
   import { onMount, tick, afterUpdate } from 'svelte';
   import { fade, fly, slide, scale } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
-  import { messages, isGenerating, currentTool, preview, tokens, currencies, generationMode, generationPageMode, session, editorTab, showNotification, kimiChatUrl, contextWarning, contextInfo, contextUsagePercent, generationEvents, generationOverlayMinimized } from '../stores.js';
+  import { messages, isGenerating, currentTool, preview, tokens, currencies, generationMode, generationPageMode, session, editorTab, showNotification, kimiChatUrl, contextWarning, contextInfo, contextUsagePercent, generationEvents, generationError, generationOverlayMinimized } from '../stores.js';
   import { lpClient } from '../lib/lpClient.js';
   import { projectNameFromPrompt } from '../lib/projectName.js';
   import GenerationModeSwitch from './GenerationModeSwitch.svelte';
@@ -232,6 +232,16 @@
     }
   }
 
+  function retryLastGeneration() {
+    // Re-send the last user message after a generation error.
+    const lastUser = [...$messages].reverse().find(m => m.role === 'user' && m.type === 'text');
+    generationError.set({ message: '', visible: false });
+    if (lastUser) {
+      inputValue = lastUser.content;
+      handleSend();
+    }
+  }
+
   function handleSuggestion(prompt) {
     inputValue = prompt.text;
     tick().then(() => inputRef?.focus());
@@ -333,6 +343,26 @@
           <div class="flex-1 min-w-0">
             <GenerationPhaseCards events={$generationEvents} />
           </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Phase 3: global generation error banner with retry -->
+    {#if $generationError.visible}
+      <div class="flex justify-start" in:fly={{ y: 8, duration: 200 }}>
+        <div class="w-full max-w-[85%] rounded-2xl border border-red-400/40 bg-red-500/10 backdrop-blur-sm p-4 flex items-start gap-3">
+          <div class="flex-shrink-0 mt-0.5">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-red-400"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm text-red-200 font-medium">La generación falló</p>
+            <p class="text-xs text-red-300/80 mt-1 break-words">{$generationError.message}</p>
+          </div>
+          <button
+            on:click={retryLastGeneration}
+            class="flex-shrink-0 px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 text-red-100 text-xs font-semibold transition-colors">
+            Reintentar
+          </button>
         </div>
       </div>
     {/if}

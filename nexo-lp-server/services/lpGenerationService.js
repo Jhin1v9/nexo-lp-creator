@@ -71,6 +71,27 @@ function unregisterEventStream(sessionId) {
 }
 
 /**
+ * Emit a final event then close the SSE stream for a session.
+ * Ensures the client's EventSource is terminated (no eternal spinner).
+ * @param {string} sessionId
+ * @param {object} [finalEvent] - optional last event to flush before closing
+ */
+function closeEventStream(sessionId, finalEvent) {
+  const res = eventStreams.get(sessionId);
+  if (res) {
+    try {
+      if (finalEvent) {
+        res.write(`data: ${JSON.stringify(finalEvent)}\n\n`);
+      }
+      res.end();
+    } catch (error) {
+      console.error(`[GenerationService] Error closing stream for ${sessionId}:`, error.message);
+    }
+  }
+  eventStreams.delete(sessionId);
+}
+
+/**
  * Close all active SSE streams
  */
 function closeAllStreams() {
@@ -281,6 +302,18 @@ class GenerationService {
         error: error.message,
         recoverable: false,
       });
+      // Phase 3: emit a global error event and close the SSE stream so the
+      // frontend never hangs on an eternal spinner.
+      const errorEvent = {
+        type: 'error',
+        sessionId,
+        phase: 'generation',
+        message: error.message || 'Generation failed',
+        recoverable: false,
+        timestamp: new Date().toISOString(),
+      };
+      emitToStream(sessionId, errorEvent);
+      closeEventStream(sessionId);
       await SessionRepository.updateStatus(sessionId, 'failed');
     } finally {
       generationContexts.delete(sessionId);
@@ -789,6 +822,7 @@ class GenerationService {
 module.exports = new GenerationService();
 module.exports.registerEventStream = registerEventStream;
 module.exports.unregisterEventStream = unregisterEventStream;
+module.exports.closeEventStream = closeEventStream;
 module.exports.closeAllStreams = closeAllStreams;
 module.exports.emitGenerationEvent = emitGenerationEvent;
 module.exports.PHASE_PROMPTS = PHASE_PROMPTS;

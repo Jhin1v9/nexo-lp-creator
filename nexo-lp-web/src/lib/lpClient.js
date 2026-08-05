@@ -2,7 +2,7 @@
  * Landing Page Client - Handles all LP operations
  */
 import * as api from '../api.js';
-import { generationEvents } from '../stores.js';
+import { generationEvents, generationError } from '../stores.js';
 
 export class LPClient {
   constructor() {
@@ -114,6 +114,7 @@ export class LPClient {
 
     // Start generation in background ONCE, then listen to SSE for real-time progress.
     generationEvents.set([]);
+    generationError.set({ message: '', visible: false });
 
     return new Promise((resolve, reject) => {
 
@@ -224,6 +225,17 @@ export class LPClient {
                   : e
               )
             );
+          } else if (data.type === 'error' || data.type === 'generation_error') {
+            // Phase 3: global generation error — show persistent banner + retry
+            const msg =
+              data.message || data.error || data.detail ||
+              'Generation failed unexpectedly. Please try again.';
+            generationError.set({ message: msg, visible: true });
+            streamCallback({ type: 'generation_error', message: msg });
+            completed = true;
+            eventSource.close();
+          } else if (data.type === 'done' || data.type === 'completed') {
+            generationError.set({ message: '', visible: false });
           } else if (data.type === 'action_detected') {
             streamCallback({ type: 'tool_action', action: data.action });
           }

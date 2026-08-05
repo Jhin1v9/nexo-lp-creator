@@ -79,6 +79,9 @@ export const currentTool = writable(null);
 // Real-time generation events (tool cards / progress)
 export const generationEvents = writable([]);
 
+// Global generation error banner state (Phase 3): { message, visible }
+export const generationError = writable({ message: '', visible: false });
+
 // Notification
 export const notification = writable({ message: '', type: '', visible: false });
 
